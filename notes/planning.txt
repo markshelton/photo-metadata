@@ -1,0 +1,29 @@
+Pawsey Project - Planning
+
+- Images (PDF, TIFF, JPEG) 
+    i.e. slwa_b<collection_id>_<image_id>.<file_ext>
+-> Convert using ImageMagick
+- Images (all in JPEG)
+-> Feature Extraction
+-> Feature Matching
+-> Post-Prcessing & Clustering
+
+
+Loading Service
+- Check for updates from source
+- Pre-process photos to correct format
+- Load photos to database
+
+Training Service
+- Check for new classifiers
+- Invoke Loading Service
+- Train classifiers
+- Load trained classifiers to database
+
+Application Service
+- Check for trained classifiers
+- Invoke Loading Service
+- Apply classifiers to photos
+- Add metadata to photos
+- Load photos to database
+

@@ -27,3 +27,24 @@ Application Service
 - Add metadata to photos
 - Load photos to database
 
+# Setup Docker
+docker pull so77id/tensorflow-opencv-cpu-py3:latest
+Set-NetConnectionProfile -InterfaceAlias "vEthernet (DockerNAT)" -NetworkCategory Private
+docker run -it --name slwa \
+    -p 8888:8888 -p 6006:6006 \
+    -v /c/Users/mark/Development/photo-metadata/src:/src \
+    so77id/tensorflow-opencv-cpu-py3:latest \
+    sh -c "jupyter notebook /src/notebooks --allow-root"
+docker start -i slwa
+
+1. Python3 | Tensorflow | OpenCv | Jupyter
+2. Exposes 8888 for Jupyter, 6006 for Tensorboard
+3. Mounts source code
+
+# Task 0 - Metadata Parsing
+MARC21 -> JSON -> Dict -> HDF5
+https://github.com/edsu/pymarc
+
+# Task 1 - Face Detection
+Images -> Face BB -> Face Images
+https://docs.opencv.org/3.3.0/d7/d8b/tutorial_py_face_detection.html

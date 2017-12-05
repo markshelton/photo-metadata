@@ -23,7 +23,7 @@ log/
 *.secrets
 
 #Large files
-input/
+**/input/
 
 #########
 # OpenCV

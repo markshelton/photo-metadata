@@ -24,6 +24,7 @@ log/
 
 #Large files
 **/input/
+**/output/
 
 #########
 # OpenCV

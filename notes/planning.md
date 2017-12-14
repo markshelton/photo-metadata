@@ -4,12 +4,15 @@
 
 ### Setup Docker Container
 
-1. Python3 | Tensorflow | OpenCv | Jupyter
-2. Exposes 8888 for Jupyter, 6006 for Tensorboard
-3. Mounts source code
+Requirements: Python3, Tensorflow, OpenCv, Jupyter
+Exposes 8888 for Jupyter, 6006 for Tensorboard
 
-docker pull so77id/tensorflow-opencv-cpu-py3:latest
+```powershell
 Set-NetConnectionProfile -InterfaceAlias "vEthernet (DockerNAT)" -NetworkCategory Private
+```
+
+```bash
+docker pull so77id/tensorflow-opencv-cpu-py3:latest
 docker run -it --name slwa \
  -p 8888:8888 -p 6006:6006 \
  -v /c/Users/mark/Development/photo-metadata/src:/src \
@@ -17,15 +20,26 @@ docker run -it --name slwa \
  bash
 jupyter notebook /src/notebooks --allow-root
 docker start -i slwa
+```
 
-TODO: Setup DockerFile & docker-compose.yaml
+TODO: Setup DockerFile - multi-stage build
+https://blog.onebar.io/reducing-docker-image-size-using-multi-stage-build-4ec8ee111aae
 
 ### Start Running on Pawsey Supercomputers
 
 Granted access to Magnus, Athena and Zeus
 
 TODO: Getting Face extraction to work on Pawsey / high-res
-TODO: Setup tensorflow on Pawsey
+
+TODO: Setup Tensorflow on Pawsey
+https://support.pawsey.org.au/documentation/display/US/Tensorflow
+
+```bash
+wget http://developer.download.nvidia.com/compute/redist/cudnn/v6.0/cudnn-8.0-linux-x64-v6.0.tgz $MYGROUP/software/sles12sp2/src
+module load maali
+maali -t bazel -v 0.8.0 -d
+maali -t tensorflow -v 1.4.0 -d
+```
 
 ## Pre-Processing
 
@@ -67,51 +81,30 @@ Config File
 * "856$u" : "note_url"
 * "856$z" : "note_public"
 
-Normalized
+Flatten
 
-collection:
+TODO: Flatten nested dictionary into flat file
+TODO: Load flat file into HDF5
 
-* "035$a" : "control_id"
-* "041$a" : "language_code"
-* "260$c" : "date_created"
-* "264$c" : "date_created_approx"
-* "300$a" : "physical_extent"
-* "300$b" : "physical_details"
-* "245$a" : "note_title"
-* "500$a" : "note_general"
-* "520$a" : "note_summary"
-* "650$a" : "note_topical_term"
-* "043$a" : "location_code"
-* "650$z" : "location_division"
-* "651$a" : "location_name"
-* "830$a" : "series_title"
-* "830$v" : "series_volume"
+collection -> image
+collection -> subject
 
-image:
-
-* "856$u" : "image_url"
-* "856$z" : "image_note"
-
-subject:
-
-* "100$a" : "subject_main_name"
-* "100$d" : "subject_main_dates"
-* "100$e" : "subject_main_relation"
-* "110$a" : "subject_main_company_name"
-* "110$e" : "subject_main_company_relation"
-* "600$a" : "subject_person_name"
-* "600$d" : "subject_person_dates"
-* "610$a" : "subject_company_name"
+image_id | image_attributes | collection_attributes | subject_attributes
 
 ### Data Preparation
 
 http://machinelearninguru.com/deep_learning/data_preparation/hdf5/hdf5.html
 
+TODO: Convert images into pixel arrays
+TODO: Load pixel arrays into HDF5
+
 ## Machine Learning
 
-1. Run the image in your input through the convolution/subsampling layers
-2. Just before your final fully connected (decision) layer, concatenate the other features you have available
-3. Feed all (pre-processed image and other features) into the decision layer.
+* Run the image in your input through the convolution/subsampling layers
+* Just before your final fully connected (decision) layer, concatenate the other features you have available
+* Feed all (pre-processed image and other features) into decision layer.
+
+TODO: Ask SLWA which features they have pre-populated when receiving a collection
 
 ### Face Detection
 

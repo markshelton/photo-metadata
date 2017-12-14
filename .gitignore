@@ -25,6 +25,11 @@ log/
 #Large files
 **/input/
 **/output/
+*.tar
+*.gz
+*.zip
+*.tar.gz
+*.tgz
 
 #########
 # OpenCV

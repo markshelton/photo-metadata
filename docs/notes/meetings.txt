@@ -1,0 +1,43 @@
+################################################################################
+#                                   Meetings                                   #
+################################################################################
+
+################################################################################
+## Week 1 | Meeting 1: 1-Dec-2017 
+################################################################################
+- Updates
+    - Attended Pawsey training
+    - Met with SLWA staff for introductions
+- Questions
+    - What should we focus on first?
+- Next Steps
+    - Test out face detection / extraction with OpenCV locally
+
+################################################################################
+## Week 2 | No Meeting            
+################################################################################
+
+################################################################################
+## Week 3 | Meeting 2: 11-Dec-2017
+################################################################################
+- Updates
+    - Explored MARCXml metadata - e.g. frequent tags
+    - Converted MARCXml to Python dict structure (nested)
+    - Got face detection / extraction working with OpenCV locally
+- Questions
+    - How do we integrate ML with SLWA proccesses?
+    - How do we get Tensorflow & OpenCV working on Pawsey (Athena)?
+- Next Steps
+    - Convert MARCXml nested dict to flat-file for ML 
+    - Meet with SLWA to discuss use cases
+    - Request Pawsey to get Tensorflow & OpenCV running on Athena
+
+################################################################################
+## Week 4 | Meeting 3: 18-Dec-2017
+################################################################################
+- Updates
+    - Met with SLWA to discuss use cases
+    - Got Tensorflow running on Athena
+    - Waiting for Pawsey to install OpenCV on Athena
+- Questions
+- Next Steps

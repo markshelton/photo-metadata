@@ -1,8 +1,14 @@
-# Historical Image Classification
+################################################################################
+#                                   Planning                
+################################################################################
 
-## Environment Preparation
+################################################################################
+## Environment Preparation                                  
+################################################################################
 
-### Setup Docker Container
+#------------------------------------------------------------------------------#
+### Setup Docker Container                                  
+#------------------------------------------------------------------------------#
 
 Requirements: Python3, Tensorflow, OpenCv, Jupyter
 Exposes 8888 for Jupyter, 6006 for Tensorboard
@@ -25,13 +31,14 @@ docker start -i slwa
 TODO: Setup DockerFile - multi-stage build
 https://blog.onebar.io/reducing-docker-image-size-using-multi-stage-build-4ec8ee111aae
 
-### Start Running on Pawsey Supercomputers
+#------------------------------------------------------------------------------#
+### Start Running on Pawsey Supercomputers                  
+#------------------------------------------------------------------------------#
 
 Granted access to Magnus, Athena and Zeus
 
 TODO: Getting Face extraction to work on Pawsey / high-res
 
-TODO: Setup Tensorflow on Pawsey
 https://support.pawsey.org.au/documentation/display/US/Tensorflow
 
 ```bash
@@ -41,9 +48,13 @@ maali -t bazel -v 0.8.0 -d
 maali -t tensorflow -v 1.4.0 -d
 ```
 
-## Pre-Processing
+################################################################################
+## Pre-Processing                                           
+################################################################################
 
-### Metadata Parsing
+#------------------------------------------------------------------------------#
+### Metadata Parsing                                        
+#------------------------------------------------------------------------------#
 
 MARCXML -> Python 'dict' -> HDF5
 
@@ -91,14 +102,18 @@ collection -> subject
 
 image_id | image_attributes | collection_attributes | subject_attributes
 
-### Data Preparation
+#------------------------------------------------------------------------------#
+### Data Preparation                                        
+#------------------------------------------------------------------------------#
 
 http://machinelearninguru.com/deep_learning/data_preparation/hdf5/hdf5.html
 
 TODO: Convert images into pixel arrays
 TODO: Load pixel arrays into HDF5
 
+################################################################################
 ## Machine Learning
+################################################################################
 
 * Run the image in your input through the convolution/subsampling layers
 * Just before your final fully connected (decision) layer, concatenate the other features you have available
@@ -106,7 +121,9 @@ TODO: Load pixel arrays into HDF5
 
 TODO: Ask SLWA which features they have pre-populated when receiving a collection
 
-### Face Detection
+#------------------------------------------------------------------------------#
+### Face Detection                                          
+#------------------------------------------------------------------------------#
 
 Images -> Face BB -> Face Images
 https://docs.opencv.org/3.3.0/d7/d8b/tutorial_py_face_detection.html

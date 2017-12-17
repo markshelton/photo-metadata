@@ -23,8 +23,7 @@ log/
 *.secrets
 
 #Large files
-**/input/
-**/output/
+**/data/
 *.tar
 *.gz
 *.zip

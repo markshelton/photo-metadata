@@ -1,4 +1,4 @@
-- "035$a" : "control_id"
+- "035$a" : "collection_id"
 - "041$a" : "language_code"
 - "043$a" : "location_code"
 - "100$a" : "subject_main_name"

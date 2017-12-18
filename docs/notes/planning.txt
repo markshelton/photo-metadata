@@ -94,6 +94,16 @@ Config File
 
 Flatten
 
+TODO: Match metadata to image files
+
+Image filename analysis:
+- All files are of the form: slwa_b<>_<>_master[-<>].jpg
+- Where [] is optional and <> is a number
+
+- collection_id: b3291099
+- entity_id: b3291099_157
+- image_id: b3291099_157_1
+
 TODO: Flatten nested dictionary into flat file
 TODO: Load flat file into HDF5
 
@@ -127,3 +137,33 @@ TODO: Ask SLWA which features they have pre-populated when receiving a collectio
 
 Images -> Face BB -> Face Images
 https://docs.opencv.org/3.3.0/d7/d8b/tutorial_py_face_detection.html
+
+https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
+https://medium.com/@ageitgey/machine-learning-is-fun-part-4-modern-face-recognition-with-deep-learning-c3cffc121d78
+https://medium.com/@ageitgey/try-deep-learning-in-python-now-with-a-fully-pre-configured-vm-1d97d4c3e9b
+https://www.pyimagesearch.com/2017/04/03/facial-landmarks-dlib-opencv-python/
+
+- Pre-processing Pipeline
+For each image:
+    1. Read metadata for image (if exists)
+        - Find locally (directory flag)
+        - Find remotely (SLWA catalogue API)
+    2. Convert metadata to digestible format
+    3. Find face in image
+        For each face:
+            2. Find facial landmarks
+            3. Normalize face (scale, shift)
+            4. Generate face encodings (apply pre-trained CNN model)
+            5. Save face encoding with image metadata
+
+1. Prepare training set (see pre-processing)
+2. Train classifier on face encodings & metadata
+3. Prepare test set (see pre-processing)
+4. Compare each test face against known faces & make prediction (apply classifier)
+
+Flags:
+--metadata-train-dir
+--metadata-test-dir
+--metadata-config-file
+--data-train-dir
+--data-test-dir

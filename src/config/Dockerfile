@@ -81,7 +81,6 @@ RUN cd dlib-${DLIB_VERSION} \
 COPY config/requirements.txt /home/app/config/
 WORKDIR /home/app
 RUN pip3 install --no-cache-dir -r config/requirements.txt
-COPY . /home/app
 
 # Expose Jupyter
 EXPOSE 8888 

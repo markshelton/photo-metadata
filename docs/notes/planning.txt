@@ -28,8 +28,9 @@ jupyter notebook /src/notebooks --allow-root
 docker start -i slwa
 ```
 
-TODO: Setup DockerFile - multi-stage build
-https://blog.onebar.io/reducing-docker-image-size-using-multi-stage-build-4ec8ee111aae
+make up 
+make stop 
+make restart
 
 #------------------------------------------------------------------------------#
 ### Start Running on Pawsey Supercomputers                  
@@ -69,9 +70,9 @@ Config File
 * "035$a" : "control_id"
 * "041$a" : "language_code"
 * "043$a" : "location_code"
-* "100$a" : "subject_main_name"
-* "100$d" : "subject_main_dates"
-* "100$e" : "subject_main_relation"
+* "100$a" : "subject_main_person_name"
+* "100$d" : "subject_main_person_dates"
+* "100$e" : "subject_main_person_relation"
 * "110$a" : "subject_main_company_name"
 * "110$e" : "subject_main_company_relation"
 * "245$a" : "note_title"

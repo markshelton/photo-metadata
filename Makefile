@@ -8,6 +8,7 @@ SHELL := bash
 BUILD_CONTEXT = ./src/
 DOCKERIGNORE_PATH = ./src/config/.dockerignore
 DOCKERFILE_PATH = ./src/config/Dockerfile
+REQUIREMENTS_PATH = ./src/config/requirements.txt
 PROJECT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 
 CONFIG ?= ./src/config/config.env
@@ -65,6 +66,7 @@ shell:
 
 .PHONY: stop
 stop:
+	docker exec -it $(PROJECT_NAME) /bin/bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
 	-docker stop $(PROJECT_NAME)
 
 .PHONY: tag

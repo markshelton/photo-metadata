@@ -2,7 +2,7 @@
 
 from sqlalchemy import (
     Column, ForeignKey,
-    Integer, String, Boolean, Date,
+    String, Boolean, Date,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -26,45 +26,50 @@ class Collection(Base):
     physical_extent = Column(String(255))
     physical_details = Column(String(255))
 
+    images = relationship("Image")
     subjects = relationship("CollectionSubject", back_populates="collection")
     topics = relationship("CollectionTopic", back_populates="collection")
     locations = relationship("CollectionLocation", back_populates="collection")
 
     def __repr__(self):
-        return "<Collection(id='%s', title='%s')>" % (self.collection_id, self.note_title)
+        return "<Collection(id='%s', title='%s')>" % \
+            (self.collection_id, self.note_title)
 
 class Subject(Base):
     __tablename__ = "subject"
 
     subject_name = Column(String(255), primary_key=True)
     subject_type = Column(String(30)) #Building | Person
-    subject_dates = Column(String(255))
+    subject_start_date = Column(Date)
+    subject_end_date = Column(Date)
 
     collections = relationship("CollectionSubject", back_populates="subject")
 
     def __repr__(self):
-        return "<Subject(name='%s', type='%s', dates='%s')>" % (self.subject_name, self.subject_type, self.subject_dates)
+        return "<Subject(name='%s', type='%s', dates='%s'-'%s')>" % \
+            (self.subject_name, self.subject_type, self.subject_start_date, self.subject_end_date)
 
 class Image(Base):
     __tablename__ = "image"
 
     image_id = Column(String(30), primary_key=True)
     image_url = Column(String(255))
-    image_note = Column(String(255))
+    image_note = Column(String(255), nullable=False)
     collection_id = Column(String(30), ForeignKey("collection.collection_id"))
 
     collection = relationship("Collection", back_populates="images")
 
     def __repr__(self):
-        return "<Image(name='%s', note='%s', url='%s', collection='%s')>" % (self.image_id, self.image_note, self.image_url, self.collection)
+        return "<Image(name='%s', note='%s', url='%s', collection='%s')>" % \
+            (self.image_id, self.image_note, self.image_url, self.collection)
 
 class CollectionSubject(Base):
     __tablename__ = "collection_subject"
 
     collection_id = Column(String(30), ForeignKey("collection.collection_id"), primary_key=True)
     subject_name = Column(String(255), ForeignKey("subject.subject_name"), primary_key=True)
+    subject_is_main = Column(Boolean, primary_key=True)
     subject_relation = Column(String(255))
-    subject_is_main = Column(Boolean)
 
     collection = relationship("Collection", back_populates="subjects")
     subject = relationship("Subject", back_populates="collections")

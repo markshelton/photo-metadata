@@ -63,24 +63,12 @@ image_location: [
 
 ## Queries
 
-CREATE collection_plus
+CREATE flat
 FROM (
     SELECT * FROM collection
     LEFT JOIN collection_subject ON collection_id
+    LEFT JOIN collection_topic ON collection_id
+    LEFT JOIN collection_location on collection_id
+    LEFT JOIN image on collection_id
     GROUP BY collection_id
-)
-
-CREATE image_plus
-FROM (
-    SELECT * FROM image
-    LEFT JOIN image_topic ON image_id
-    LEFT JOIN image_location on image_id
-    GROUP BY image_id
-)
-
-CREATE flat
-FROM (
-    SELECT * FROM image_plus
-    LEFT JOIN collection_plus on collection_id
-    GROUP BY image_id
 )

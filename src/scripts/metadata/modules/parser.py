@@ -21,11 +21,7 @@ from schema import (
     Collection, Subject, Image,
     CollectionSubject, CollectionTopic, CollectionLocation,
 )
-from db import (
-    make_db_engine,
-    make_db_session,
-    make_db_tables
-)
+from db import manage_db_session
 
 ##########################################################
 # Parser Configuration
@@ -57,52 +53,21 @@ TAG_IMAGE_URL = "856$u"
 TAG_IMAGE_NOTE = "856$z"
 
 ##########################################################
-# Environmental Variables
-
-LOGGING_BASIC_LEVEL = logging.DEBUG
-LOGGING_DB_LEVEL = logging.DEBUG
-
-INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml"
-INPUT_SAMPLE_SIZE = 100
-
-DB_CONFIG = {}
-DB_CONFIG["database"] = "/home/app/data/output/metadata/metadata.sqlite3"
-
-def configure_database(
-        drivername="sqlite",
-        host=None,
-        username=None,
-        password=None,
-        database=":memory:"
-    ):
-    return {
-        "drivername": drivername,
-        "host": host,
-        "username": username,
-        "password": password,
-        "database": database,
-    }
-
-DATABASE = configure_database(**DB_CONFIG)
-
-##########################################################
 # Logging Configuration
 
-logging.basicConfig(level=LOGGING_BASIC_LEVEL, stream=sys.stdout)
-logging.getLogger('sqlalchemy.engine').setLevel(LOGGING_DB_LEVEL)
 logger = logging.getLogger(__name__)
 
 ##########################################################
 
 def remove_nulls(full_list):
-    if full_list and type(full_list) is list:
+    if full_list and isinstance(full_list, list):
         non_null_list = [x for x in full_list if x is not None]
     else:
         non_null_list = []
     return non_null_list
 
 def remove_duplicates(full_list):
-    if full_list and type(full_list) is list:
+    if full_list and isinstance(full_list, list):
         if isinstance(full_list[0], Hashable):
             non_duplicated_list = list(set(full_list))
         elif isinstance(full_list[0], dict):
@@ -154,9 +119,9 @@ def parse_tag_key(tag_key):
 
 def get_subfield_from_tag(record_or_field, tag_key):
     field_key, subfield_key = parse_tag_key(tag_key)
-    if type(record_or_field) is Record:
+    if isinstance(record_or_field, Record):
         subfield = get_subfield_from_record(record_or_field, field_key, subfield_key)
-    elif type(record_or_field) is Field:
+    elif isinstance(record_or_field, Field):
         subfield = get_subfield_from_field(record_or_field, subfield_key)
     else:
         subfield = None
@@ -205,7 +170,6 @@ def select_date(possible_dates, method="first"):
 def extract_date_from_field(field, method="first"):
     possible_dates = get_possible_dates(field)
     selected_date = select_date(possible_dates, method=method)
-    #logger.debug("Date Extraction: Extracted %s from %s", selected_date, field)
     return selected_date
 
 def get_date_created(record):
@@ -235,26 +199,28 @@ def split_dates(record, dates_tag, date_type="start"):
     if dates:
         if date_type == "start":
             date_raw = dates.split("-")[0]
-            date = extract_date_from_field(date_raw, method="first")
-            #logger.debug("Date (%s): Extracted %s from %s", date_type, date, dates)
+            selected_date = extract_date_from_field(date_raw, method="first")
         elif date_type == "end":
             date_raw = dates.split("-")[-1]
-            date = extract_date_from_field(date_raw, method="last")
-            #logger.debug("Date (%s): Extracted %s from %s", date_type, date, dates)
+            selected_date = extract_date_from_field(date_raw, method="last")
         else:
-            date = None
+            selected_date = None
     else:
-        date = None
-    return date
+        selected_date = None
+    return selected_date
 
 def get_main_person(record):
     subject_name = get_subfield_from_tag(record, TAG_SUBJECT_PERSON_NAME_MAIN)
     if subject_name:
         main_person = {
-            "subject_name": get_subfield_from_tag(record, TAG_SUBJECT_PERSON_NAME_MAIN),
-            "subject_relation": get_subfield_from_tag(record, TAG_SUBJECT_PERSON_RELATION_MAIN),
-            "subject_start_date": split_dates(record, TAG_SUBJECT_PERSON_DATES_MAIN, date_type="start"),
-            "subject_end_date": split_dates(record, TAG_SUBJECT_PERSON_DATES_MAIN, date_type="end"),
+            "subject_name": get_subfield_from_tag(record,\
+                TAG_SUBJECT_PERSON_NAME_MAIN),
+            "subject_relation": get_subfield_from_tag(record,\
+                TAG_SUBJECT_PERSON_RELATION_MAIN),
+            "subject_start_date": split_dates(record,\
+                TAG_SUBJECT_PERSON_DATES_MAIN, date_type="start"),
+            "subject_end_date": split_dates(record,\
+                TAG_SUBJECT_PERSON_DATES_MAIN, date_type="end"),
             "subject_type": "Person",
             "subject_is_main": True,
         }
@@ -266,8 +232,10 @@ def get_main_company(record):
     subject_name = get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_NAME_MAIN)
     if subject_name:
         main_company = {
-            "subject_name": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_NAME_MAIN),
-            "subject_relation": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_RELATION_MAIN),
+            "subject_name": get_subfield_from_tag(record,\
+                TAG_SUBJECT_COMPANY_NAME_MAIN),
+            "subject_relation": get_subfield_from_tag(record,\
+                TAG_SUBJECT_COMPANY_RELATION_MAIN),
             "subject_start_date": None,
             "subject_end_date": None,
             "subject_type": "Person",
@@ -281,10 +249,13 @@ def get_other_people(record):
     other_people_raw = get_fields_from_tag(record, TAG_SUBJECT_PERSON_NAME_OTHER)
     other_people = [
         {
-            "subject_name": get_subfield_from_tag(person, TAG_SUBJECT_PERSON_NAME_OTHER),
+            "subject_name": get_subfield_from_tag(person,\
+                TAG_SUBJECT_PERSON_NAME_OTHER),
             "subject_relation": None,
-            "subject_start_date": split_dates(person, TAG_SUBJECT_PERSON_DATES_OTHER, date_type="start"),
-            "subject_end_date": split_dates(person, TAG_SUBJECT_PERSON_DATES_OTHER, date_type="end"),
+            "subject_start_date": split_dates(person,\
+                TAG_SUBJECT_PERSON_DATES_OTHER, date_type="start"),
+            "subject_end_date": split_dates(person,\
+                TAG_SUBJECT_PERSON_DATES_OTHER, date_type="end"),
             "subject_type": "Person",
             "subject_is_main": False,
         } for person in other_people_raw
@@ -295,8 +266,10 @@ def get_other_companies(record):
     other_companies_raw = get_fields_from_tag(record, TAG_SUBJECT_COMPANY_NAME_OTHER)
     other_companies = [
         {
-            "subject_name": get_subfield_from_tag(company, TAG_SUBJECT_COMPANY_NAME_MAIN),
-            "subject_relation": get_subfield_from_tag(company, TAG_SUBJECT_COMPANY_RELATION_MAIN),
+            "subject_name": get_subfield_from_tag(company,\
+                TAG_SUBJECT_COMPANY_NAME_MAIN),
+            "subject_relation": get_subfield_from_tag(company,\
+                TAG_SUBJECT_COMPANY_RELATION_MAIN),
             "subject_start_date": None,
             "subject_end_date": None,
             "subject_type": "Company",
@@ -310,7 +283,10 @@ def get_subjects(record):
     main_company = get_main_company(record)
     other_people = get_other_people(record)
     other_companies = get_other_companies(record)
-    subjects = consolidate_list([main_person, main_company, *other_people, *other_companies])
+    subjects = consolidate_list([
+        main_person, main_company,
+        *other_people, *other_companies
+    ])
     return subjects
 
 def get_id_from_url(image):
@@ -407,73 +383,73 @@ def parse_images(record):
 
 ##########################################################
 
-def add_collection_topic(collection_topic, db):
-    with make_db_session(db) as session:
+def add_collection_topic(collection_topic, db_engine):
+    with manage_db_session(db_engine) as session:
         db_collection_topic = CollectionTopic(**collection_topic)
         session.add(db_collection_topic)
 
-def add_collection_location(collection_location, db):
-    with make_db_session(db) as session:
+def add_collection_location(collection_location, db_engine):
+    with manage_db_session(db_engine) as session:
         db_collection_location = CollectionLocation(**collection_location)
         session.add(db_collection_location)
 
-def add_subject(subject, db):
-    with make_db_session(db) as session:
+def add_subject(subject, db_engine):
+    with manage_db_session(db_engine) as session:
         db_subject = Subject(**subject)
         session.add(db_subject)
 
-def add_collection_subject(collection_subject, db):
-    with make_db_session(db) as session:
+def add_collection_subject(collection_subject, db_engine):
+    with manage_db_session(db_engine) as session:
         db_collection_subject = CollectionSubject(**collection_subject)
         session.add(db_collection_subject)
 
-def add_image(image, db):
-    with make_db_session(db) as session:
+def add_image(image, db_engine):
+    with manage_db_session(db_engine) as session:
         db_image = Image(**image)
         session.add(db_image)
 
 ##########################################################
 
-def add_collection(record, db):
+def add_collection(record, db_engine):
     collection = parse_collection(record)
-    with make_db_session(db) as session:
+    with manage_db_session(db_engine) as session:
         db_collection = Collection(**collection)
         session.add(db_collection)
 
-def add_collection_topics(record, db):
+def add_collection_topics(record, db_engine):
     collection_topics = parse_collection_topics(record)
     for collection_topic in collection_topics:
-        add_collection_topic(collection_topic, db)
+        add_collection_topic(collection_topic, db_engine)
 
-def add_collection_locations(record, db):
+def add_collection_locations(record, db_engine):
     collection_locations = parse_collection_locations(record)
     for collection_location in collection_locations:
-        add_collection_location(collection_location, db)
+        add_collection_location(collection_location, db_engine)
 
-def add_subjects(record, db):
+def add_subjects(record, db_engine):
     subjects = parse_subjects(record)
     for subject in subjects:
-        add_subject(subject, db)
+        add_subject(subject, db_engine)
 
-def add_collection_subjects(record, db):
+def add_collection_subjects(record, db_engine):
     collection_subjects = parse_collection_subjects(record)
     for collection_subject in collection_subjects:
-        add_collection_subject(collection_subject, db)
+        add_collection_subject(collection_subject, db_engine)
 
-def add_images(record, db):
+def add_images(record, db_engine):
     images = parse_images(record)
     for image in images:
-        add_image(image, db)
+        add_image(image, db_engine)
 
 ##########################################################
 
-def parse_record(record, db):
-    add_collection(record, db)
-    add_collection_topics(record, db)
-    add_collection_locations(record, db)
-    add_subjects(record, db)
-    add_collection_subjects(record, db)
-    add_images(record, db)
+def parse_record(record, db_engine):
+    add_collection(record, db_engine)
+    add_collection_topics(record, db_engine)
+    add_collection_locations(record, db_engine)
+    add_subjects(record, db_engine)
+    add_collection_subjects(record, db_engine)
+    add_images(record, db_engine)
 
 def sample_records(records, sample_size=None):
     if sample_size:
@@ -482,21 +458,10 @@ def sample_records(records, sample_size=None):
         records_sample = records
     return records_sample
 
-def parse_records(records, db):
+def parse_records(records, db_engine):
     total = len(records)
     for i, record in enumerate(records):
         logger.info("Records Processed: %s out of %s.", i+1, total)
-        parse_record(record, db)
-
-def parse_marcxml(input_file, sample_size=None, db_config=None):
-    records = parse_xml_to_array(input_file)
-    records = sample_records(records, sample_size)
-    db = make_db_engine(db_config)
-    make_db_tables(db)
-    parse_records(records, db)
-
-##########################################################
-
-parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE, DATABASE)
+        parse_record(record, db_engine)
 
 ##########################################################

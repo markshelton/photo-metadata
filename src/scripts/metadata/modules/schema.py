@@ -1,4 +1,8 @@
 ##########################################################
+# Standard Library Imports
+
+##########################################################
+# Third Party Imports
 
 from sqlalchemy import (
     Column, ForeignKey,
@@ -6,6 +10,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
+
+##########################################################
+# Local Imports
 
 ##########################################################
 

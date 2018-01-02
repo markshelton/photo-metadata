@@ -1,10 +1,13 @@
 ##########################################################
 # Standard Library Imports
 
+import os
 import csv
 import logging
 import json
+import pathlib
 from contextlib import contextmanager
+import datetime
 
 ##########################################################
 # Third Party Imports
@@ -17,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 ##########################################################
 # Local Imports
 
-from schema import (
+from metadata.schema import (
     Base, Image, Collection, 
     CollectionLocation, CollectionSubject, CollectionTopic,
 )
@@ -28,13 +31,30 @@ from schema import (
 logger = logging.getLogger(__name__)
 
 ##########################################################
+# Helper Methods
+
+def check_and_make_directory(path):
+    path_dir = os.path.dirname(path)
+    pathlib.Path(path_dir).mkdir(parents=True, exist_ok=True) 
+
+def open_file(path, *args, **kwargs):
+    check_and_make_directory(path)
+    return open(path, *args, **kwargs)
+
+##########################################################
 
 def make_db_tables(db_engine):
     Base.metadata.create_all(db_engine)
 
 def make_db_engine(db_config):
     db_url = url.URL(**db_config)
+    check_and_make_directory(db_config["database"])
     db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True)
+    make_db_tables(db_engine)
+    return db_engine
+
+def initialise_db(db_config):
+    db_engine = make_db_engine(db_config)
     make_db_tables(db_engine)
     return db_engine
 
@@ -79,21 +99,26 @@ def prepare_query_for_export(query):
 
 def export_query_to_csv(query, output_file):
     records, columns, header = prepare_query_for_export(query)
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         outcsv = csv.writer(outfile)
         outcsv.writerow(header)
         for record in records:
             record_list = [getattr(record, column["name"]) for column in columns]
             outcsv.writerow(record_list)
 
+def json_serial(obj):
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
+
 def export_query_to_json(query, output_file):
     records, columns, _ = prepare_query_for_export(query)
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         records_list = []
         for record in records:
             record_dict = {column["name"]:getattr(record, column["name"]) for column in columns}
             records_list.append(record_dict)
-        json.dumps(records_list, outfile)
+        json.dump(records_list, outfile, indent=2,default=json_serial)
 
 def export_query_to_log(query):
     records, _, _ = prepare_query_for_export(query)

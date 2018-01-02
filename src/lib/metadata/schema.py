@@ -6,7 +6,7 @@
 
 from sqlalchemy import (
     Column, ForeignKey,
-    String, Boolean, Date,
+    String, Boolean, Date, Integer,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -62,6 +62,11 @@ class Image(Base):
     image_id = Column(String(30), primary_key=True)
     image_url = Column(String(255))
     image_note = Column(String(255), nullable=False)
+    image_height = Column(Integer)
+    image_width = Column(Integer)
+    image_latitude = Column(String(30))
+    image_longitude = Column(String(30))
+    image_date_created = Column(Date)
     collection_id = Column(String(30), ForeignKey("collection.collection_id"))
 
     collection = relationship("Collection", back_populates="images")

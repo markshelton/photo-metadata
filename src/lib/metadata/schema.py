@@ -60,7 +60,9 @@ class Image(Base):
     __tablename__ = "image"
 
     image_id = Column(String(30), primary_key=True)
-    image_url = Column(String(255))
+    image_url_main = Column(String(255))
+    image_url_raw = Column(String(255))
+    image_url_thumb = Column(String(255))
     image_note = Column(String(255), nullable=False)
     image_height = Column(Integer)
     image_width = Column(Integer)

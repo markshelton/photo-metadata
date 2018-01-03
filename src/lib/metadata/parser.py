@@ -23,7 +23,7 @@ from metadata.schema import (
     CollectionSubject, CollectionTopic, CollectionLocation,
 )
 from metadata.db import manage_db_session
-from metadata.ext.EZGeo import ezgeo
+from metadata.ext.geocoder import resolve_location
 
 ##########################################################
 # Parser Configuration
@@ -185,9 +185,14 @@ def split_dates(record, dates_tag):
     dates_raw = get_subfield_from_tag(record, dates_tag)
     dates = {"start": None, "end": None}
     if dates_raw:
-        date_start_raw, date_end_raw, *_ = dates_raw.split("-")
-        dates["start"] = extract_date_from_field(date_start_raw, method="first")
-        dates["end"] = extract_date_from_field(date_end_raw, method="last")
+        dates_num = len(dates_raw.split("-"))
+        if dates_num >= 2:
+            date_start_raw, date_end_raw, *_ = dates_raw.split("-")
+            dates["start"] = extract_date_from_field(date_start_raw, method="first")
+            dates["end"] = extract_date_from_field(date_end_raw, method="last")
+        elif dates_num == 1:
+            date_start_raw = dates_raw.split("-")[0]
+            dates["start"] = extract_date_from_field(date_start_raw, method="first")
     return dates
 
 def get_main_person(record):
@@ -263,26 +268,24 @@ def get_id_from_url(image):
         image_id = None
     return image_id
 
-def find_image_file(image_url):
-    image_url_full = image_url + ".jpg"
-    return image_url_full
-
 def get_image_size(image_url):
-    image_url_full = find_image_file(image_url)
-    with urllib.request.urlopen(image_url_full) as image_file:
-        p = ImageFile.Parser()
-        while True:
-            data = image_file.read(1024)
-            if not data:
-                break
-            p.feed(data)
-            if p.image:
-                return p.image.size
-        return None
+    try:
+        with urllib.request.urlopen(image_url) as image_file:
+            p = ImageFile.Parser()
+            while True:
+                data = image_file.read(1024)
+                if not data:
+                    break
+                p.feed(data)
+                if p.image:
+                    return p.image.size
+            return None
+    except urllib.error.URLError:
+        log.warning("Image not found. Size could not be determined.")
 
 def get_dimensions(image):
     dimensions = {"width": None, "height": None}
-    image_url = get_subfield_from_tag(image, TAG_IMAGE_URL)
+    image_url = get_subfield_from_tag(image, TAG_IMAGE_URL) + ".jpg"
     image_size = get_image_size(image_url)
     if image_size:
         width, height = image_size
@@ -292,10 +295,11 @@ def get_dimensions(image):
 def get_coordinates(image):
     coordinates = {"latitude": None, "longitude": None}
     image_note = get_subfield_from_tag(image, TAG_IMAGE_NOTE)
-    geocoding_details = ezgeo.resolve_location_string(image_note, True)
-    if geocoding_details:
-        coordinates["latitude"] = geocoding_details["latitude"]
-        coordinates["longitude"] = geocoding_details["longitude"]
+    if image_note:
+        geocoding_details = resolve_location(image_note)
+        if geocoding_details:
+            coordinates["latitude"] = geocoding_details["latitude"]
+            coordinates["longitude"] = geocoding_details["longitude"]
     return coordinates
 
 def get_date_image_created(image):
@@ -308,7 +312,9 @@ def get_images(record):
     images = [
         {
             "image_id": get_id_from_url(image),
-            "image_url": get_subfield_from_tag(image, TAG_IMAGE_URL),
+            "image_url_main": get_subfield_from_tag(image, TAG_IMAGE_URL),
+            "image_url_raw": get_subfield_from_tag(image, TAG_IMAGE_URL) + ".jpg",
+            "image_url_thumb": get_subfield_from_tag(image, TAG_IMAGE_URL) + ".png",
             "image_note": get_subfield_from_tag(image, TAG_IMAGE_NOTE),
             "image_dimensions": get_dimensions(image),
             "image_coordinates": get_coordinates(image),
@@ -383,7 +389,9 @@ def parse_images(record):
     images = [
         {
             "image_id": image["image_id"],
-            "image_url": image["image_url"],
+            "image_url_main": image["image_url_main"],
+            "image_url_raw": image["image_url_raw"],
+            "image_url_thumb": image["image_url_thumb"],
             "image_note": image["image_note"],
             "image_width": image["image_dimensions"]["width"],
             "image_height": image["image_dimensions"]["height"],

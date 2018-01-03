@@ -20,10 +20,7 @@ from sqlalchemy.exc import IntegrityError
 ##########################################################
 # Local Imports
 
-from metadata.schema import (
-    Base, Image, Collection, 
-    CollectionLocation, CollectionSubject, CollectionTopic,
-)
+from metadata.schema import Base
 
 ##########################################################
 # Logging Configuration
@@ -50,7 +47,6 @@ def make_db_engine(db_config):
     db_url = url.URL(**db_config)
     check_and_make_directory(db_config["database"])
     db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True)
-    make_db_tables(db_engine)
     return db_engine
 
 def initialise_db(db_config):
@@ -73,37 +69,13 @@ def manage_db_session(db_engine):
     finally:
         session.close()
 
-
-def get_flat_view(session):
-    collection_plus = (
-        session.query(
-            Collection, CollectionSubject, CollectionLocation, CollectionTopic
-        )
-        .join(CollectionSubject, isouter=True)
-        .join(CollectionLocation, isouter=True)
-        .join(CollectionTopic, isouter=True)
-        .subquery()
-    )
-    flat_view = session.query(
-        session.query(Image, collection_plus)
-        .join(collection_plus, isouter=True)
-        .subquery()
-    )
-    return flat_view
-
-def prepare_query_for_export(query):
-    columns = query.column_descriptions
-    header = [column["name"] for column in columns]
-    records = query.all()
-    return records, columns, header
-
-def export_query_to_csv(query, output_file):
-    records, columns, header = prepare_query_for_export(query)
+def export_records_to_csv(records, output_file):
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         outcsv = csv.writer(outfile)
+        header = records[0].keys()
         outcsv.writerow(header)
         for record in records:
-            record_list = [getattr(record, column["name"]) for column in columns]
+            record_list = [getattr(record, column) for column in header]
             outcsv.writerow(record_list)
 
 def json_serial(obj):
@@ -111,35 +83,32 @@ def json_serial(obj):
         return obj.isoformat()
     raise TypeError ("Type %s not serializable" % type(obj))
 
-def export_query_to_json(query, output_file):
-    records, columns, _ = prepare_query_for_export(query)
+def export_records_to_json(records, output_file):
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         records_list = []
         for record in records:
-            record_dict = {column["name"]:getattr(record, column["name"]) for column in columns}
+            header = record.keys()
+            try: 
+                record_dict = {column: getattr(record, column) for column in header}
+            except:
+                record_dict = record
             records_list.append(record_dict)
-        json.dump(records_list, outfile, indent=2,default=json_serial)
+        json.dump(records_list, outfile, indent=2, default=json_serial)
 
-def export_query_to_log(query):
-    records, _, _ = prepare_query_for_export(query)
+def export_records_to_log(records):
     for record in records:
         logger.info(record)
 
-def export_query(query, output_file=None):
+def export_records(records, output_file=None):
     if output_file:
         if output_file.endswith(".json"):
-            export_query_to_json(query, output_file) 
+            export_records_to_json(records, output_file) 
         elif output_file.endswith(".csv"):
-            export_query_to_csv(query, output_file) 
+            export_records_to_csv(records, output_file) 
         else:
             logger.error("Output file %s is of unknown type. \
                 Please specify CSV or JSON.", output_file)
     else:
-        export_query_to_log(query)
-
-def export_flat_view(db_engine, output_file):
-    with manage_db_session(db_engine) as session:
-        query = get_flat_view(session)
-        export_query(query, output_file)
+        export_records_to_log(records)
 
 ##########################################################

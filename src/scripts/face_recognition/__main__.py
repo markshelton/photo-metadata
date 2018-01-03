@@ -12,7 +12,11 @@ import sys
 sys.path.append("/home/app/src/lib/")
 
 from metadata.parser import parse_marcxml, parse_records
-from metadata.db import initialise_db, export_flat_view
+from metadata.db import initialise_db, manage_db_session, export_query
+from metadata.schema import (
+    Base, Image, Collection, 
+    CollectionLocation, CollectionSubject, CollectionTopic,
+)
 
 ##########################################################
 # Environmental Variables
@@ -33,6 +37,28 @@ DB_CONFIG["password"] = None
 
 ##########################################################
 # Main - Scripts
+
+def get_flat_view(session):
+    collection_plus = (
+        session.query(
+            Collection, CollectionSubject, CollectionLocation, CollectionTopic
+        )
+        .join(CollectionSubject, isouter=True)
+        .join(CollectionLocation, isouter=True)
+        .join(CollectionTopic, isouter=True)
+        .subquery()
+    )
+    flat_view = session.query(
+        session.query(Image, collection_plus)
+        .join(collection_plus, isouter=True)
+        .subquery()
+    )
+    return flat_view
+
+def export_flat_view(db_engine, output_file):
+    with manage_db_session(db_engine) as session:
+        query = get_flat_view(session)
+        export_query(query, output_file)
 
 def main():
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)

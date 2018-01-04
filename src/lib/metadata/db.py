@@ -13,14 +13,24 @@ import datetime
 # Third Party Imports
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.engine import url
+from sqlalchemy.orm import scoped_session, sessionmaker, Session
+from sqlalchemy.engine import url, Engine
 from sqlalchemy.exc import IntegrityError
 
 ##########################################################
 # Local Imports
 
 from metadata.schema import Base
+
+##########################################################
+# Typing Definitions
+
+from typing import (
+    List, Optional, Dict, Any, Iterator,
+)
+from datetime import Date
+
+ParsedRecord = Dict[str, Any]
 
 ##########################################################
 # Logging Configuration
@@ -31,37 +41,38 @@ logger = logging.getLogger(__name__)
 # Helper Methods
 
 
-def check_and_make_directory(path):
+def check_and_make_directory(path: str) -> None:
     path_dir = os.path.dirname(path)
     pathlib.Path(path_dir).mkdir(parents=True, exist_ok=True)
 
 
-def open_file(path, *args, **kwargs):
+#TODO: Better Type definition for File Object available?
+def open_file(path: str, *args: Any, **kwargs: Any) -> Any:
     check_and_make_directory(path)
     return open(path, *args, **kwargs)
 
 ##########################################################
 
 
-def make_db_tables(db_engine):
+def make_db_tables(db_engine: Engine) -> None:
     Base.metadata.create_all(db_engine)
 
 
-def make_db_engine(db_config):
+def make_db_engine(db_config: Dict[str, Optional[str]]) -> Engine:
     db_url = url.URL(**db_config)
     check_and_make_directory(db_config["database"])
     db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True)
     return db_engine
 
 
-def initialise_db(db_config):
+def initialise_db(db_config: Dict[str, Optional[str]]) -> Engine:
     db_engine = make_db_engine(db_config)
     make_db_tables(db_engine)
     return db_engine
 
 
 @contextmanager
-def manage_db_session(db_engine):
+def manage_db_session(db_engine: Engine) -> Iterator[Session]:
     Session = sessionmaker(autocommit=False, autoflush=True, bind=db_engine)
     session = scoped_session(Session)
     try:
@@ -76,7 +87,7 @@ def manage_db_session(db_engine):
         session.close()
 
 
-def export_records_to_csv(records, output_file):
+def export_records_to_csv(records: List[ParsedRecord], output_file: str) -> None:
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         outcsv = csv.writer(outfile)
         header = records[0].keys()
@@ -86,13 +97,13 @@ def export_records_to_csv(records, output_file):
             outcsv.writerow(record_list)
 
 
-def json_serial(obj):
+def json_serial(obj: Any) -> str:
     if isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
     raise TypeError("Type %s not serializable" % type(obj))
 
 
-def export_records_to_json(records, output_file):
+def export_records_to_json(records: List[ParsedRecord], output_file: str) -> None:
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         records_list = []
         for record in records:
@@ -108,12 +119,12 @@ def export_records_to_json(records, output_file):
         json.dump(records_list, outfile, indent=2, default=json_serial)
 
 
-def export_records_to_log(records):
+def export_records_to_log(records: List[ParsedRecord]) -> None:
     for record in records:
         logger.info(record)
 
 
-def export_records(records, output_file=None):
+def export_records(records: List[ParsedRecord], output_file: str = None) -> None:
     if output_file:
         if output_file.endswith(".json"):
             export_records_to_json(records, output_file)

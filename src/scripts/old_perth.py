@@ -3,19 +3,35 @@
 
 import sys
 
+from typing import (
+    Any, List, Dict,
+)
+
 ##########################################################
 # Third Party Imports
+
+from sqlalchemy.engine import Engine
+from pymarc import Record
 
 ##########################################################
 # Local Imports
 
 sys.path.append("/home/app/src/lib/")
 
-from metadata.parser import parse_marcxml, add_images
+from metadata.parser import (
+    parse_images, parse_collection,
+    parse_records, parse_record_section,
+    parse_marcxml,
+)
 from metadata.db import (
     initialise_db, manage_db_session, export_records,
 )
 from metadata.schema import Image
+
+##########################################################
+# Typing Definitions
+
+ParsedRecord = Dict[str, Any]
 
 ##########################################################
 # Environmental Variables
@@ -24,6 +40,9 @@ PROJECT_DIRECTORY = "/home/app/src/scripts/old_perth"
 OUTPUT_DIRECTORY = "/home/app/data/output/old_perth"
 INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml"
 INPUT_SAMPLE_SIZE = 10
+
+FLAG_GEOCODING = True
+FLAG_DIMENSIONS = True
 
 OUTPUT_FILE = "%s/old_perth.json" % (OUTPUT_DIRECTORY)
 
@@ -38,23 +57,7 @@ DB_CONFIG["password"] = None
 # Main - Scripts
 
 
-def parse_records(records, db_engine):
-    total = len(records)
-    for i, record in enumerate(records):
-        logger.info("Records Processed: %s out of %s.", i + 1, total)
-        add_images(record, db_engine)
-
-
-def get_query_results(db_engine):
-    with manage_db_session(db_engine) as session:
-        images = session.query(
-            session.query(Image)
-            .subquery()
-        ).all()
-    return images
-
-
-def reformat_for_old_perth(records):
+def reformat_for_old_perth(records: List[ParsedRecord]) -> List[ParsedRecord]:
     records_out = [
         {
             "text": None,
@@ -76,16 +79,62 @@ def reformat_for_old_perth(records):
     return records_out
 
 
-def prepare_records_for_export(db_engine):
+def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
+    with manage_db_session(db_engine) as session:
+        images = session.query(
+            session.query(Image)
+            .subquery()
+        ).all()
+        #TODO -> Convert to dict
+    return images
+
+
+def prepare_records_for_export(db_engine: Engine) -> List[ParsedRecord]:
     records_raw = get_query_results(db_engine)
     records_clean = reformat_for_old_perth(records_raw)
     return records_clean
 
 
+##########################################################
+
+
+def collect_images(record: Record) -> List[ParsedRecord]:
+    images_data = parse_images(record)
+    collection_data = parse_collection(record)
+    images = [
+        {
+            "image_id": image["image_id"],
+            "image_url_main": image["image_url_main"],
+            "image_url_raw": image["image_url_raw"],
+            "image_url_thumb": image["image_url_thumb"],
+            "image_note": image["image_note"],
+            "image_width": image["image_dimensions"]["width"],
+            "image_height": image["image_dimensions"]["height"],
+            "image_longitude": image["image_coordinates"]["longitude"],
+            "image_latitude": image["image_coordinates"]["latitude"],
+            "image_date_created": image["image_date_created"],
+            "collection_id": collection_data["collection_id"],
+        } for image in images_data
+    ]
+    return images
+
+
+##########################################################
+
+
+def parse_record(record: Record, **kwargs: Any) -> None:
+    parse_record_section(record, Image, collect_images, **kwargs)
+
+
+##########################################################
+
+
 def main():
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
-    db_engine = initialise_db(DB_CONFIG)
-    parse_records(records_sample, db_engine)
+    db_engine = initialise_db(DB_CONFIG) #TODO: SCHEMA_CONFIG
+    parse_records(records_sample, parse_record, engine=db_engine,
+                  geocoding=FLAG_GEOCODING, dimensions=FLAG_DIMENSIONS
+                 )
     records_out = prepare_records_for_export(db_engine)
     export_records(records_out, OUTPUT_FILE)
 
@@ -96,6 +145,7 @@ if __name__ == "__main__":
     # logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
     logger = logging.getLogger("__name__")
     main()
+
 
 ##########################################################
 # Notes

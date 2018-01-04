@@ -3,20 +3,40 @@
 
 import sys
 
+from typing import (
+    Any, List, Dict,
+)
+
 ##########################################################
 # Third Party Imports
+
+from pymarc import Record
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 ##########################################################
 # Local Imports
 
 sys.path.append("/home/app/src/lib/")
 
-from metadata.parser import parse_marcxml, parse_records
-from metadata.db import initialise_db, manage_db_session, export_query
+from metadata.parser import (
+    parse_collection, parse_images,
+    parse_topics, parse_locations, parse_subjects,
+    parse_records, parse_record_section,
+    parse_marcxml,
+)
+from metadata.db import (
+    initialise_db, manage_db_session, export_records,
+)
 from metadata.schema import (
-    Base, Image, Collection,
+    Image, Collection, Subject,
     CollectionLocation, CollectionSubject, CollectionTopic,
 )
+
+##########################################################
+# Typing Definitions
+
+ParsedRecord = Dict[str, Any]
 
 ##########################################################
 # Environmental Variables
@@ -25,6 +45,9 @@ PROJECT_DIRECTORY = "/home/app/src/scripts/face_recognition"
 OUTPUT_DIRECTORY = "/home/app/data/output/face_recognition"
 INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml"
 INPUT_SAMPLE_SIZE = 20
+
+FLAG_GEOCODING = False
+FLAG_DIMENSIONS = False
 
 OUTPUT_FILE = "%s/metadata/face_recognition.csv" % (OUTPUT_DIRECTORY)
 
@@ -39,35 +62,127 @@ DB_CONFIG["password"] = None
 # Main - Scripts
 
 
-def get_flat_view(session):
-    collection_plus = (
-        session.query(
-            Collection, CollectionSubject, CollectionLocation, CollectionTopic
+def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
+    with manage_db_session(db_engine) as session:
+        collection_plus = (
+            session.query(
+                Collection, CollectionSubject, CollectionLocation, CollectionTopic
+            )
+            .join(CollectionSubject, isouter=True)
+            .join(CollectionLocation, isouter=True)
+            .join(CollectionTopic, isouter=True)
+            .subquery()
         )
-        .join(CollectionSubject, isouter=True)
-        .join(CollectionLocation, isouter=True)
-        .join(CollectionTopic, isouter=True)
-        .subquery()
-    )
-    flat_view = session.query(
-        session.query(Image, collection_plus)
-        .join(collection_plus, isouter=True)
-        .subquery()
-    )
+        flat_view = session.query(
+            session.query(Image, collection_plus)
+            .join(collection_plus, isouter=True)
+            .subquery()
+        ).all()
+    #TODO: Convert to dict
     return flat_view
 
+##########################################################
 
-def export_flat_view(db_engine, output_file):
-    with manage_db_session(db_engine) as session:
-        query = get_flat_view(session)
-        export_query(query, output_file)
 
+def collect_collection_data(record: Record) -> List[ParsedRecord]:
+    collection_data = parse_collection(record)
+    collection = [collection_data]
+    return collection
+
+
+def collect_collection_topics(record: Record) -> List[ParsedRecord]:
+    topics = parse_topics(record)
+    collection_data = parse_collection(record)
+    collection_topics = [
+        {
+            "collection_id": collection_data["collection_id"],
+            "topic": topic,
+        } for topic in topics
+    ]
+    return collection_topics
+
+
+def collect_collection_locations(record: Record) -> List[ParsedRecord]:
+    locations = parse_locations(record)
+    collection_data = parse_collection(record)
+    collection_locations = [
+        {
+            "collection_id": collection_data["collection_id"],
+            "location": location,
+        } for location in locations
+    ]
+    return collection_locations
+
+
+def collect_subjects(record: Record) -> List[ParsedRecord]:
+    subjects_data = parse_subjects(record)
+    subjects = [
+        {
+            "subject_name": subject["subject_name"],
+            "subject_type": subject["subject_type"],
+            "subject_start_date": subject["subject_dates"]["start"],
+            "subject_end_date": subject["subject_dates"]["end"],
+        } for subject in subjects_data
+    ]
+    return subjects
+
+
+def collect_collection_subjects(record: Record) -> List[ParsedRecord]:
+    subjects_data = parse_subjects(record)
+    collection_data = parse_collection(record)
+    collection_subjects = [
+        {
+            "collection_id": collection_data["collection_id"],
+            "subject_name": subject["subject_name"],
+            "subject_relation": subject["subject_relation"],
+            "subject_is_main": subject["subject_is_main"],
+        } for subject in subjects_data
+    ]
+    return collection_subjects
+
+
+def collect_images(record: Record) -> List[ParsedRecord]:
+    images_data = parse_images(record)
+    collection_data = parse_collection(record)
+    images = [
+        {
+            "image_id": image["image_id"],
+            "image_url_main": image["image_url_main"],
+            "image_url_raw": image["image_url_raw"],
+            "image_url_thumb": image["image_url_thumb"],
+            "image_note": image["image_note"],
+            "image_width": image["image_dimensions"]["width"],
+            "image_height": image["image_dimensions"]["height"],
+            "image_longitude": image["image_coordinates"]["longitude"],
+            "image_latitude": image["image_coordinates"]["latitude"],
+            "image_date_created": image["image_date_created"],
+            "collection_id": collection_data["collection_id"],
+        } for image in images_data
+    ]
+    return images
+
+
+##########################################################
+
+
+def parse_record(record: Record, **kwargs: Any) -> None:
+    parse_record_section(record, Collection, collect_collection_data, **kwargs)
+    parse_record_section(record, CollectionTopic, collect_collection_topics, **kwargs)
+    parse_record_section(record, CollectionLocation, collect_collection_locations, **kwargs)
+    parse_record_section(record, Subject, collect_subjects, **kwargs)
+    parse_record_section(record, CollectionSubject, collect_collection_subjects, **kwargs)
+    parse_record_section(record, Image, collect_images, **kwargs)
+
+
+##########################################################
+# Main
 
 def main():
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
-    db_engine = initialise_db(DB_CONFIG)
-    parse_records(records_sample, db_engine)
-    export_flat_view(db_engine, OUTPUT_FILE)
+    db_engine = initialise_db(DB_CONFIG) # Add SCHEMA CONFIG
+    parse_records(records_sample, parse_record, engine=db_engine, geocoding=FLAG_GEOCODING, dimensions=FLAG_DIMENSIONS)
+    records_out = get_query_results(db_engine)
+    export_records(records_out, OUTPUT_FILE)
 
 
 if __name__ == "__main__":
@@ -75,6 +190,7 @@ if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
     main()
+
 
 ##########################################################
 # Notes

@@ -31,24 +31,24 @@ benchmark_cnn.define_flags()
 
 
 def main(extra_flags):
-  # extra_flags is a list of command line arguments, excluding those defined
-  # in tf.flags.FLAGS. extra_flags[0] is always the program name. It is an error
-  # to supply flags not defined with tf.flags.FLAGS, so we raise an ValueError
-  # in that case.
-  assert len(extra_flags) >= 1
-  if len(extra_flags) > 1:
-    raise ValueError('Received unknown flags: %s' % extra_flags[1:])
+    # extra_flags is a list of command line arguments, excluding those defined
+    # in tf.flags.FLAGS. extra_flags[0] is always the program name. It is an error
+    # to supply flags not defined with tf.flags.FLAGS, so we raise an ValueError
+    # in that case.
+    assert len(extra_flags) >= 1
+    if len(extra_flags) > 1:
+        raise ValueError('Received unknown flags: %s' % extra_flags[1:])
 
-  params = benchmark_cnn.make_params_from_flags()
-  benchmark_cnn.setup(params)
-  bench = benchmark_cnn.BenchmarkCNN(params)
+    params = benchmark_cnn.make_params_from_flags()
+    benchmark_cnn.setup(params)
+    bench = benchmark_cnn.BenchmarkCNN(params)
 
-  tfversion = cnn_util.tensorflow_version_tuple()
-  log_fn('TensorFlow:  %i.%i' % (tfversion[0], tfversion[1]))
+    tfversion = cnn_util.tensorflow_version_tuple()
+    log_fn('TensorFlow:  %i.%i' % (tfversion[0], tfversion[1]))
 
-  bench.print_info()
-  bench.run()
+    bench.print_info()
+    bench.run()
 
 
 if __name__ == '__main__':
-  tf.app.run()
+    tf.app.run()

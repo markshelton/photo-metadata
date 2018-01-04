@@ -28,7 +28,7 @@ INPUT_SAMPLE_SIZE = 10
 OUTPUT_FILE = "%s/old_perth.json" % (OUTPUT_DIRECTORY)
 
 DB_CONFIG = {}
-DB_CONFIG["database"] = "%s/old_perth.sqlite3" % (OUTPUT_DIRECTORY) #":memory:" #
+DB_CONFIG["database"] = "%s/old_perth.sqlite3" % (OUTPUT_DIRECTORY) # ":memory:" #
 DB_CONFIG["drivername"] = "sqlite"
 DB_CONFIG["host"] = None
 DB_CONFIG["username"] = None
@@ -37,11 +37,13 @@ DB_CONFIG["password"] = None
 ##########################################################
 # Main - Scripts
 
+
 def parse_records(records, db_engine):
     total = len(records)
     for i, record in enumerate(records):
-        logger.info("Records Processed: %s out of %s.", i+1, total)
+        logger.info("Records Processed: %s out of %s.", i + 1, total)
         add_images(record, db_engine)
+
 
 def get_query_results(db_engine):
     with manage_db_session(db_engine) as session:
@@ -50,6 +52,7 @@ def get_query_results(db_engine):
             .subquery()
         ).all()
     return images
+
 
 def reformat_for_old_perth(records):
     records_out = [
@@ -72,10 +75,12 @@ def reformat_for_old_perth(records):
     ]
     return records_out
 
+
 def prepare_records_for_export(db_engine):
     records_raw = get_query_results(db_engine)
     records_clean = reformat_for_old_perth(records_raw)
     return records_clean
+
 
 def main():
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
@@ -83,11 +88,12 @@ def main():
     parse_records(records_sample, db_engine)
     records_out = prepare_records_for_export(db_engine)
     export_records(records_out, OUTPUT_FILE)
-    
+
+
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG)
-    #logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+    # logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
     logger = logging.getLogger("__name__")
     main()
 

@@ -1,22 +1,13 @@
 ##########################################################
 # Standard Library Imports
 
-import sys
-
-from typing import (
-    Any, List, Dict,
-)
-
 ##########################################################
 # Third Party Imports
-
-from sqlalchemy.engine import Engine
-from pymarc import Record
 
 ##########################################################
 # Local Imports
 
-sys.path.append("/home/app/src/lib/")
+import sys; sys.path.append("/home/app/src/lib/")
 
 from metadata.parser import (
     parse_images, parse_collection,
@@ -27,34 +18,33 @@ from metadata.db import (
     initialise_db, manage_db_session, export_records,
 )
 from metadata.schema import Image
-
-##########################################################
-# Typing Definitions
-
-ParsedRecord = Dict[str, Any]
+from metadata._types import (
+    Any, List, Dict,
+    ParsedRecord, DBConfig, FilePath, DirPath,
+    Record, Engine,
+)
 
 ##########################################################
 # Environmental Variables
 
-PROJECT_DIRECTORY = "/home/app/src/scripts/old_perth"
-OUTPUT_DIRECTORY = "/home/app/data/output/old_perth"
-INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml"
-INPUT_SAMPLE_SIZE = 10
+PROJECT_DIRECTORY = "/home/app/src/scripts/old_perth" # type: DirPath
+OUTPUT_DIRECTORY = "/home/app/data/output/old_perth" # type: DirPath
+INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml" # type: FilePath
+INPUT_SAMPLE_SIZE = 10 # type: int
 
-FLAG_GEOCODING = True
-FLAG_DIMENSIONS = True
+FLAG_GEOCODING = True # type: bool
+FLAG_DIMENSIONS = True # type: bool
 
-OUTPUT_FILE = "%s/old_perth.json" % (OUTPUT_DIRECTORY)
+OUTPUT_FILE = "%s/old_perth.json" % (OUTPUT_DIRECTORY) # type: FilePath
 
-DB_CONFIG = {}
-DB_CONFIG["database"] = "%s/old_perth.sqlite3" % (OUTPUT_DIRECTORY) # ":memory:" #
-DB_CONFIG["drivername"] = "sqlite"
-DB_CONFIG["host"] = None
-DB_CONFIG["username"] = None
-DB_CONFIG["password"] = None
+DB_CONFIG = {} # type: DBConfig
+DB_CONFIG["database"] = "%s/old_perth.sqlite3" % (OUTPUT_DIRECTORY) # type: str
+DB_CONFIG["drivername"] = "sqlite" # type: str
+DB_CONFIG["host"] = None # type: Optional[str]
+DB_CONFIG["username"] = None # type: Optional[str]
+DB_CONFIG["password"] = None # type: Optional[str]
 
 ##########################################################
-# Main - Scripts
 
 
 def reformat_for_old_perth(records: List[ParsedRecord]) -> List[ParsedRecord]:
@@ -98,9 +88,9 @@ def prepare_records_for_export(db_engine: Engine) -> List[ParsedRecord]:
 ##########################################################
 
 
-def collect_images(record: Record) -> List[ParsedRecord]:
-    images_data = parse_images(record)
-    collection_data = parse_collection(record)
+def collect_images(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    images_data = parse_images(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
     images = [
         {
             "image_id": image["image_id"],
@@ -133,7 +123,7 @@ def main():
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
     db_engine = initialise_db(DB_CONFIG) #TODO: SCHEMA_CONFIG
     parse_records(records_sample, parse_record, engine=db_engine,
-                  geocoding=FLAG_GEOCODING, dimensions=FLAG_DIMENSIONS
+                  geocoding_flag=FLAG_GEOCODING, dimensions_flag=FLAG_DIMENSIONS
                  )
     records_out = prepare_records_for_export(db_engine)
     export_records(records_out, OUTPUT_FILE)

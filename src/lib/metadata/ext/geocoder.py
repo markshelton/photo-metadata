@@ -8,36 +8,25 @@ import urllib.parse
 import json
 import logging
 
-from typing import (
-    Any, List, Dict, Pattern,
-)
-
 ##########################################################
 # Third Party Imports
 
 import geopy.distance
-from mypy_extensions import TypedDict
 
 ##########################################################
 # Local Imports
 
-##########################################################
-# Typing Definitions
-
-Coordinates = TypedDict("Coordinates", {
-    'latitude': float, 'longitude': float
-})
-Address = TypedDict("Address", {
-    'street_number': int, 'street_name': str, 'street_type': str,
-    'suburb_name': str, 'state': str, 'country': str, 'keywords': List[str]
-})
+from metadata._types import (
+    Dict, List, Pattern,
+    FilePath, Match, Coordinates, Address, 
+)
 
 ##########################################################
 # Environmental Variables
 
-INPUT_STREET_TYPE_FILE = "/home/app/data/input/metadata/location/aus_street_types.csv"
-INPUT_SUBURB_NAMES_FILE = "/home/app/data/input/metadata/location/wa_suburb_names.csv"
-INPUT_STOP_WORDS_FILE = "/home/app/data/input/metadata/location/stop_words.csv"
+INPUT_STREET_TYPE_FILE = "/home/app/data/input/metadata/location/aus_street_types.csv" # type: FilePath
+INPUT_SUBURB_NAMES_FILE = "/home/app/data/input/metadata/location/wa_suburb_names.csv" # type: FilePath
+INPUT_STOP_WORDS_FILE = "/home/app/data/input/metadata/location/stop_words.csv" # type: FilePath
 
 ##########################################################
 # Logging Configuration
@@ -47,7 +36,7 @@ logger = logging.getLogger(__name__)
 ##########################################################
 
 
-def read_csv_to_dict(csv_file: str) -> Dict[str, List[Any]]:
+def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
     with open(csv_file) as csvfile:
         reader = csv.DictReader(csvfile)
         rows = zip(*[d.values() for d in reader])
@@ -56,32 +45,39 @@ def read_csv_to_dict(csv_file: str) -> Dict[str, List[Any]]:
         return outdict
 
 
-def make_candidate_string(candidate_list: str) -> str:
+def make_candidate_string(candidate_list: List[str]) -> str:
     return "|".join(candidate_list)
 
 
-def prepare_search_string(input_file: str) -> str:
+def prepare_search_string(input_file: FilePath) -> str:
     search_dict = read_csv_to_dict(input_file)
     search_list = [make_candidate_string(search_dict[key]) for key in search_dict.keys()]
     search_string = "".join(search_list)
     return search_string
 
 
-def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> List[Dict[str, str]]:
+def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> List[Match]:
     return [match.groupdict() for match in compiled_regex.finditer(target_text)]
 
 
-def clean_up_addresses(address_matches: List[Address]) -> Address:
+def clean_up_addresses(address_matches: List[Match]) -> Address:
     address_dict = address_matches[0]
-    address_dict["state"] = "Western Australia"
-    address_dict["country"] = "Australia"
     if address_dict["street_type"] is None:
         address_dict["street_name"] = None
         address_dict["street_number"] = None
-    return address_dict
+    address = Address(
+        street_number=address_dict["street_number"],
+        street_name=address_dict["street_name"],
+        street_type=address_dict["street_type"],
+        suburb_name=address_dict["suburb_name"],
+        state="Western Australia",
+        country="Australia",
+        keywords=[],
+    )
+    return address
 
 
-def parse_structured_address(location_text: str, street_types_file: str, suburb_names_file: str) -> Address:
+def parse_structured_address(location_text: str, street_types_file: FilePath, suburb_names_file: FilePath) -> Address:
     street_types = prepare_search_string(street_types_file)
     suburb_names = prepare_search_string(suburb_names_file)
     re_main = re.compile(
@@ -95,7 +91,7 @@ def parse_structured_address(location_text: str, street_types_file: str, suburb_
     return address_clean
 
 
-def parse_keywords_from_address(location_text: str, stop_words_file: str) -> List[str]:
+def parse_keywords_from_address(location_text: str, stop_words_file: FilePath) -> List[str]:
     stop_words = prepare_search_string(stop_words_file)
     re_keywords = re.compile(
         r'(?P<keywords>(?:\s*(?!\b{0}\b)\b(?:[A-Z][a-z]+)\b)+)'.format(stop_words)
@@ -106,10 +102,10 @@ def parse_keywords_from_address(location_text: str, stop_words_file: str) -> Lis
 
 
 def parse_address(location_text: str) -> Address:
-    main_matches = parse_structured_address(location_text, INPUT_STREET_TYPE_FILE, INPUT_SUBURB_NAMES_FILE)
+    address = parse_structured_address(location_text, INPUT_STREET_TYPE_FILE, INPUT_SUBURB_NAMES_FILE)
     keywords_list = parse_keywords_from_address(location_text, INPUT_STOP_WORDS_FILE)
-    keywords_list_unique = set(keywords_list) - set(main_matches.values())
-    address = dict(**main_matches, keywords=list(keywords_list_unique))
+    keywords_list_unique = set(keywords_list) - set(address.values())
+    address["keywords"] = list(keywords_list_unique)
     return address
 
 
@@ -161,23 +157,27 @@ def geocode_addresses(queries: List[str]) -> List[Coordinates]:
     coordinates_list = []
     for query in queries:
         try:
-            coordinates = {}
             res = urllib.request.urlopen(query)
             res_body = res.read().decode()
             j = json.loads(res_body)[0]
-            coordinates["latitude"] = j["lat"]
-            coordinates["longitude"] = j["lon"]
-            coordinates["bb_size"] = calculate_bounding_box_size(j["boundingbox"])
-            coordinates["query"] = query
-            coordinates_list.append(coordinates)
+            coords = Coordinates(
+                latitude=j["lat"],
+                longitude=j["lon"],
+                bb_size=calculate_bounding_box_size(j["boundingbox"]),
+                query=query
+            )
+            coordinates_list.append(coords)
         except BaseException:
             pass
     return coordinates_list
 
 
 def choose_best_coordinates(coordinates_list: List[Coordinates]) -> Coordinates:
-    best_coords = min(coordinates_list, key=lambda x: x['bb_size'])
-    coords = dict(latitude=best_coords["latitude"], longitude=best_coords["longitude"])
+    best_coords = min(coordinates_list, key=lambda x: x.get('bb_size'))
+    coords = Coordinates(
+        latitude=best_coords["latitude"],
+        longitude=best_coords["longitude"]
+    )
     return coords
 
 
@@ -192,11 +192,11 @@ def extract_coordinates_from_text(location_text: str) -> Coordinates:
 # One-time Scripts
 
 
-INPUT_SUBURB_URL = "https://www0.landgate.wa.gov.au/maps-and-imagery/wa-geographic-names/name-history/historical-suburb-names"
-OUTPUT_SUBURB_FILE = INPUT_SUBURB_NAMES_FILE
+INPUT_SUBURB_URL = "https://www0.landgate.wa.gov.au/maps-and-imagery/wa-geographic-names/name-history/historical-suburb-names" # type: FilePath
+OUTPUT_SUBURB_FILE = INPUT_SUBURB_NAMES_FILE # type: FilePath
 
 
-def scrape_suburbs_list(output_file: str) -> None:
+def scrape_suburbs_list(output_file: FilePath) -> None:
     from bs4 import BeautifulSoup
     with urllib.request.urlopen(INPUT_SUBURB_URL) as suburbs_page:
         suburbs_html = BeautifulSoup(suburbs_page, 'html.parser')

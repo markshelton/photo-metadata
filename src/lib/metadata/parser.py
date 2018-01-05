@@ -9,8 +9,8 @@ import datetime
 import logging
 import re
 import random
-import urllib
-
+import urllib.request
+import urllib.error
 
 ##########################################################
 # Third Party Imports
@@ -18,30 +18,19 @@ import urllib
 import pymarc
 import datefinder
 from PIL import ImageFile
+from mypy_extensions import TypedDict
 
 ##########################################################
 # Local Imports
 
 from metadata.db import manage_db_session
-from metadata.ext.geocoder import resolve_location
-
-##########################################################
-# Typing Definitions
-
-from typing import (
-    List, Optional, NewType, Dict,
-    Union, NamedTuple, Callable, Any,
+from metadata.ext.geocoder import extract_coordinates_from_text
+from metadata.schema import Base
+from metadata._types import (
+    Dict, List, Pattern, Any, Callable, Optional, Union, KwArg,
+    Tag, Dates, Size, Coordinates, ParsedRecord,
+    Record, Field, Date, Engine, Schema, 
 )
-from mypy_extensions import KwArg
-from datetime import Date
-
-Record = NewType("Record", Dict)
-Field = NewType("Field", Dict)
-Tag = NamedTuple('Tag', [('field', str), ('subfield', str)])
-Dates = NamedTuple("Dates", [("start", Date), ("end", Date)])
-Size = NamedTuple("Size", [("width", int), ("height", int)])
-Schema = NewType("Schema", Base)
-ParsedRecord = Dict[str, Any]
 
 ##########################################################
 # Parser Configuration
@@ -82,10 +71,11 @@ logger = logging.getLogger(__name__)
 
 def consolidate_list(full_list: List[Any]) -> List[Any]:
     """Remove null entries from list and return sub-list."""
-    return [x for x in full_list if x is not None]
+    consolidated_list = [x for x in full_list if x is not None]
+    return consolidated_list
 
 
-def get_subfield_from_field(field: Field, subfield_key: str) -> str:
+def get_subfield_from_field(field: Field, subfield_key: str) -> Optional[str]:
     if subfield_key in field:
         subfield = field[subfield_key]
     else:
@@ -93,7 +83,7 @@ def get_subfield_from_field(field: Field, subfield_key: str) -> str:
     return subfield
 
 
-def get_subfield_from_record(record: Record, field_key: str, subfield_key: str) -> str:
+def get_subfield_from_record(record: Record, field_key: str, subfield_key: str) -> Optional[str]:
     if field_key in record:
         field = record[field_key]
         subfield = get_subfield_from_field(field, subfield_key)
@@ -102,8 +92,8 @@ def get_subfield_from_record(record: Record, field_key: str, subfield_key: str) 
     return subfield
 
 
-def get_subfields(record: Record, field_key: str, subfield_key: str) -> List[Field]:
-    fields = record.get_fields(field_key)
+def get_subfields(record: Record, field_key: str, subfield_key: str) -> List[Optional[str]]:
+    fields = record.get_fields(field_key) # type: List[Field]
     subfields = [get_subfield_from_field(field, subfield_key) for field in fields]
     return subfields
 
@@ -111,11 +101,14 @@ def get_subfields(record: Record, field_key: str, subfield_key: str) -> List[Fie
 def parse_tag_key(tag_key: str) -> Tag:
     """Split tag (e.g. "700$a") into a tuple of the field and subfield."""
     m = re.match(r"(?P<field>\S{3})(?:\$?)(?P<subfield>\S*)?", tag_key)
-    return (m.group("field"), m.group("subfield"))
+    tag = Tag(field=m.group("field"), subfield=m.group("subfield"))
+    return tag
 
 
-def get_subfield_from_tag(record_or_field: Union(Record, Field), tag_key: str) -> str:
-    field_key, subfield_key = parse_tag_key(tag_key)
+def get_subfield_from_tag(record_or_field: Union[Record, Field], tag_key: str) -> Optional[str]:
+    tag = parse_tag_key(tag_key)
+    field_key = tag["field"]
+    subfield_key = tag["subfield"]
     if isinstance(record_or_field, pymarc.Record):
         subfield = get_subfield_from_record(record_or_field, field_key, subfield_key)
     elif isinstance(record_or_field, pymarc.Field):
@@ -126,15 +119,18 @@ def get_subfield_from_tag(record_or_field: Union(Record, Field), tag_key: str) -
 
 
 def get_subfields_from_tag(record: Record, tag_key: str) -> List[str]:
-    field_key, subfield_key = parse_tag_key(tag_key)
+    tag = parse_tag_key(tag_key)
+    field_key = tag["field"]
+    subfield_key = tag["subfield"]
     subfields_raw = get_subfields(record, field_key, subfield_key)
     subfields = consolidate_list(subfields_raw)
     return subfields
 
 
 def get_fields_from_tag(record: Record, tag_key: str) -> List[Field]:
-    field_key, _ = parse_tag_key(tag_key)
-    fields = record.get_fields(field_key)
+    tag = parse_tag_key(tag_key)
+    field_key = tag["field"]
+    fields = record.get_fields(field_key) # type: List[Field]
     return fields
 
 
@@ -142,49 +138,37 @@ def get_fields_from_tag(record: Record, tag_key: str) -> List[Field]:
 
 
 def get_possible_dates(date_string: str) -> List[Date]:
-    if field:
-        years = re.findall(".*([1-2][0-9]{3})", field)
-        dates = [datetime.date(year=int(year), month=1, day=1)
-                 for year in years]
-        if not dates:
-            dates = list(datefinder.find_dates(field))
-    else:
-        dates = None
+    years = re.findall(".*([1-2][0-9]{3})", date_string)
+    dates = [datetime.date(year=int(year), month=1, day=1) for year in years]
+    if not dates:
+        dates = list(datefinder.find_dates(date_string))
     return dates
 
 
-def select_date(possible_dates: List[Date], method: str = "first") -> Date:
-    if possible_dates:
-        if method == "first":
-            selected_date = possible_dates[0]
-        elif method == "last":
-            selected_date = possible_dates[-1]
-        else:
-            selected_date = None
-        if len(possible_dates) > 1:
-            ignored_dates = possible_dates - selected_date
-            logger.warning("Multiple matching dates. \
-                Selected: %s. Ignored: %s",
-                           selected_date, ignored_dates)
+def select_date(possible_dates: List[Date], method: str = "first") -> Optional[Date]:
+    if len(possible_dates) == 0: return None
+    if method == "first":
+        return possible_dates[0]
+    elif method == "last":
+        return possible_dates[-1]
     else:
-        selected_date = None
-    return selected_date
+        logger.error("Invalid method argument: %s. Please use 'first' or 'last'.", method)
+        return None
+    
 
-
-def extract_date_from_text(date_text: str, method: str = "first") -> Date:
+def extract_date_from_text(date_text: str, method: str = "first") -> Optional[Date]:
     possible_dates = get_possible_dates(date_text)
     selected_date = select_date(possible_dates, method=method)
     return selected_date
 
 
-def get_date_collection_created(record: Record) -> Date:
+def get_date_collection_created(record: Record) -> Optional[Date]:
     date_created_raw = get_subfield_from_tag(record, TAG_DATE_CREATED)
-    date_created_approx_raw = get_subfield_from_tag(
-        record, TAG_DATE_CREATED_APPROX)
+    date_created_approx_raw = get_subfield_from_tag(record, TAG_DATE_CREATED_APPROX)
     if date_created_raw:
-        date_created = extract_date(date_created_raw)
+        date_created = extract_date_from_text(date_created_raw)
     elif date_created_approx_raw:
-        date_created = extract_dated(date_created_approx_raw)
+        date_created = extract_date_from_text(date_created_approx_raw)
     else:
         date_created = None
     return date_created
@@ -205,30 +189,44 @@ def get_locations(record: Record) -> List[str]:
 
 def split_dates(record: Record, dates_tag: str) -> Dates:
     dates_raw = get_subfield_from_tag(record, dates_tag)
-    dates = {"start": None, "end": None}
-    if dates_raw:
-        dates_num = len(dates_raw.split("-"))
-        if dates_num >= 2:
-            date_start_raw, date_end_raw, *_ = dates_raw.split("-")
-            dates["start"] = extract_date_from_field(
-                date_start_raw, method="first")
-            dates["end"] = extract_date_from_field(date_end_raw, method="last")
-        elif dates_num == 1:
-            date_start_raw = dates_raw.split("-")[0]
-            dates["start"] = extract_date_from_field(
-                date_start_raw, method="first")
+    if dates_raw is None: return Dates({"start": None, "end": None})
+    dates_num = len(dates_raw.split("-"))
+    if dates_num >= 2:
+        date_start_raw, date_end_raw, *_ = dates_raw.split("-")
+        date_start = extract_date_from_text(date_start_raw)
+        date_end = extract_date_from_text(date_end_raw)
+    elif dates_num == 1:
+        date_start_raw = dates_raw.split("-")[0]
+        date_start = extract_date_from_text(date_start_raw)
+        date_end = None
+    dates = Dates({"start": date_start, "end": date_end})
     return dates
 
+def get_image_url(image: Field, tag: str, method: str = "main"):
+    image_url_raw = get_subfield_from_tag(image, tag)
+    if image_url_raw is None: return None
+    if method == "main":
+        image_url = image_url_raw
+    elif method == "raw":
+        image_url = image_url_raw + ".jpg"
+    elif method == "thumb":
+        image_url = image_url_raw + ".png"
+    else: return None
+    return image_url
 
-def get_id_from_url(image: Field) -> str:
-    image_url = get_subfield_from_tag(image, TAG_IMAGE_URL)
-    image_id = image_url.split("/")[-1].split(".")[0]
+
+def get_id_from_url(image: Field, tag: str) -> Optional[str]:
+    image_url = get_subfield_from_tag(image, tag)
+    if image_url is None: return None
+    image_id = image_url.split("/")[-1].split(".")[0] # type: Optional[str]
     return image_id
 
 
-#FIXME:
-def get_image_dimensions(field: Field, tag: str) -> Size:
-    image_url = get_subfield_from_tag(field, tag) + ".jpg"
+def get_image_dimensions(field: Field, tag: str, dimensions_flag: bool = True) -> Optional[Size]:
+    if dimensions_flag is False: return None
+    image_url = get_subfield_from_tag(field, tag)
+    if image_url is None: return None
+    image_url_main = image_url + ".jpg"
     try:
         with urllib.request.urlopen(image_url) as image_file:
             parser = ImageFile.Parser()
@@ -238,20 +236,24 @@ def get_image_dimensions(field: Field, tag: str) -> Size:
                     break
                 parser.feed(data)
                 if parser.image:
-                    return parser.image.size
+                    width, height = parser.image.size
+                    return Size({"width": width, "height": height})
     except urllib.error.URLError:
         logger.warning("Image not found. Size could not be determined.")
-    return image_size
+    return None
 
 
-def get_coordinates(field: Field, tag: str) -> Coordinates:
+def get_coordinates(field: Field, tag: str, geocoding_flag: bool = True) -> Optional[Coordinates]:
+    if not geocoding_flag: return None
     location_text = get_subfield_from_tag(field, tag)
+    if location_text is None: return None
     coordinates = extract_coordinates_from_text(location_text)
     return coordinates
 
 
-def get_date(field: Field, tag: str) -> datetime.date:
-    date_text = get_subfield_from_tag(image, tag)
+def get_date(field: Field, tag: str) -> Optional[Date]:
+    date_text = get_subfield_from_tag(field, tag)
+    if date_text is None: return None
     extracted_date = extract_date_from_text(date_text)
     return extracted_date
 
@@ -276,7 +278,7 @@ def parse_main_company(record: Record) -> ParsedRecord:
     main_company = {
         "subject_name": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_NAME_MAIN),
         "subject_relation": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_RELATION_MAIN),
-        "subject_dates": {"start": None, "end": None},
+        "subject_dates": Dates({"start": None, "end": None}),
         "subject_type": "Person",
         "subject_is_main": True,
     }
@@ -303,7 +305,7 @@ def parse_other_companies(record: Record) -> List[ParsedRecord]:
         {
             "subject_name": get_subfield_from_tag(company, TAG_SUBJECT_COMPANY_NAME_MAIN),
             "subject_relation": get_subfield_from_tag(company, TAG_SUBJECT_COMPANY_RELATION_MAIN),
-            "subject_dates": {"start": None, "end": None},
+            "subject_dates": Dates({"start": None, "end": None}),
             "subject_type": "Company",
             "subject_is_main": False,
         } for company in other_companies_raw
@@ -314,7 +316,7 @@ def parse_other_companies(record: Record) -> List[ParsedRecord]:
 ##########################################################
 
 
-def parse_collection(record: Record) -> ParsedRecord:
+def parse_collection(record: Record, **kwargs: Any) -> ParsedRecord:
     collection = {
         "collection_id": get_subfield_from_tag(record, TAG_COLLECTION_ID),
         "note_title": get_subfield_from_tag(record, TAG_NOTE_TITLE),
@@ -329,24 +331,24 @@ def parse_collection(record: Record) -> ParsedRecord:
     return collection
 
 
-def parse_images(record: Record) -> List[ParsedRecord]:
+def parse_images(record: Record, geocoding_flag: bool, dimensions_flag: bool, **kwargs: Any) -> List[ParsedRecord]:
     images_raw = get_fields_from_tag(record, TAG_IMAGE_URL)
     images = consolidate_list([
         {
-            "image_id": get_id_from_url(image),
-            "image_url_main": get_subfield_from_tag(image, TAG_IMAGE_URL),
-            "image_url_raw": get_subfield_from_tag(image, TAG_IMAGE_URL) + ".jpg",
-            "image_url_thumb": get_subfield_from_tag(image, TAG_IMAGE_URL) + ".png",
+            "image_id": get_id_from_url(image, TAG_IMAGE_URL),
+            "image_url_main": get_image_url(image, TAG_IMAGE_URL, method="main"),
+            "image_url_raw": get_image_url(image, TAG_IMAGE_URL, method="raw"),
+            "image_url_thumb": get_image_url(image, TAG_IMAGE_URL, method="thumb"),
             "image_note": get_subfield_from_tag(image, TAG_IMAGE_NOTE),
-            "image_dimensions": get_image_dimensions(image, TAG_IMAGE_URL),
-            "image_coordinates": get_coordinates(image, TAG_IMAGE_NOTE),
+            "image_dimensions": get_image_dimensions(image, TAG_IMAGE_URL, dimensions_flag=dimensions_flag),
+            "image_coordinates": get_coordinates(image, TAG_IMAGE_NOTE, geocoding_flag=geocoding_flag),
             "image_date_created": get_date(image, TAG_IMAGE_NOTE),
         } for image in images_raw
     ])
     return images
 
 
-def parse_subjects(record: Record) -> List[ParsedRecord]:
+def parse_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     main_person = parse_main_person(record)
     main_company = parse_main_company(record)
     other_people = parse_other_people(record)
@@ -361,22 +363,34 @@ def parse_subjects(record: Record) -> List[ParsedRecord]:
 ##########################################################
 
 
-def parse_record_section(record: Record, Schema: Schema, parser: Callable[[Record], List[ParsedRecord]], engine: Engine) -> None:
-    records_parsed = parser(record)
+def parse_record_section(
+        record: Record,
+        Schema: Schema,
+        parser: Callable[[Record, KwArg(Any)], List[ParsedRecord]],
+        engine: Engine,
+        **kwargs: Any
+    ) -> None:
+    
+    records_parsed = parser(record, **kwargs)
     for record_parsed in records_parsed:
-        with manage_db_session(db_engine) as session:
+        with manage_db_session(engine) as session:
             record_object = Schema(**record_parsed)
             session.add(record_object)
 
 
-def parse_records(records: List[Record], parser: Callable[[Record, KwArg(Any)], None], **kwargs: Any) -> None:
+def parse_records(
+        records: List[Record],
+        parser: Callable[[Record, KwArg(Any)], None],
+        **kwargs: Any
+    ) -> None:
+    
     total = len(records)
     for i, record in enumerate(records):
         logger.info("Records Processed: %s out of %s.", i + 1, total)
         parser(record, **kwargs)
 
 
-def sample_records(records: List[Record], sample_size: int) -> List[Record]:
+def sample_records(records: List[Record], sample_size: Optional[int] = None) -> List[Record]:
     if sample_size:
         records_sample = random.sample(records, sample_size)
     else:

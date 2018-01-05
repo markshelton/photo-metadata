@@ -1,12 +1,6 @@
 ##########################################################
 # Standard Library Imports
 
-import sys
-
-from typing import (
-    Any, List, Dict,
-)
-
 ##########################################################
 # Third Party Imports
 
@@ -17,7 +11,7 @@ from sqlalchemy.orm import Session
 ##########################################################
 # Local Imports
 
-sys.path.append("/home/app/src/lib/")
+import sys; sys.path.append("/home/app/src/lib/")
 
 from metadata.parser import (
     parse_collection, parse_images,
@@ -32,34 +26,34 @@ from metadata.schema import (
     Image, Collection, Subject,
     CollectionLocation, CollectionSubject, CollectionTopic,
 )
-
-##########################################################
-# Typing Definitions
-
-ParsedRecord = Dict[str, Any]
+from metadata._types import (
+    Any, List, Dict,
+    ParsedRecord, DBConfig,
+    Record, Engine,
+)
 
 ##########################################################
 # Environmental Variables
 
-PROJECT_DIRECTORY = "/home/app/src/scripts/face_recognition"
-OUTPUT_DIRECTORY = "/home/app/data/output/face_recognition"
-INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml"
-INPUT_SAMPLE_SIZE = 20
+PROJECT_DIRECTORY = "/home/app/src/scripts/face_recognition" # type: DirPath
+OUTPUT_DIRECTORY = "/home/app/data/output/face_recognition" # type: DirPath
+INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml" # type: FilePath
+INPUT_SAMPLE_SIZE = 20 # type: int
 
-FLAG_GEOCODING = False
-FLAG_DIMENSIONS = False
+FLAG_GEOCODING = False # type: bool
+FLAG_DIMENSIONS = False # type: bool
 
 OUTPUT_FILE = "%s/metadata/face_recognition.csv" % (OUTPUT_DIRECTORY)
 
-DB_CONFIG = {}
-DB_CONFIG["database"] = ":memory:" # "%s/metadata/face_recognition.sqlite3" % (OUTPUT_DIRECTORY)
-DB_CONFIG["drivername"] = "sqlite"
-DB_CONFIG["host"] = None
-DB_CONFIG["username"] = None
-DB_CONFIG["password"] = None
+DB_CONFIG = {} # type: DBConfig
+# "%s/metadata/face_recognition.sqlite3" % (OUTPUT_DIRECTORY)
+DB_CONFIG["database"] = ":memory:" # type: str
+DB_CONFIG["drivername"] = "sqlite" # type: str
+DB_CONFIG["host"] = None # type: Optional[str]
+DB_CONFIG["username"] = None # type: Optional[str]
+DB_CONFIG["password"] = None # type: Optional[str]
 
 ##########################################################
-# Main - Scripts
 
 
 def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
@@ -81,18 +75,19 @@ def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
     #TODO: Convert to dict
     return flat_view
 
+
 ##########################################################
 
 
-def collect_collection_data(record: Record) -> List[ParsedRecord]:
-    collection_data = parse_collection(record)
+def collect_collection_data(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    collection_data = parse_collection(record, **kwargs)
     collection = [collection_data]
     return collection
 
 
-def collect_collection_topics(record: Record) -> List[ParsedRecord]:
-    topics = parse_topics(record)
-    collection_data = parse_collection(record)
+def collect_collection_topics(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    topics = parse_topics(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
     collection_topics = [
         {
             "collection_id": collection_data["collection_id"],
@@ -102,9 +97,9 @@ def collect_collection_topics(record: Record) -> List[ParsedRecord]:
     return collection_topics
 
 
-def collect_collection_locations(record: Record) -> List[ParsedRecord]:
-    locations = parse_locations(record)
-    collection_data = parse_collection(record)
+def collect_collection_locations(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    locations = parse_locations(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
     collection_locations = [
         {
             "collection_id": collection_data["collection_id"],
@@ -114,8 +109,8 @@ def collect_collection_locations(record: Record) -> List[ParsedRecord]:
     return collection_locations
 
 
-def collect_subjects(record: Record) -> List[ParsedRecord]:
-    subjects_data = parse_subjects(record)
+def collect_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    subjects_data = parse_subjects(record, **kwargs)
     subjects = [
         {
             "subject_name": subject["subject_name"],
@@ -127,9 +122,9 @@ def collect_subjects(record: Record) -> List[ParsedRecord]:
     return subjects
 
 
-def collect_collection_subjects(record: Record) -> List[ParsedRecord]:
-    subjects_data = parse_subjects(record)
-    collection_data = parse_collection(record)
+def collect_collection_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    subjects_data = parse_subjects(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
     collection_subjects = [
         {
             "collection_id": collection_data["collection_id"],
@@ -141,9 +136,9 @@ def collect_collection_subjects(record: Record) -> List[ParsedRecord]:
     return collection_subjects
 
 
-def collect_images(record: Record) -> List[ParsedRecord]:
-    images_data = parse_images(record)
-    collection_data = parse_collection(record)
+def collect_images(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+    images_data = parse_images(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
     images = [
         {
             "image_id": image["image_id"],

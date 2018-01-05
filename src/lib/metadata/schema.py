@@ -14,9 +14,11 @@ from sqlalchemy.ext.declarative import declarative_base
 ##########################################################
 # Local Imports
 
+from metadata._types import Any
+
 ##########################################################
 
-Base = declarative_base()
+Base = declarative_base() # type: Any
 
 ##########################################################
 

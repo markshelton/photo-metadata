@@ -12,14 +12,14 @@ import sys; sys.path.append("/home/app/src/lib/")
 from metadata.parser import (
     parse_images, parse_collection,
     parse_records, parse_record_section,
-    parse_marcxml,
+    parse_marcxml, deep_get, logged,
 )
 from metadata.db import (
     initialise_db, manage_db_session, export_records,
 )
 from metadata.schema import Image
 from metadata._types import (
-    Any, List, Dict,
+    Any, List, Dict, Optional,
     ParsedRecord, DBConfig, FilePath, DirPath,
     Record, Engine,
 )
@@ -38,47 +38,47 @@ FLAG_DIMENSIONS = True # type: bool
 OUTPUT_FILE = "%s/old_perth.json" % (OUTPUT_DIRECTORY) # type: FilePath
 
 DB_CONFIG = {} # type: DBConfig
-DB_CONFIG["database"] = "%s/old_perth.sqlite3" % (OUTPUT_DIRECTORY) # type: str
-DB_CONFIG["drivername"] = "sqlite" # type: str
-DB_CONFIG["host"] = None # type: Optional[str]
-DB_CONFIG["username"] = None # type: Optional[str]
-DB_CONFIG["password"] = None # type: Optional[str]
+DB_CONFIG["database"] = "%s/old_perth.sqlite3" % (OUTPUT_DIRECTORY)
+DB_CONFIG["drivername"] = "sqlite"
+DB_CONFIG["host"] = None
+DB_CONFIG["username"] = None
+DB_CONFIG["password"] = None
 
 ##########################################################
 
-
+@logged
 def reformat_for_old_perth(records: List[ParsedRecord]) -> List[ParsedRecord]:
     records_out = [
         {
             "text": None,
-            "height": getattr(record, "image_height"),
-            "date": getattr(record, "image_date_created"),
-            "thumb_url": getattr(record, "image_url_thumb"),
-            "photo_id": getattr(record, "image_id"),
-            "title": getattr(record, "image_note").split(":")[1].strip(),
-            "width": getattr(record, "image_width"),
-            "image_url": getattr(record, "image_url_raw"),
+            "height": record["image_height"],
+            "date": record["image_date_created"],
+            "thumb_url": record["image_url_thumb"],
+            "photo_id": record["image_id"],
+            "title": record["image_note"].split(":")[1].strip(),
+            "width": record["image_width"],
+            "image_url": record["image_url_raw"],
             "location": {
-                "lat": getattr(record, "image_latitude"),
-                "lon": getattr(record, "image_longitude")
+                "lat": record["image_latitude"],
+                "lon": record["image_longitude"]
             },
             "folder": None,
             "years": [""]
-        } for record in records if getattr(record, "image_latitude") is not None
+        } for record in records if record["image_latitude"] is not None
     ]
     return records_out
 
-
+@logged
 def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
     with manage_db_session(db_engine) as session:
         images = session.query(
             session.query(Image)
             .subquery()
         ).all()
-        #TODO -> Convert to dict
+        images = [record._asdict() for record in images]
     return images
 
-
+@logged
 def prepare_records_for_export(db_engine: Engine) -> List[ParsedRecord]:
     records_raw = get_query_results(db_engine)
     records_clean = reformat_for_old_perth(records_raw)
@@ -87,31 +87,32 @@ def prepare_records_for_export(db_engine: Engine) -> List[ParsedRecord]:
 
 ##########################################################
 
-
+@logged
 def collect_images(record: Record, **kwargs: Any) -> List[ParsedRecord]:
-    images_data = parse_images(record, **kwargs)
-    collection_data = parse_collection(record, **kwargs)
-    images = [
-        {
-            "image_id": image["image_id"],
-            "image_url_main": image["image_url_main"],
-            "image_url_raw": image["image_url_raw"],
-            "image_url_thumb": image["image_url_thumb"],
-            "image_note": image["image_note"],
-            "image_width": image["image_dimensions"]["width"],
-            "image_height": image["image_dimensions"]["height"],
-            "image_longitude": image["image_coordinates"]["longitude"],
-            "image_latitude": image["image_coordinates"]["latitude"],
-            "image_date_created": image["image_date_created"],
-            "collection_id": collection_data["collection_id"],
-        } for image in images_data
-    ]
+    images_raw = parse_images(record, **kwargs)
+    collection_raw = parse_collection(record, **kwargs)
+    images = [] # type: List[ParsedRecord]
+    for image_raw in images_raw:
+        image = {
+            "image_id": image_raw["image_id"],
+            "image_url_main": image_raw["image_url_main"],
+            "image_url_raw": image_raw["image_url_raw"],
+            "image_url_thumb": image_raw["image_url_thumb"],
+            "image_note": image_raw["image_note"],
+            "image_width": deep_get(image_raw, "image_dimensions", "width"),
+            "image_height": deep_get(image_raw, "image_dimensions", "height"),
+            "image_longitude": deep_get(image_raw, "image_coordinates", "longitude"),
+            "image_latitude": deep_get(image_raw, "image_coordinates", "latitude"),
+            "image_date_created": image_raw["image_date_created"],
+            "collection_id": collection_raw["collection_id"],
+        }
+    images.append(image)
     return images
 
 
 ##########################################################
 
-
+@logged
 def parse_record(record: Record, **kwargs: Any) -> None:
     parse_record_section(record, Image, collect_images, **kwargs)
 
@@ -119,23 +120,33 @@ def parse_record(record: Record, **kwargs: Any) -> None:
 ##########################################################
 
 
-def main():
+def main() -> None:
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
     db_engine = initialise_db(DB_CONFIG) #TODO: SCHEMA_CONFIG
-    parse_records(records_sample, parse_record, engine=db_engine,
-                  geocoding_flag=FLAG_GEOCODING, dimensions_flag=FLAG_DIMENSIONS
-                 )
+    parse_records(records_sample, parse_record, engine=db_engine, geocoding_flag=FLAG_GEOCODING, dimensions_flag=FLAG_DIMENSIONS)
     records_out = prepare_records_for_export(db_engine)
     export_records(records_out, OUTPUT_FILE)
 
 
-if __name__ == "__main__":
+def setup_logging() -> None:
     import logging
     logging.basicConfig(level=logging.DEBUG)
-    # logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
-    logger = logging.getLogger("__name__")
-    main()
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
+    logging.getLogger("PIL.Image").setLevel(logging.INFO)
+    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+    logging.getLogger("datefinder").setLevel(logging.INFO)
 
+
+def setup_warnings() -> None:
+    import warnings
+    import sqlalchemy
+    warnings.filterwarnings("ignore", category=sqlalchemy.exc.SAWarning)
+
+
+if __name__ == "__main__":
+    setup_logging()
+    setup_warnings()
+    main()
 
 ##########################################################
 # Notes

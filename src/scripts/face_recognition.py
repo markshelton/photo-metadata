@@ -1,6 +1,8 @@
 ##########################################################
 # Standard Library Imports
 
+import sys
+
 ##########################################################
 # Third Party Imports
 
@@ -11,13 +13,13 @@ from sqlalchemy.orm import Session
 ##########################################################
 # Local Imports
 
-import sys; sys.path.append("/home/app/src/lib/")
+sys.path.append("/home/app/src/lib/")
 
 from metadata.parser import (
     parse_collection, parse_images,
     parse_topics, parse_locations, parse_subjects,
     parse_records, parse_record_section,
-    parse_marcxml,
+    parse_marcxml, deep_get, logged
 )
 from metadata.db import (
     initialise_db, manage_db_session, export_records,
@@ -27,8 +29,8 @@ from metadata.schema import (
     CollectionLocation, CollectionSubject, CollectionTopic,
 )
 from metadata._types import (
-    Any, List, Dict,
-    ParsedRecord, DBConfig,
+    Any, List, Dict, Optional,
+    ParsedRecord, DBConfig, DirPath, FilePath,
     Record, Engine,
 )
 
@@ -46,16 +48,15 @@ FLAG_DIMENSIONS = False # type: bool
 OUTPUT_FILE = "%s/metadata/face_recognition.csv" % (OUTPUT_DIRECTORY)
 
 DB_CONFIG = {} # type: DBConfig
-# "%s/metadata/face_recognition.sqlite3" % (OUTPUT_DIRECTORY)
-DB_CONFIG["database"] = ":memory:" # type: str
-DB_CONFIG["drivername"] = "sqlite" # type: str
-DB_CONFIG["host"] = None # type: Optional[str]
-DB_CONFIG["username"] = None # type: Optional[str]
-DB_CONFIG["password"] = None # type: Optional[str]
+DB_CONFIG["database"] = "%s/metadata/face_recognition.sqlite3" % (OUTPUT_DIRECTORY)
+DB_CONFIG["drivername"] = "sqlite"
+DB_CONFIG["host"] = None
+DB_CONFIG["username"] = None
+DB_CONFIG["password"] = None
 
 ##########################################################
 
-
+@logged
 def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
     with manage_db_session(db_engine) as session:
         collection_plus = (
@@ -72,19 +73,19 @@ def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
             .join(collection_plus, isouter=True)
             .subquery()
         ).all()
-    #TODO: Convert to dict
+    flat_view = [record._asdict() for record in flat_view]
     return flat_view
 
 
 ##########################################################
 
-
+@logged
 def collect_collection_data(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     collection_data = parse_collection(record, **kwargs)
     collection = [collection_data]
     return collection
 
-
+@logged
 def collect_collection_topics(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     topics = parse_topics(record, **kwargs)
     collection_data = parse_collection(record, **kwargs)
@@ -96,7 +97,7 @@ def collect_collection_topics(record: Record, **kwargs: Any) -> List[ParsedRecor
     ]
     return collection_topics
 
-
+@logged
 def collect_collection_locations(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     locations = parse_locations(record, **kwargs)
     collection_data = parse_collection(record, **kwargs)
@@ -108,7 +109,7 @@ def collect_collection_locations(record: Record, **kwargs: Any) -> List[ParsedRe
     ]
     return collection_locations
 
-
+@logged
 def collect_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     subjects_data = parse_subjects(record, **kwargs)
     subjects = [
@@ -121,7 +122,7 @@ def collect_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     ]
     return subjects
 
-
+@logged
 def collect_collection_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     subjects_data = parse_subjects(record, **kwargs)
     collection_data = parse_collection(record, **kwargs)
@@ -135,31 +136,32 @@ def collect_collection_subjects(record: Record, **kwargs: Any) -> List[ParsedRec
     ]
     return collection_subjects
 
-
+@logged
 def collect_images(record: Record, **kwargs: Any) -> List[ParsedRecord]:
-    images_data = parse_images(record, **kwargs)
-    collection_data = parse_collection(record, **kwargs)
-    images = [
-        {
-            "image_id": image["image_id"],
-            "image_url_main": image["image_url_main"],
-            "image_url_raw": image["image_url_raw"],
-            "image_url_thumb": image["image_url_thumb"],
-            "image_note": image["image_note"],
-            "image_width": image["image_dimensions"]["width"],
-            "image_height": image["image_dimensions"]["height"],
-            "image_longitude": image["image_coordinates"]["longitude"],
-            "image_latitude": image["image_coordinates"]["latitude"],
-            "image_date_created": image["image_date_created"],
-            "collection_id": collection_data["collection_id"],
-        } for image in images_data
-    ]
+    images_raw = parse_images(record, **kwargs)
+    collection_raw = parse_collection(record, **kwargs)
+    images = [] # type: List[ParsedRecord]
+    for image_raw in images_raw:
+        image = {
+            "image_id": image_raw["image_id"],
+            "image_url_main": image_raw["image_url_main"],
+            "image_url_raw": image_raw["image_url_raw"],
+            "image_url_thumb": image_raw["image_url_thumb"],
+            "image_note": image_raw["image_note"],
+            "image_width": deep_get(image_raw, "image_dimensions", "width"),
+            "image_height": deep_get(image_raw, "image_dimensions", "height"),
+            "image_longitude": deep_get(image_raw, "image_coordinates", "longitude"),
+            "image_latitude": deep_get(image_raw, "image_coordinates", "latitude"),
+            "image_date_created": image_raw["image_date_created"],
+            "collection_id": collection_raw["collection_id"],
+        }
+        images.append(image)
     return images
 
 
 ##########################################################
 
-
+@logged
 def parse_record(record: Record, **kwargs: Any) -> None:
     parse_record_section(record, Collection, collect_collection_data, **kwargs)
     parse_record_section(record, CollectionTopic, collect_collection_topics, **kwargs)
@@ -172,7 +174,8 @@ def parse_record(record: Record, **kwargs: Any) -> None:
 ##########################################################
 # Main
 
-def main():
+
+def main() -> None:
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
     db_engine = initialise_db(DB_CONFIG) # Add SCHEMA CONFIG
     parse_records(records_sample, parse_record, engine=db_engine, geocoding=FLAG_GEOCODING, dimensions=FLAG_DIMENSIONS)
@@ -180,10 +183,24 @@ def main():
     export_records(records_out, OUTPUT_FILE)
 
 
-if __name__ == "__main__":
+def setup_logging() -> None:
     import logging
-    logging.basicConfig()
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
+    logging.getLogger("PIL.Image").setLevel(logging.INFO)
+    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+    logging.getLogger("datefinder").setLevel(logging.INFO)
+
+
+def setup_warnings() -> None:
+    import warnings
+    import sqlalchemy
+    warnings.filterwarnings("ignore", category=sqlalchemy.exc.SAWarning)
+
+
+if __name__ == "__main__":
+    setup_logging()
+    setup_warnings()
     main()
 
 

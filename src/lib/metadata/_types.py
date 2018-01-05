@@ -8,6 +8,22 @@ from typing import (
 from mypy_extensions import TypedDict, KwArg
 
 ##########################################################
+# External Types
+
+import datetime
+import pymarc
+import sqlalchemy.engine
+import sqlalchemy.orm
+import sqlalchemy.ext
+
+Date = datetime.date
+Record = pymarc.Record
+Field = pymarc.Field
+Engine = sqlalchemy.engine.Engine
+Session = sqlalchemy.orm.Session
+Schema = Any
+
+##########################################################
 # Local Types
 
 FilePath = str
@@ -33,18 +49,3 @@ DBConfig = TypedDict("DBConfig", {
     }, total=False
 )
 
-##########################################################
-# External Types
-
-import datetime
-import pymarc
-import sqlalchemy.engine
-import sqlalchemy.orm
-import sqlalchemy.ext
-
-Date = datetime.date
-Record = pymarc.Record
-Field = pymarc.Field
-Engine = sqlalchemy.engine.Engine
-Session = sqlalchemy.orm.Session
-Schema = sqlalchemy.ext.declarative.Base

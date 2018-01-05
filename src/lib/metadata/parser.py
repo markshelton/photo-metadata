@@ -11,6 +11,8 @@ import re
 import random
 import urllib.request
 import urllib.error
+import time
+from functools import reduce, wraps
 
 ##########################################################
 # Third Party Imports
@@ -68,6 +70,23 @@ logger = logging.getLogger(__name__)
 
 ##########################################################
 
+def logged(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        logger.info("{0} | Started".format(f.__name__))
+        start_time = time.time()
+        try: result = f(*args, **kwargs)
+        except:
+            elapsed_time = time.time() - start_time
+            logger.error("{0} | Failed | {1:.2f}".format(f.__name__,elapsed_time), exc_info=True)
+        else:
+            elapsed_time = time.time() - start_time
+            logger.info("{0} | Passed | {1:.2f}".format(f.__name__,elapsed_time))
+            return result
+    return wrapper    
+
+def deep_get(dictionary: Dict, *keys: str) -> Optional[Any]:
+    return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
 
 def consolidate_list(full_list: List[Any]) -> List[Any]:
     """Remove null entries from list and return sub-list."""
@@ -174,19 +193,6 @@ def get_date_collection_created(record: Record) -> Optional[Date]:
     return date_created
 
 
-def get_topics(record: Record) -> List[str]:
-    topics_raw = get_subfields_from_tag(record, TAG_TOPIC)
-    topics = consolidate_list(topics_raw)
-    return topics
-
-
-def get_locations(record: Record) -> List[str]:
-    location_divisions_raw = get_subfields_from_tag(record, TAG_LOCATION_DIVISION)
-    location_names_raw = get_subfields_from_tag(record, TAG_LOCATION_NAME)
-    locations = consolidate_list([*location_divisions_raw, *location_names_raw])
-    return locations
-
-
 def split_dates(record: Record, dates_tag: str) -> Dates:
     dates_raw = get_subfield_from_tag(record, dates_tag)
     if dates_raw is None: return Dates({"start": None, "end": None})
@@ -201,6 +207,7 @@ def split_dates(record: Record, dates_tag: str) -> Dates:
         date_end = None
     dates = Dates({"start": date_start, "end": date_end})
     return dates
+
 
 def get_image_url(image: Field, tag: str, method: str = "main"):
     image_url_raw = get_subfield_from_tag(image, tag)
@@ -260,6 +267,16 @@ def get_date(field: Field, tag: str) -> Optional[Date]:
 
 ##########################################################
 
+def parse_topics(record: Record, **kwargs: Any) -> List[str]:
+    topics_raw = get_subfields_from_tag(record, TAG_TOPIC)
+    topics = consolidate_list(topics_raw)
+    return topics
+
+def parse_locations(record: Record, **kwargs: Any) -> List[str]:
+    location_divisions_raw = get_subfields_from_tag(record, TAG_LOCATION_DIVISION)
+    location_names_raw = get_subfields_from_tag(record, TAG_LOCATION_NAME)
+    locations = consolidate_list([*location_divisions_raw, *location_names_raw])
+    return locations
 
 def parse_main_person(record: Record) -> ParsedRecord:
     subject_name = get_subfield_from_tag(record, TAG_SUBJECT_PERSON_NAME_MAIN)
@@ -331,7 +348,7 @@ def parse_collection(record: Record, **kwargs: Any) -> ParsedRecord:
     return collection
 
 
-def parse_images(record: Record, geocoding_flag: bool, dimensions_flag: bool, **kwargs: Any) -> List[ParsedRecord]:
+def parse_images(record: Record, geocoding_flag: bool = False, dimensions_flag: bool = False, **kwargs: Any) -> List[ParsedRecord]:
     images_raw = get_fields_from_tag(record, TAG_IMAGE_URL)
     images = consolidate_list([
         {
@@ -370,7 +387,6 @@ def parse_record_section(
         engine: Engine,
         **kwargs: Any
     ) -> None:
-    
     records_parsed = parser(record, **kwargs)
     for record_parsed in records_parsed:
         with manage_db_session(engine) as session:
@@ -383,10 +399,7 @@ def parse_records(
         parser: Callable[[Record, KwArg(Any)], None],
         **kwargs: Any
     ) -> None:
-    
-    total = len(records)
-    for i, record in enumerate(records):
-        logger.info("Records Processed: %s out of %s.", i + 1, total)
+    for record in records:
         parser(record, **kwargs)
 
 

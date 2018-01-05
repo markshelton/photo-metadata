@@ -88,7 +88,7 @@ def export_records_to_csv(records: List[ParsedRecord], output_file: FilePath) ->
         header = records[0].keys()
         outcsv.writerow(header)
         for record in records:
-            record_list = [getattr(record, column) for column in header]
+            record_list = record.values()
             outcsv.writerow(record_list)
 
 
@@ -100,18 +100,7 @@ def json_serial(obj: Any) -> str:
 
 def export_records_to_json(records: List[ParsedRecord], output_file: FilePath) -> None:
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
-        records_list = []
-        for record in records:
-            header = record.keys()
-            try:
-                record_dict = {
-                    column: getattr(
-                        record,
-                        column) for column in header}
-            except BaseException:
-                record_dict = record
-            records_list.append(record_dict)
-        json.dump(records_list, outfile, indent=2, default=json_serial)
+        json.dump(records, outfile, indent=2, default=json_serial)
 
 
 def export_records_to_log(records: List[ParsedRecord]) -> None:
@@ -120,6 +109,7 @@ def export_records_to_log(records: List[ParsedRecord]) -> None:
 
 
 def export_records(records: List[ParsedRecord], output_file: Optional[FilePath] = None) -> None:
+    if not records: return None
     if output_file:
         if output_file.endswith(".json"):
             export_records_to_json(records, output_file)

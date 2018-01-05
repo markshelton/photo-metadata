@@ -17,7 +17,7 @@ import geopy.distance
 # Local Imports
 
 from metadata._types import (
-    Dict, List, Pattern,
+    Dict, List, Pattern, Optional,
     FilePath, Match, Coordinates, Address, 
 )
 
@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
+    """Read CSV file into a dictionary"""
     with open(csv_file) as csvfile:
         reader = csv.DictReader(csvfile)
         rows = zip(*[d.values() for d in reader])
@@ -45,22 +46,21 @@ def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
         return outdict
 
 
-def make_candidate_string(candidate_list: List[str]) -> str:
-    return "|".join(candidate_list)
-
-
 def prepare_search_string(input_file: FilePath) -> str:
+    """Read search terms from CSV files and concatentate into string for Regex."""
     search_dict = read_csv_to_dict(input_file)
-    search_list = [make_candidate_string(search_dict[key]) for key in search_dict.keys()]
+    search_list = ["|".join(search_dict[key]) for key in search_dict.keys()]
     search_string = "".join(search_list)
     return search_string
 
 
 def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> List[Match]:
+    """Return a dictionary of all named groups for a Regex pattern."""
     return [match.groupdict() for match in compiled_regex.finditer(target_text)]
 
 
-def clean_up_addresses(address_matches: List[Match]) -> Address:
+def clean_up_addresses(address_matches: List[Match]) -> Optional[Address]:
+    if not address_matches: return None
     address_dict = address_matches[0]
     if address_dict["street_type"] is None:
         address_dict["street_name"] = None
@@ -72,12 +72,11 @@ def clean_up_addresses(address_matches: List[Match]) -> Address:
         suburb_name=address_dict["suburb_name"],
         state="Western Australia",
         country="Australia",
-        keywords=[],
     )
     return address
 
 
-def parse_structured_address(location_text: str, street_types_file: FilePath, suburb_names_file: FilePath) -> Address:
+def parse_structured_address(location_text: str, street_types_file: FilePath, suburb_names_file: FilePath) -> Optional[Address]:
     street_types = prepare_search_string(street_types_file)
     suburb_names = prepare_search_string(suburb_names_file)
     re_main = re.compile(
@@ -101,8 +100,9 @@ def parse_keywords_from_address(location_text: str, stop_words_file: FilePath) -
     return keywords_list
 
 
-def parse_address(location_text: str) -> Address:
+def parse_address(location_text: str) -> Optional[Address]:
     address = parse_structured_address(location_text, INPUT_STREET_TYPE_FILE, INPUT_SUBURB_NAMES_FILE)
+    if address is None: return None
     keywords_list = parse_keywords_from_address(location_text, INPUT_STOP_WORDS_FILE)
     keywords_list_unique = set(keywords_list) - set(address.values())
     address["keywords"] = list(keywords_list_unique)
@@ -150,6 +150,7 @@ def format_nominatim_queries(address: Address) -> List[str]:
 
 
 def calculate_bounding_box_size(bb_coords: List[float]) -> float:
+    """Calculate Bounding Box Size of GPS Coordinates, using Vincenty algorithm (in km)."""
     return geopy.distance.vincenty((bb_coords[0], bb_coords[2]), (bb_coords[1], bb_coords[3])).km
 
 
@@ -172,7 +173,9 @@ def geocode_addresses(queries: List[str]) -> List[Coordinates]:
     return coordinates_list
 
 
-def choose_best_coordinates(coordinates_list: List[Coordinates]) -> Coordinates:
+def choose_best_coordinates(coordinates_list: List[Coordinates]) -> Optional[Coordinates]:
+    """Choose best coordinates from list based on smallest bounding box."""
+    if not coordinates_list: return None
     best_coords = min(coordinates_list, key=lambda x: x.get('bb_size'))
     coords = Coordinates(
         latitude=best_coords["latitude"],
@@ -181,8 +184,10 @@ def choose_best_coordinates(coordinates_list: List[Coordinates]) -> Coordinates:
     return coords
 
 
-def extract_coordinates_from_text(location_text: str) -> Coordinates:
+def extract_coordinates_from_text(location_text: str) -> Optional[Coordinates]:
+    """Parse and geocode location from text using OSM Nominatim."""
     address_dict = parse_address(location_text)
+    if not address_dict: return None
     queries = format_nominatim_queries(address_dict)
     coordinates_list = geocode_addresses(queries)
     coordinates = choose_best_coordinates(coordinates_list)
@@ -197,6 +202,7 @@ OUTPUT_SUBURB_FILE = INPUT_SUBURB_NAMES_FILE # type: FilePath
 
 
 def scrape_suburbs_list(output_file: FilePath) -> None:
+    """Scrape list of WA suburb names from Landgate web page and store in file."""
     from bs4 import BeautifulSoup
     with urllib.request.urlopen(INPUT_SUBURB_URL) as suburbs_page:
         suburbs_html = BeautifulSoup(suburbs_page, 'html.parser')

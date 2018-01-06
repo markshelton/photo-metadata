@@ -1,9 +1,18 @@
 ##########################################################
 # Standard Library Imports
 
+import glob
+import os
+import errno
+import shutil
+import functools
+import operator
+import random
+
 ##########################################################
 # Third Party Imports
 
+from matplotlib import pyplot as plt
 import numpy as np
 import dlib
 import cv2
@@ -11,13 +20,28 @@ import cv2
 ##########################################################
 # Local Imports
 
+from _types import (
+    Dict, List, Pattern, Optional,
+    FilePath, DirPath, Match, Coordinates, Address,
+    Image,
+)
+
 ##########################################################
 # Environmental Variables
 
+INPUT_IMAGE_DIR = "/src/input/images/JPEG_Convert_Resolution_1024" # type: DirPath
+OUTPUT_FACES_IMAGE_DIR = "/src/output/face_recognition/images/faces" # type: DirPath
 FACIAL_LANDMARK_DETECTOR_MODEL = None # type: FilePath
+
 STANDARDIZED_IMAGE_SIZE = {}
 STANDARDIZED_IMAGE_SIZE["width"] = 500
 STANDARDIZED_IMAGE_SIZE["height"] = 500
+
+INPUT_SAMPLE_SIZE = 100
+
+RESET_FILES_FLAG = True
+SHOW_IMAGES_FLAG = False
+LIST_FILES_FLAG = False
 
 ##########################################################
 # Logging Configuration
@@ -61,6 +85,39 @@ def resize_image(
     image_resized = cv2.resize(image_original, dimensions, interpolation=inter)
     return resized
 
+
+def make_directory(directory: DirPath, clear: str = RESET_FILES_FLAG):
+    if clear: shutil.rmtree(directory)
+    try: os.makedirs(directory)
+    except OSError as e:
+        if e.errno != errno.EEXIST: raise
+
+
+def count_files_that_match_pattern(directory: DirPath, pattern: str) -> int:
+    return len(glob.glob1(directory, pattern))
+
+
+def maybe_increment_path(file_path: FilePath, sep: str = "_") -> Optional[FilePath]:
+    file_path_base, file_ext = os.path.splitext(file_path)
+    directory_path = os.path.dirname(file_path)
+    max_files = count_files_that_match_pattern(directory_path, "file_path_base*")
+    for i in range(max_files):
+        full_file_path = "%s%s%s%s" % (file_path_base, sep, i, file_ext)
+        if not os.path.exists(full_file_path):
+            return full_file_path
+    return None
+
+
+def show_image(image: Image) -> None:
+    plt.imshow(img_rgb)
+    plt.show()
+
+
+def save_image(image_file: FilePath, image: Image) -> None:
+    image_file = maybe_increment_path(image_file)
+    cv2.imwrite(image_file, image)
+
+
 ##########################################################
 # Functions
 
@@ -85,6 +142,12 @@ def process_image(image_file: FilePath) -> List[Face]:
     faces_rect = find_faces_in_image(image_gray)
     landmarks_arrays = [detect_facial_landmarks(face_rect) for face_rect in faces_rect]
 
+
+##########################################################
+# Main
+
+if __name__ == "__main__":
+    pass
 
 ##########################################################
 # Notes

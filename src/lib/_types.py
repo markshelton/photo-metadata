@@ -31,6 +31,7 @@ DirPath = str
 File = IO[str]
 Match = Dict[str, str]
 ParsedRecord = Dict[str, Any]
+JSONType = Union[List[ParsedRecord], ParsedRecord]
 Tag = TypedDict('Tag', {"field": str, "subfield": str})
 Dates = TypedDict("Dates", {"start": Optional[Date], "end": Optional[Date]})
 Size = TypedDict("Size", {"width": int, "height": int})

@@ -25,10 +25,10 @@ from mypy_extensions import TypedDict
 ##########################################################
 # Local Imports
 
-from metadata.db import manage_db_session
-from metadata.ext.geocoder import extract_coordinates_from_text
-from metadata.schema import Base
-from metadata._types import (
+from database import manage_db_session
+from geocoder import extract_coordinates_from_text
+from schema import Base
+from _types import (
     Dict, List, Pattern, Any, Callable, Optional, Union, KwArg,
     Tag, Dates, Size, Coordinates, ParsedRecord,
     Record, Field, Date, Engine, Schema, 
@@ -69,6 +69,8 @@ TAG_IMAGE_NOTE = "856$z"
 logger = logging.getLogger(__name__)
 
 ##########################################################
+# Helpers
+
 
 def logged(f):
     @wraps(f)
@@ -85,13 +87,19 @@ def logged(f):
             return result
     return wrapper    
 
+
 def deep_get(dictionary: Dict, *keys: str) -> Optional[Any]:
     return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
+
 
 def consolidate_list(full_list: List[Any]) -> List[Any]:
     """Remove null entries from list and return sub-list."""
     consolidated_list = [x for x in full_list if x is not None]
     return consolidated_list
+
+
+##########################################################
+# Functions
 
 
 def get_subfield_from_field(field: Field, subfield_key: str) -> Optional[str]:

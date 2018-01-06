@@ -15,20 +15,20 @@ from sqlalchemy.orm import Session
 
 sys.path.append("/home/app/src/lib/")
 
-from metadata.parser import (
+from parser import (
     parse_collection, parse_images,
     parse_topics, parse_locations, parse_subjects,
     parse_records, parse_record_section,
     parse_marcxml, deep_get, logged
 )
-from metadata.db import (
+from database import (
     initialise_db, manage_db_session, export_records,
 )
-from metadata.schema import (
+from schema import (
     Image, Collection, Subject,
     CollectionLocation, CollectionSubject, CollectionTopic,
 )
-from metadata._types import (
+from _types import (
     Any, List, Dict, Optional,
     ParsedRecord, DBConfig, DirPath, FilePath,
     Record, Engine,
@@ -40,7 +40,7 @@ from metadata._types import (
 PROJECT_DIRECTORY = "/home/app/src/scripts/face_recognition" # type: DirPath
 OUTPUT_DIRECTORY = "/home/app/data/output/face_recognition" # type: DirPath
 INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml" # type: FilePath
-INPUT_SAMPLE_SIZE = 20 # type: int
+INPUT_SAMPLE_SIZE = 20 # type: Optional[int]
 
 FLAG_GEOCODING = False # type: bool
 FLAG_DIMENSIONS = False # type: bool
@@ -144,14 +144,7 @@ def collect_images(record: Record, **kwargs: Any) -> List[ParsedRecord]:
     for image_raw in images_raw:
         image = {
             "image_id": image_raw["image_id"],
-            "image_url_main": image_raw["image_url_main"],
-            "image_url_raw": image_raw["image_url_raw"],
-            "image_url_thumb": image_raw["image_url_thumb"],
             "image_note": image_raw["image_note"],
-            "image_width": deep_get(image_raw, "image_dimensions", "width"),
-            "image_height": deep_get(image_raw, "image_dimensions", "height"),
-            "image_longitude": deep_get(image_raw, "image_coordinates", "longitude"),
-            "image_latitude": deep_get(image_raw, "image_coordinates", "latitude"),
             "image_date_created": image_raw["image_date_created"],
             "collection_id": collection_raw["collection_id"],
         }
@@ -177,10 +170,10 @@ def parse_record(record: Record, **kwargs: Any) -> None:
 
 def main() -> None:
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
-    db_engine = initialise_db(DB_CONFIG) # Add SCHEMA CONFIG
+    db_engine = initialise_db(DB_CONFIG)
     parse_records(records_sample, parse_record, engine=db_engine, geocoding=FLAG_GEOCODING, dimensions=FLAG_DIMENSIONS)
     records_out = get_query_results(db_engine)
-    export_records(records_out, OUTPUT_FILE)
+    export_records_to_csv(records_out, OUTPUT_FILE)
 
 
 def setup_logging() -> None:

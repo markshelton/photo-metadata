@@ -20,8 +20,8 @@ from sqlalchemy.exc import IntegrityError
 ##########################################################
 # Local Imports
 
-from metadata.schema import Base
-from metadata._types import (
+from schema import Base
+from _types import (
     List, Optional, Dict, Any, Iterator, TypedDict,
     ParsedRecord, DBConfig, FilePath,
     Engine, Session, File, 
@@ -47,6 +47,7 @@ def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
 
 
 ##########################################################
+# Functions
 
 
 def make_db_tables(db_engine: Engine) -> None:
@@ -82,7 +83,14 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
         session.close()
 
 
+def json_serial(obj: Any) -> str:
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    raise TypeError("Type %s not serializable" % type(obj))
+
+
 def export_records_to_csv(records: List[ParsedRecord], output_file: FilePath) -> None:
+    if not records: return None
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         outcsv = csv.writer(outfile)
         header = records[0].keys()
@@ -92,33 +100,16 @@ def export_records_to_csv(records: List[ParsedRecord], output_file: FilePath) ->
             outcsv.writerow(record_list)
 
 
-def json_serial(obj: Any) -> str:
-    if isinstance(obj, (datetime.datetime, datetime.date)):
-        return obj.isoformat()
-    raise TypeError("Type %s not serializable" % type(obj))
-
-
-def export_records_to_json(records: List[ParsedRecord], output_file: FilePath) -> None:
+def export_records_to_json(records: JSONType, output_file: FilePath) -> None:
+    if not records: return None
     with open_file(output_file, 'w+', encoding='utf-8') as outfile:
         json.dump(records, outfile, indent=2, default=json_serial)
 
 
-def export_records_to_log(records: List[ParsedRecord]) -> None:
+def export_records_to_log(records: List[Any]) -> None:
+    if not records: return None
     for record in records:
         logger.info(str(record))
 
-
-def export_records(records: List[ParsedRecord], output_file: Optional[FilePath] = None) -> None:
-    if not records: return None
-    if output_file:
-        if output_file.endswith(".json"):
-            export_records_to_json(records, output_file)
-        elif output_file.endswith(".csv"):
-            export_records_to_csv(records, output_file)
-        else:
-            logger.error("Output file %s is of unknown type. \
-                Please specify CSV or JSON.", output_file)
-    else:
-        export_records_to_log(records)
 
 ##########################################################

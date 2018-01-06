@@ -149,7 +149,7 @@ For each image:
     1. Read metadata for image (if exists)
         - Find locally (directory flag)
         - Find remotely (SLWA catalogue API)
-    2. Convert metadata to digestible format
+    2. Convert metadata to digestible format - DONE
     3. Find face in image
         For each face:
             2. Find facial landmarks

@@ -16,7 +16,7 @@ import geopy.distance
 ##########################################################
 # Local Imports
 
-from metadata._types import (
+from _types import (
     Dict, List, Pattern, Optional,
     FilePath, Match, Coordinates, Address, 
 )
@@ -34,7 +34,7 @@ INPUT_STOP_WORDS_FILE = "/home/app/data/input/metadata/location/stop_words.csv" 
 logger = logging.getLogger(__name__)
 
 ##########################################################
-
+# Helpers
 
 def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
     """Read CSV file into a dictionary"""
@@ -57,6 +57,10 @@ def prepare_search_string(input_file: FilePath) -> str:
 def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> List[Match]:
     """Return a dictionary of all named groups for a Regex pattern."""
     return [match.groupdict() for match in compiled_regex.finditer(target_text)]
+
+
+##########################################################
+# Functions
 
 
 def clean_up_addresses(address_matches: List[Match]) -> Optional[Address]:
@@ -192,6 +196,7 @@ def extract_coordinates_from_text(location_text: str) -> Optional[Coordinates]:
     coordinates_list = geocode_addresses(queries)
     coordinates = choose_best_coordinates(coordinates_list)
     return coordinates
+
 
 ##########################################################
 # One-time Scripts

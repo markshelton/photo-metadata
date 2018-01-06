@@ -9,18 +9,18 @@
 
 import sys; sys.path.append("/home/app/src/lib/")
 
-from metadata.parser import (
+from parser import (
     parse_images, parse_collection,
     parse_records, parse_record_section,
     parse_marcxml, deep_get, logged,
 )
-from metadata.db import (
+from database import (
     initialise_db, manage_db_session, export_records,
 )
-from metadata.schema import Image
-from metadata._types import (
+from schema import Image
+from _types import (
     Any, List, Dict, Optional,
-    ParsedRecord, DBConfig, FilePath, DirPath,
+    ParsedRecord, DBConfig, FilePath, DirPath, JSONType,
     Record, Engine,
 )
 
@@ -30,7 +30,7 @@ from metadata._types import (
 PROJECT_DIRECTORY = "/home/app/src/scripts/old_perth" # type: DirPath
 OUTPUT_DIRECTORY = "/home/app/data/output/old_perth" # type: DirPath
 INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml" # type: FilePath
-INPUT_SAMPLE_SIZE = 10 # type: int
+INPUT_SAMPLE_SIZE = 10 # type: Optional[int]
 
 FLAG_GEOCODING = True # type: bool
 FLAG_DIMENSIONS = True # type: bool
@@ -47,8 +47,8 @@ DB_CONFIG["password"] = None
 ##########################################################
 
 @logged
-def reformat_for_old_perth(records: List[ParsedRecord]) -> List[ParsedRecord]:
-    records_out = [
+def reformat_for_old_perth(records: List[ParsedRecord]) -> JSONType:
+    records_out = {"photos": [
         {
             "text": None,
             "height": record["image_height"],
@@ -65,7 +65,7 @@ def reformat_for_old_perth(records: List[ParsedRecord]) -> List[ParsedRecord]:
             "folder": None,
             "years": [""]
         } for record in records if record["image_latitude"] is not None
-    ]
+    ]}
     return records_out
 
 @logged
@@ -79,7 +79,7 @@ def get_query_results(db_engine: Engine) -> List[ParsedRecord]:
     return images
 
 @logged
-def prepare_records_for_export(db_engine: Engine) -> List[ParsedRecord]:
+def prepare_records_for_export(db_engine: Engine) -> JSONType:
     records_raw = get_query_results(db_engine)
     records_clean = reformat_for_old_perth(records_raw)
     return records_clean
@@ -122,10 +122,10 @@ def parse_record(record: Record, **kwargs: Any) -> None:
 
 def main() -> None:
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
-    db_engine = initialise_db(DB_CONFIG) #TODO: SCHEMA_CONFIG
+    db_engine = initialise_db(DB_CONFIG)
     parse_records(records_sample, parse_record, engine=db_engine, geocoding_flag=FLAG_GEOCODING, dimensions_flag=FLAG_DIMENSIONS)
     records_out = prepare_records_for_export(db_engine)
-    export_records(records_out, OUTPUT_FILE)
+    export_records_to_json(records_out, OUTPUT_FILE)
 
 
 def setup_logging() -> None:

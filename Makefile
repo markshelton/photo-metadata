@@ -69,7 +69,7 @@ start: build run jupyter shell
 
 .PHONY: stop
 stop:
-	docker exec -it $(PROJECT_NAME) /bin/bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
+	-docker exec -it $(PROJECT_NAME) /bin/bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
 	-docker stop $(PROJECT_NAME)
 
 .PHONY: tag

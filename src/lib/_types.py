@@ -21,7 +21,11 @@ Record = pymarc.Record
 Field = pymarc.Field
 Engine = sqlalchemy.engine.Engine
 Session = sqlalchemy.orm.Session
-Schema = Any
+Schema = Any #sqlalchemy - base type
+Image = Any #OpenCV
+Rectangle = Any #dlib
+BoundingBox = Any #dlib
+Shape = Any #dlib
 
 ##########################################################
 # Local Types
@@ -49,4 +53,4 @@ DBConfig = TypedDict("DBConfig", {
     'username': Optional[str], 'password': Optional[str],
     }, total=False
 )
-
+Face = Any

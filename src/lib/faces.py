@@ -8,6 +8,7 @@ import shutil
 import functools
 import operator
 import random
+import logging
 
 ##########################################################
 # Third Party Imports
@@ -20,10 +21,11 @@ import cv2
 ##########################################################
 # Local Imports
 
+
 from _types import (
     Dict, List, Pattern, Optional,
-    FilePath, DirPath, Match, Coordinates, Address,
-    Image,
+    FilePath, DirPath, Match, Coordinates, Address, Face,
+    Image, Rectangle, BoundingBox, Shape,
 )
 
 ##########################################################
@@ -60,7 +62,7 @@ def rect_to_bb(rect: Rectangle) -> BoundingBox:
 	return Face(x=x, y=y, w=w, h=h)
 
 
-def shape_to_np(shape: Shape, dtype="int") -> Array:
+def shape_to_np(shape: Shape, dtype="int") -> List[int]:
 	coords = np.zeros((68, 2), dtype=dtype)
 	for i in range(0, 68):
 		coords[i] = (shape.part(i).x, shape.part(i).y)
@@ -71,7 +73,7 @@ def resize_image(
         image_original: Image,
         width_target: Optional[int] = None,
         height_target: Optional[int] = None,
-        interpolation_type: Enum = cv2.INTER_AREA
+        interpolation_type: str = cv2.INTER_AREA
     ) -> Image:
 
     height_original, width_original = image.shape[:2]
@@ -128,12 +130,13 @@ def find_faces_in_image(image_gray: Image) -> List[Rectangle]:
     return faces_rect
 
 
-def detect_facial_landmarks(face_rect: Rectangle) -> Array[int]:
+def detect_facial_landmarks(face_rect: Rectangle) -> List[int]:
     predictor = dlib.shape_predictor(FACIAL_LANDMARK_DETECTOR_MODEL)
     landmarks_shape = predictor(gray, face_rect)
-	landmarks_array = face_utils.shape_to_np(landmarks_shape)
+    landmarks_array = face_utils.shape_to_np(landmarks_shape)
     return landmarks_array
 
+def normalize_face(image: Image, )
 
 def process_image(image_file: FilePath) -> List[Face]:
     image_bgr = cv2.imread(image_file)

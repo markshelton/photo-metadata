@@ -48,3 +48,5 @@ docker restart # stops and starts container
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
+
+To be determined.

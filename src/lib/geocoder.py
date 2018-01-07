@@ -157,7 +157,6 @@ def calculate_bounding_box_size(bb_coords: List[float]) -> float:
     """Calculate Bounding Box Size of GPS Coordinates, using Vincenty algorithm (in km)."""
     return geopy.distance.vincenty((bb_coords[0], bb_coords[2]), (bb_coords[1], bb_coords[3])).km
 
-
 def geocode_addresses(queries: List[str]) -> List[Coordinates]:
     coordinates_list = []
     for query in queries:
@@ -187,7 +186,7 @@ def choose_best_coordinates(coordinates_list: List[Coordinates]) -> Optional[Coo
     )
     return coords
 
-
+#TODO: Convert to Async requests
 def extract_coordinates_from_text(location_text: str) -> Optional[Coordinates]:
     """Parse and geocode location from text using OSM Nominatim."""
     address_dict = parse_address(location_text)

@@ -113,7 +113,7 @@ def show_image(image: Image) -> None:
     plt.show()
 
 
-def save_image(image_file: FilePath, image: Image) -> None:
+def save_image(image: Image, image_file: FilePath) -> None:
     image_file = maybe_increment_path(image_file)
     cv2.imwrite(image_file, image)
 

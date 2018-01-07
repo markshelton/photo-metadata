@@ -1,12 +1,12 @@
 # Thickshake
 
-Thickshake is a Python library for dealing with historical image classification.
+Thickshake is a Python library for historical image classification.
 
 It contains functions to assist with:
 
 * metadata extraction from MARC-based library photo archives
-* face detection, normalisation, and encoding from historical photos
-* identification of subjects in images via machine learning
+* face detection, normalisation, and encoding of historical photos
+* identification of subjects in images using machine learning
 
 ## Installation
 
@@ -31,21 +31,21 @@ thickshake.detect_subjects(image, image_metadata)
 Docker image contains:
 
 * Python 3.5
-* Tensorflow
-* OpenCV
-* dlib
+* Tensorflow 1.4.0
+* OpenCV 3.3.1
+* dlib 19.7
 
-Docker commands:
+Make commands:
 
 ```bash
-docker start # loads container, launches jupyter in browser, opens container shell in terminal
-docker stop # saves pip environment, stops container
-docker restart # stops and starts container
+make start # loads container, launches jupyter in browser, opens container shell in terminal
+make stop # saves pip environment, stops container
+make restart # stops and starts container
 ```
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome.
 
 ## License
 

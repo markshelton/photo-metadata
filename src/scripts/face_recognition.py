@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 sys.path.append("/home/app/src/lib/")
 
-from parser import (
+from parse import (
     parse_collection, parse_images,
     parse_topics, parse_locations, parse_subjects,
     parse_records, parse_record_section,

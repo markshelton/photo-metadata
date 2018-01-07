@@ -9,13 +9,13 @@
 
 import sys; sys.path.append("/home/app/src/lib/")
 
-from parser import (
+from parse import (
     parse_images, parse_collection,
     parse_records, parse_record_section,
     parse_marcxml, deep_get, logged,
 )
 from database import (
-    initialise_db, manage_db_session, export_records,
+    initialise_db, manage_db_session, export_records_to_json,
 )
 from schema import Image
 from _types import (
@@ -30,7 +30,7 @@ from _types import (
 PROJECT_DIRECTORY = "/home/app/src/scripts/old_perth" # type: DirPath
 OUTPUT_DIRECTORY = "/home/app/data/output/old_perth" # type: DirPath
 INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml" # type: FilePath
-INPUT_SAMPLE_SIZE = 10 # type: Optional[int]
+INPUT_SAMPLE_SIZE = None # type: Optional[int]
 
 FLAG_GEOCODING = True # type: bool
 FLAG_DIMENSIONS = True # type: bool
@@ -112,14 +112,14 @@ def collect_images(record: Record, **kwargs: Any) -> List[ParsedRecord]:
 
 ##########################################################
 
-@logged
+
 def parse_record(record: Record, **kwargs: Any) -> None:
     parse_record_section(record, Image, collect_images, **kwargs)
 
 
 ##########################################################
 
-
+@logged
 def main() -> None:
     records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
     db_engine = initialise_db(DB_CONFIG)
@@ -131,7 +131,7 @@ def main() -> None:
 def setup_logging() -> None:
     import logging
     logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
     logging.getLogger("PIL.Image").setLevel(logging.INFO)
     logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
     logging.getLogger("datefinder").setLevel(logging.INFO)

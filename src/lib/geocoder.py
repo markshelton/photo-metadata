@@ -66,16 +66,13 @@ def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> Li
 def clean_up_addresses(address_matches: List[Match]) -> Optional[Address]:
     if not address_matches: return None
     address_dict = address_matches[0]
-    if address_dict["street_type"] is None:
-        address_dict["street_name"] = None
-        address_dict["street_number"] = None
     address = Address(
         street_number=address_dict["street_number"],
         street_name=address_dict["street_name"],
         street_type=address_dict["street_type"],
         suburb_name=address_dict["suburb_name"],
         state="Western Australia",
-        country="Australia",
+        country="Australia"
     )
     return address
 
@@ -84,8 +81,9 @@ def parse_structured_address(location_text: str, street_types_file: FilePath, su
     street_types = prepare_search_string(street_types_file)
     suburb_names = prepare_search_string(suburb_names_file)
     re_main = re.compile(
+        r'(?:.*?),\s*' +
         r'(?P<street_number>\d+)?\s*' +
-        r'(?P<street_name>.*?)?' +
+        r'(?P<street_name>.*?)?\s*' +
         r'(?P<street_type>\b(?:{0})\b)?,*\s*'.format(street_types) +
         r'(?P<suburb_name>\b(?:{0})\b)'.format(suburb_names), re.IGNORECASE
     )
@@ -108,6 +106,8 @@ def parse_address(location_text: str) -> Optional[Address]:
     address = parse_structured_address(location_text, INPUT_STREET_TYPE_FILE, INPUT_SUBURB_NAMES_FILE)
     if address is None: return None
     keywords_list = parse_keywords_from_address(location_text, INPUT_STOP_WORDS_FILE)
+    if address["street_name"] is not None and address["street_type"] is not None:
+        keywords_list.extend([address["street_name"] + " " + address["street_type"]])
     keywords_list_unique = set(keywords_list) - set(address.values())
     address["keywords"] = list(keywords_list_unique)
     return address

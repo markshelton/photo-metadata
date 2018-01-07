@@ -136,9 +136,9 @@ def get_subfield_from_tag(record_or_field: Union[Record, Field], tag_key: str) -
     tag = parse_tag_key(tag_key)
     field_key = tag["field"]
     subfield_key = tag["subfield"]
-    if isinstance(record_or_field, pymarc.Record):
+    if isinstance(record_or_field, pymarc.record.Record):
         subfield = get_subfield_from_record(record_or_field, field_key, subfield_key)
-    elif isinstance(record_or_field, pymarc.Field):
+    elif isinstance(record_or_field, pymarc.field.Field):
         subfield = get_subfield_from_field(record_or_field, subfield_key)
     else:
         subfield = None
@@ -239,9 +239,9 @@ def get_id_from_url(image: Field, tag: str) -> Optional[str]:
 
 def get_image_dimensions(field: Field, tag: str, dimensions_flag: bool = True) -> Optional[Size]:
     if dimensions_flag is False: return None
-    image_url = get_subfield_from_tag(field, tag)
-    if image_url is None: return None
-    image_url_main = image_url + ".jpg"
+    image_url_raw = get_subfield_from_tag(field, tag)
+    if image_url_raw is None: return None
+    image_url = image_url_raw + ".jpg"
     try:
         with urllib.request.urlopen(image_url) as image_file:
             parser = ImageFile.Parser()
@@ -271,6 +271,11 @@ def get_date(field: Field, tag: str) -> Optional[Date]:
     if date_text is None: return None
     extracted_date = extract_date_from_text(date_text)
     return extracted_date
+
+def check_image(field: Field) -> bool:
+    image_url = get_subfield_from_tag(field, TAG_IMAGE_URL)
+    if image_url is None or ".png" in image_url: return False
+    return True
 
 
 ##########################################################
@@ -368,7 +373,7 @@ def parse_images(record: Record, geocoding_flag: bool = False, dimensions_flag: 
             "image_dimensions": get_image_dimensions(image, TAG_IMAGE_URL, dimensions_flag=dimensions_flag),
             "image_coordinates": get_coordinates(image, TAG_IMAGE_NOTE, geocoding_flag=geocoding_flag),
             "image_date_created": get_date(image, TAG_IMAGE_NOTE),
-        } for image in images_raw
+        } for image in images_raw if check_image(image)
     ])
     return images
 

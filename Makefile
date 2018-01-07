@@ -17,7 +17,7 @@ export $(shell sed 's/=.*//' $(CONFIG))
 
 APP_NAME = "$(REPO_NAME)/$(PROJECT_NAME)"
 
-.DEFAULT_GOAL := up
+.DEFAULT_GOAL := start
 
 .PHONY: build
 build: prebuild; docker build -t $(PROJECT_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
@@ -51,7 +51,7 @@ repo-login:
 	docker login -u $(REPO_NAME)
 
 .PHONY: restart
-restart: stop up
+restart: stop start
 
 .PHONY: run
 run: 
@@ -63,6 +63,9 @@ run:
 .PHONY: shell
 shell:
 	docker exec -it $(PROJECT_NAME) /bin/bash
+
+.PHONY: start
+start: build run jupyter shell
 
 .PHONY: stop
 stop:
@@ -80,8 +83,6 @@ tag-latest:
 tag-version: 
 	docker tag $(PROJECT_NAME) $(APP_NAME)\:$(VERSION)
 
-.PHONY: up
-up: build run jupyter shell
 
 .PHONY: version
 version:

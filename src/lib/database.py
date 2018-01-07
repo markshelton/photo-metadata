@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from schema import Base
 from _types import (
     List, Optional, Dict, Any, Iterator, TypedDict,
-    ParsedRecord, DBConfig, FilePath,
+    ParsedRecord, DBConfig, FilePath, JSONType,
     Engine, Session, File, 
 )
 
@@ -74,8 +74,9 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
     try:
         yield session
         session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         session.rollback()
+        print(str(e))
     except BaseException:
         session.rollback()
         raise

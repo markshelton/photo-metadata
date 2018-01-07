@@ -14,7 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 ##########################################################
 # Local Imports
 
-from metadata._types import Any
+from _types import Any
 
 ##########################################################
 

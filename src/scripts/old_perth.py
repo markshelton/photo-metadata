@@ -30,7 +30,7 @@ from _types import (
 PROJECT_DIRECTORY = "/home/app/src/scripts/old_perth" # type: DirPath
 OUTPUT_DIRECTORY = "/home/app/data/output/old_perth" # type: DirPath
 INPUT_MARCXML_FILE = "/home/app/data/input/metadata/marc21.xml" # type: FilePath
-INPUT_SAMPLE_SIZE = None # type: Optional[int]
+INPUT_SAMPLE_SIZE = 10 # type: Optional[int]
 
 FLAG_GEOCODING = True # type: bool
 FLAG_DIMENSIONS = True # type: bool
@@ -55,7 +55,7 @@ def reformat_for_old_perth(records: List[ParsedRecord]) -> JSONType:
             "date": record["image_date_created"],
             "thumb_url": record["image_url_thumb"],
             "photo_id": record["image_id"],
-            "title": record["image_note"].split(":")[1].strip(),
+            "title": record["image_note"],
             "width": record["image_width"],
             "image_url": record["image_url_raw"],
             "location": {
@@ -63,7 +63,9 @@ def reformat_for_old_perth(records: List[ParsedRecord]) -> JSONType:
                 "lon": record["image_longitude"]
             },
             "folder": None,
-            "years": [""]
+            "years": [""],
+            "rotation": 0,
+            "popular": False,
         } for record in records if record["image_latitude"] is not None
     ]}
     return records_out
@@ -121,9 +123,9 @@ def parse_record(record: Record, **kwargs: Any) -> None:
 
 @logged
 def main() -> None:
-    records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
+    #records_sample = parse_marcxml(INPUT_MARCXML_FILE, INPUT_SAMPLE_SIZE)
     db_engine = initialise_db(DB_CONFIG)
-    parse_records(records_sample, parse_record, engine=db_engine, geocoding_flag=FLAG_GEOCODING, dimensions_flag=FLAG_DIMENSIONS)
+    #parse_records(records_sample, parse_record, engine=db_engine, geocoding_flag=FLAG_GEOCODING, dimensions_flag=FLAG_DIMENSIONS)
     records_out = prepare_records_for_export(db_engine)
     export_records_to_json(records_out, OUTPUT_FILE)
 

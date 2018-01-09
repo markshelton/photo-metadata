@@ -4,7 +4,7 @@ ARG DLIB_VERSION=19.7
 
 # Tensorflow Base Image
 # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/tools/docker
-FROM tensorflow/tensorflow:${TENSORFLOW_VERSION}
+FROM tensorflow/tensorflow:$TENSORFLOW_VERSION-py3
 
 ARG OPENCV_VERSION
 ARG DLIB_VERSION
@@ -44,6 +44,10 @@ RUN pip3 install --no-cache-dir \
     dlib==$DLIB_VERSION \
     && python3 -m ipykernel.kernelspec
 RUN pip3 install --no-cache-dir -r config/requirements.txt
+
+#Copy over Thickshake Library
+COPY lib/ /lib/thickshake/
+ENV PYTHONPATH $PYTHONPATH:/lib/thickshake
 
 # Expose Jupyter
 EXPOSE 8888 

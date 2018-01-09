@@ -20,10 +20,10 @@ APP_NAME = "$(REPO_NAME)/$(PROJECT_NAME)"
 .DEFAULT_GOAL := start
 
 .PHONY: build
-build: prebuild; docker build -t $(PROJECT_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
+build: prebuild; docker build -t $(APP_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
 
 .PHONY: build-nc
-build-nc: prebuild; docker build --no-cache -t $(PROJECT_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
+build-nc: prebuild; docker build --no-cache -t $(APP_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
 
 .PHONY: jupyter
 jupyter:
@@ -58,7 +58,7 @@ run:
 	docker run -td --rm --name="$(PROJECT_NAME)" \
 		-p 8888:8888 -p 6006:6006 \
 		-v $(PROJECT_DIR):/home/app/ \
-		$(PROJECT_NAME)
+		$(APP_NAME)
 
 .PHONY: shell
 shell:

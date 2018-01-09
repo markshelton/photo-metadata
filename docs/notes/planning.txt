@@ -168,3 +168,9 @@ Flags:
 --metadata-config-file
 --data-train-dir
 --data-test-dir
+
+#------------------------------------------------------------------------------#
+### Image Captioning                                          
+#------------------------------------------------------------------------------#
+
+https://machinelearningmastery.com/how-to-caption-photos-with-deep-learning/

@@ -39,8 +39,8 @@ JSONType = Union[List[ParsedRecord], ParsedRecord]
 Tag = TypedDict('Tag', {"field": str, "subfield": str})
 Dates = TypedDict("Dates", {"start": Optional[Date], "end": Optional[Date]})
 Size = TypedDict("Size", {"width": int, "height": int})
-Coordinates = TypedDict("Coordinates", {
-    "latitude": float, "longitude": float, "bb_size": float, "query": str
+Location = TypedDict("Location", {
+    "latitude": float, "longitude": float, "bb_size": float, "query": str, "address": str
     }, total=False
 )
 Address = TypedDict("Address", {

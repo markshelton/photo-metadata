@@ -65,7 +65,7 @@ shell:
 	docker exec -it $(PROJECT_NAME) /bin/bash
 
 .PHONY: start
-start: build run jupyter shell
+start: build run shell
 
 .PHONY: stop
 stop:
@@ -77,11 +77,11 @@ tag: tag-latest tag-version
 
 .PHONY: tag-latest
 tag-latest: 
-	docker tag $(PROJECT_NAME) $(APP_NAME)\:latest
+	docker tag $(APP_NAME) $(APP_NAME)\:latest
 
 .PHONY: tag-version
 tag-version: 
-	docker tag $(PROJECT_NAME) $(APP_NAME)\:$(VERSION)
+	docker tag $(APP_NAME) $(APP_NAME)\:$(VERSION)
 
 
 .PHONY: version

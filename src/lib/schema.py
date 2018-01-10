@@ -14,7 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 ##########################################################
 # Local Imports
 
-from _types import Any
+from thickshake._types import Any
 
 ##########################################################
 

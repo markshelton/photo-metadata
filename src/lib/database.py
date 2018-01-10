@@ -5,7 +5,6 @@ import os
 import csv
 import logging
 import json
-import pathlib
 from contextlib import contextmanager
 import datetime
 
@@ -20,8 +19,9 @@ from sqlalchemy.exc import IntegrityError
 ##########################################################
 # Local Imports
 
-from schema import Base
-from _types import (
+from thickshake.schema import Base
+from thickshake.utils import check_and_make_directory, open_file
+from thickshake._types import (
     List, Optional, Dict, Any, Iterator, TypedDict,
     ParsedRecord, DBConfig, FilePath, JSONType,
     Engine, Session, File, 
@@ -31,20 +31,6 @@ from _types import (
 # Logging Configuration
 
 logger = logging.getLogger(__name__)
-
-##########################################################
-# Helper Methods
-
-
-def check_and_make_directory(path: FilePath) -> None:
-    path_dir = os.path.dirname(path)
-    pathlib.Path(path_dir).mkdir(parents=True, exist_ok=True)
-
-
-def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
-    check_and_make_directory(path)
-    return open(path, *args, **kwargs)
-
 
 ##########################################################
 # Functions

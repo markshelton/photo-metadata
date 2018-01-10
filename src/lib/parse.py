@@ -11,8 +11,6 @@ import re
 import random
 import urllib.request
 import urllib.error
-import time
-from functools import reduce, wraps
 
 ##########################################################
 # Third Party Imports
@@ -25,12 +23,13 @@ from mypy_extensions import TypedDict
 ##########################################################
 # Local Imports
 
-from database import manage_db_session
-from geocoder import extract_coordinates_from_text
-from schema import Base
-from _types import (
+from thickshake.database import manage_db_session
+from thickshake.geocoder import extract_location_from_text
+from thickshake.schema import Base
+from thickshake.utils import logged, deep_get, consolidate_list
+from thickshake._types import (
     Dict, List, Pattern, Any, Callable, Optional, Union, KwArg,
-    Tag, Dates, Size, Coordinates, ParsedRecord,
+    Tag, Dates, Size, Location, ParsedRecord,
     Record, Field, Date, Engine, Schema, 
 )
 
@@ -67,36 +66,6 @@ TAG_IMAGE_NOTE = "856$z"
 # Logging Configuration
 
 logger = logging.getLogger(__name__)
-
-##########################################################
-# Helpers
-
-
-def logged(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        logger.info("{0} | Started".format(f.__name__))
-        start_time = time.time()
-        try: result = f(*args, **kwargs)
-        except:
-            elapsed_time = time.time() - start_time
-            logger.error("{0} | Failed | {1:.2f}".format(f.__name__,elapsed_time), exc_info=True)
-        else:
-            elapsed_time = time.time() - start_time
-            logger.info("{0} | Passed | {1:.2f}".format(f.__name__,elapsed_time))
-            return result
-    return wrapper    
-
-
-def deep_get(dictionary: Dict, *keys: str) -> Optional[Any]:
-    return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
-
-
-def consolidate_list(full_list: List[Any]) -> List[Any]:
-    """Remove null entries from list and return sub-list."""
-    consolidated_list = [x for x in full_list if x is not None]
-    return consolidated_list
-
 
 ##########################################################
 # Functions
@@ -258,12 +227,12 @@ def get_image_dimensions(field: Field, tag: str, dimensions_flag: bool = True) -
     return None
 
 
-def get_coordinates(field: Field, tag: str, geocoding_flag: bool = True) -> Optional[Coordinates]:
+def get_location(field: Field, tag: str, geocoding_flag: bool = True) -> Optional[Location]:
     if not geocoding_flag: return None
     location_text = get_subfield_from_tag(field, tag)
     if location_text is None: return None
-    coordinates = extract_coordinates_from_text(location_text)
-    return coordinates
+    location = extract_location_from_text(location_text)
+    return location
 
 
 def get_date(field: Field, tag: str) -> Optional[Date]:
@@ -371,7 +340,7 @@ def parse_images(record: Record, geocoding_flag: bool = False, dimensions_flag: 
             "image_url_thumb": get_image_url(image, TAG_IMAGE_URL, method="thumb"),
             "image_note": get_subfield_from_tag(image, TAG_IMAGE_NOTE),
             "image_dimensions": get_image_dimensions(image, TAG_IMAGE_URL, dimensions_flag=dimensions_flag),
-            "image_coordinates": get_coordinates(image, TAG_IMAGE_NOTE, geocoding_flag=geocoding_flag),
+            "image_location": get_location(image, TAG_IMAGE_NOTE, geocoding_flag=geocoding_flag),
             "image_date_created": get_date(image, TAG_IMAGE_NOTE),
         } for image in images_raw if check_image(image)
     ])
@@ -424,7 +393,7 @@ def sample_records(records: List[Record], sample_size: Optional[int] = None) -> 
     return records_sample
 
 
-def parse_marcxml(input_file: str, sample_size: Optional[int] = None) -> List[Record]:
+def parse_marcxml(input_file: str, sample_size: Optional[int] = None, **kwargs: Any) -> List[Record]:
     records_input = pymarc.parse_xml_to_array(input_file)
     records_sample = sample_records(records_input, sample_size)
     return records_sample

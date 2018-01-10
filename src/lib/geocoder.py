@@ -16,9 +16,9 @@ import geopy.distance
 ##########################################################
 # Local Imports
 
-from _types import (
+from thickshake._types import (
     Dict, List, Pattern, Optional,
-    FilePath, Match, Coordinates, Address, 
+    FilePath, Match, Location, Address, 
 )
 
 ##########################################################
@@ -140,7 +140,7 @@ def create_unstructured_params_list(address: Address) -> List[str]:
     return params_list
 
 
-def format_nominatim_queries(address: Address) -> List[str]:
+def generate_queries(address: Address) -> List[str]:
     queries = []
     url = "http://nominatim.openstreetmap.org/search?format=jsonv2&"
     if address["street_name"] and address["street_type"]:
@@ -154,47 +154,48 @@ def format_nominatim_queries(address: Address) -> List[str]:
 
 
 def calculate_bounding_box_size(bb_coords: List[float]) -> float:
-    """Calculate Bounding Box Size of GPS Coordinates, using Vincenty algorithm (in km)."""
+    """Calculate Bounding Box Size of GPS Location, using Vincenty algorithm (in km)."""
     return geopy.distance.vincenty((bb_coords[0], bb_coords[2]), (bb_coords[1], bb_coords[3])).km
 
-def geocode_addresses(queries: List[str]) -> List[Coordinates]:
-    coordinates_list = []
-    for query in queries:
-        try:
-            res = urllib.request.urlopen(query)
-            res_body = res.read().decode()
-            j = json.loads(res_body)[0]
-            coords = Coordinates(
-                latitude=j["lat"],
-                longitude=j["lon"],
-                bb_size=calculate_bounding_box_size(j["boundingbox"]),
+def geocode_addresses(query: str) -> List[Location]:
+    locations = []
+    try:
+        res = urllib.request.urlopen(query)
+        res_body = res.read().decode()
+        response = [json.loads(res_body)[0]]
+        #TODO: use multiple results with choose_best_coordinates
+        for location_raw in response:
+            location = Location(
+                address=location_raw["display_name"]
+                latitude=location_raw["lat"],
+                longitude=location_raw["lon"],
+                bb_size=calculate_bounding_box_size(location_raw["boundingbox"]),
                 query=query
             )
-            coordinates_list.append(coords)
-        except BaseException:
-            pass
-    return coordinates_list
+        locations.append(location)
+    except BaseException:
+        pass
+    return locations
 
 
-def choose_best_coordinates(coordinates_list: List[Coordinates]) -> Optional[Coordinates]:
+def choose_best_coordinates(coordinates_list: List[Location]) -> Optional[Location]:
     """Choose best coordinates from list based on smallest bounding box."""
     if not coordinates_list: return None
     best_coords = min(coordinates_list, key=lambda x: x.get('bb_size'))
-    coords = Coordinates(
-        latitude=best_coords["latitude"],
-        longitude=best_coords["longitude"]
-    )
-    return coords
+    return Location(best_coords)
 
 #TODO: Convert to Async requests
-def extract_coordinates_from_text(location_text: str) -> Optional[Coordinates]:
+def extract_location_from_text(location_text: str) -> Optional[Location]:
     """Parse and geocode location from text using OSM Nominatim."""
-    address_dict = parse_address(location_text)
-    if not address_dict: return None
-    queries = format_nominatim_queries(address_dict)
-    coordinates_list = geocode_addresses(queries)
-    coordinates = choose_best_coordinates(coordinates_list)
-    return coordinates
+    parameterised_address = parse_address(location_text)
+    if not parameterised_address: return None
+    queries = generate_queries(parameterised_address)
+    locations_all = []
+    for query in queries:
+        locations = geocode_addresses(query)
+        locations_all.extend(locations)
+    location = choose_best_location(locations_all)
+    return location
 
 
 ##########################################################

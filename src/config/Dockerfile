@@ -46,8 +46,8 @@ RUN pip3 install --no-cache-dir \
 RUN pip3 install --no-cache-dir -r config/requirements.txt
 
 #Copy over Thickshake Library
-COPY lib/ /lib/thickshake/
-ENV PYTHONPATH $PYTHONPATH:/lib/thickshake
+COPY lib/ /libs/thickshake/
+ENV PYTHONPATH $PYTHONPATH:/libs
 
 # Expose Jupyter
 EXPOSE 8888 

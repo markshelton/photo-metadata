@@ -22,7 +22,7 @@ import cv2
 # Local Imports
 
 
-from _types import (
+from thickshake._types import (
     Dict, List, Pattern, Optional,
     FilePath, DirPath, Match, Coordinates, Address, Face,
     Image, Rectangle, BoundingBox, Shape,

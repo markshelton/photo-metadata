@@ -1,9 +1,12 @@
 ##########################################################
 # Standard Library Imports
 
+import logging
+import os
 import pathlib
 import time
 from functools import reduce, wraps
+import datetime
 
 ##########################################################
 # Third Party Imports
@@ -34,6 +37,7 @@ def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
 def logged(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
+        logger = logging.getLogger()
         logger.info("{0} | Started".format(f.__name__))
         start_time = time.time()
         try: result = f(*args, **kwargs)
@@ -55,3 +59,8 @@ def consolidate_list(full_list: List[Any]) -> List[Any]:
     """Remove null entries from list and return sub-list."""
     consolidated_list = [x for x in full_list if x is not None]
     return consolidated_list
+
+def json_serial(obj: Any) -> str:
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    raise TypeError("Type %s not serializable" % type(obj))

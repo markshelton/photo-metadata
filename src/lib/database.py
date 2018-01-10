@@ -6,7 +6,6 @@ import csv
 import logging
 import json
 from contextlib import contextmanager
-import datetime
 
 ##########################################################
 # Third Party Imports
@@ -20,7 +19,9 @@ from sqlalchemy.exc import IntegrityError
 # Local Imports
 
 from thickshake.schema import Base
-from thickshake.utils import check_and_make_directory, open_file
+from thickshake.utils import (
+    check_and_make_directory, open_file, json_serial
+)
 from thickshake._types import (
     List, Optional, Dict, Any, Iterator, TypedDict,
     ParsedRecord, DBConfig, FilePath, JSONType,
@@ -68,12 +69,6 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
         raise
     finally:
         session.close()
-
-
-def json_serial(obj: Any) -> str:
-    if isinstance(obj, (datetime.datetime, datetime.date)):
-        return obj.isoformat()
-    raise TypeError("Type %s not serializable" % type(obj))
 
 
 def export_records_to_csv(records: List[ParsedRecord], output_file: FilePath) -> None:

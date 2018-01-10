@@ -76,6 +76,7 @@ class Image(Base):
     image_width = Column(Integer)
     image_latitude = Column(String(30))
     image_longitude = Column(String(30))
+    image_address = Column(String(255))
     image_date_created = Column(Date)
     collection_id = Column(String(30), ForeignKey("collection.collection_id"))
 

@@ -7,6 +7,7 @@ import urllib.request
 import urllib.parse
 import json
 import logging
+import os
 
 ##########################################################
 # Third Party Imports
@@ -24,9 +25,10 @@ from thickshake._types import (
 ##########################################################
 # Environmental Variables
 
-INPUT_STREET_TYPE_FILE = "/home/app/data/input/metadata/location/aus_street_types.csv" # type: FilePath
-INPUT_SUBURB_NAMES_FILE = "/home/app/data/input/metadata/location/wa_suburb_names.csv" # type: FilePath
-INPUT_STOP_WORDS_FILE = "/home/app/data/input/metadata/location/stop_words.csv" # type: FilePath
+CURRENT_DIR, _ = os.path.split(__file__)
+INPUT_STREET_TYPE_FILE = "%s/location/aus_street_types.csv" % (CURRENT_DIR) # type: FilePath
+INPUT_SUBURB_NAMES_FILE = "%s/location/wa_suburb_names.csv" % (CURRENT_DIR) # type: FilePath
+INPUT_STOP_WORDS_FILE = "%s/location/stop_words.csv" % (CURRENT_DIR) # type: FilePath
 
 ##########################################################
 # Logging Configuration
@@ -163,10 +165,10 @@ def geocode_addresses(query: str) -> List[Location]:
         res = urllib.request.urlopen(query)
         res_body = res.read().decode()
         response = [json.loads(res_body)[0]]
-        #TODO: use multiple results with choose_best_coordinates
+        #TODO: use multiple results with choose_best_location
         for location_raw in response:
             location = Location(
-                address=location_raw["display_name"]
+                address=location_raw["display_name"],
                 latitude=location_raw["lat"],
                 longitude=location_raw["lon"],
                 bb_size=calculate_bounding_box_size(location_raw["boundingbox"]),
@@ -178,7 +180,7 @@ def geocode_addresses(query: str) -> List[Location]:
     return locations
 
 
-def choose_best_coordinates(coordinates_list: List[Location]) -> Optional[Location]:
+def choose_best_location(coordinates_list: List[Location]) -> Optional[Location]:
     """Choose best coordinates from list based on smallest bounding box."""
     if not coordinates_list: return None
     best_coords = min(coordinates_list, key=lambda x: x.get('bb_size'))

@@ -199,10 +199,9 @@ def get_image_url(image: Field, tag: str, method: str = "main"):
     return image_url
 
 
-def get_id_from_url(image: Field, tag: str) -> Optional[str]:
-    image_url = get_subfield_from_tag(image, tag)
-    if image_url is None: return None
-    image_id = image_url.split("/")[-1].split(".")[0] # type: Optional[str]
+def get_id_from_url(image_file: Optional[FilePath]) -> Optional[str]:
+    if image_file is None: return None
+    image_id = image_file.split("/")[-1].split(".")[0] # type: Optional[str]
     return image_id
 
 
@@ -334,7 +333,7 @@ def parse_images(record: Record, geocoding_flag: bool = False, dimensions_flag: 
     images_raw = get_fields_from_tag(record, TAG_IMAGE_URL)
     images = consolidate_list([
         {
-            "image_id": get_id_from_url(image, TAG_IMAGE_URL),
+            "image_id": get_id_from_url(get_subfield_from_tag(image, TAG_IMAGE_URL)),
             "image_url_main": get_image_url(image, TAG_IMAGE_URL, method="main"),
             "image_url_raw": get_image_url(image, TAG_IMAGE_URL, method="raw"),
             "image_url_thumb": get_image_url(image, TAG_IMAGE_URL, method="thumb"),

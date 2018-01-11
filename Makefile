@@ -58,6 +58,7 @@ run:
 	docker run -td --rm --name="$(PROJECT_NAME)" \
 		-p 8888:8888 -p 6006:6006 \
 		-v $(PROJECT_DIR):/home/app/ \
+		-v $(PROJECT_DIR)/src/lib/:/libs/thickshake/ \
 		$(APP_NAME)
 
 .PHONY: shell

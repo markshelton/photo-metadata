@@ -7,9 +7,12 @@ import pathlib
 import time
 from functools import reduce, wraps
 import datetime
+import warnings
 
 ##########################################################
 # Third Party Imports
+
+import sqlalchemy.exc
 
 
 ##########################################################
@@ -41,9 +44,10 @@ def logged(f):
         logger.info("{0} | Started".format(f.__name__))
         start_time = time.time()
         try: result = f(*args, **kwargs)
-        except:
+        except Exception as e:
             elapsed_time = time.time() - start_time
             logger.error("{0} | Failed | {1:.2f}".format(f.__name__,elapsed_time), exc_info=True)
+            raise e
         else:
             elapsed_time = time.time() - start_time
             logger.info("{0} | Passed | {1:.2f}".format(f.__name__,elapsed_time))
@@ -60,7 +64,20 @@ def consolidate_list(full_list: List[Any]) -> List[Any]:
     consolidated_list = [x for x in full_list if x is not None]
     return consolidated_list
 
+
 def json_serial(obj: Any) -> str:
     if isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
     raise TypeError("Type %s not serializable" % type(obj))
+
+
+def setup_logging() -> None:
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+    logging.getLogger("PIL.Image").setLevel(logging.INFO)
+    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
+    logging.getLogger("datefinder").setLevel(logging.INFO)
+
+
+def setup_warnings() -> None:
+    warnings.filterwarnings("ignore", category=sqlalchemy.exc.SAWarning)

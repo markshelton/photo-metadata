@@ -128,4 +128,5 @@ class CollectionLocation(Base):
 
     collection = relationship("Collection", back_populates="locations")
 
+
 ##########################################################

@@ -12,10 +12,8 @@ import os
 ##########################################################
 # Local Imports
 
-from thickshake._types import (
-    Dict, List, Optional, Any,
-    FilePath, DirPath,
-)
+from thickshake.utils import logged, setup_logging, setup_warnings
+from thickshake._types import Dict, List, Optional, Any, FilePath, DirPath
 
 ##########################################################
 # Environmental Variables
@@ -74,12 +72,15 @@ def save_response_content(response: Dict[str, str], destination: FilePath) -> No
                 f.write(chunk)
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger()
+def main() -> None:
     download_and_extract_file(
         model_name=SELECTED_MODEL,
         data_dir=OUTPUT_MODEL_DIR,
         source_url=SOURCE_BASE_URL,
         model_dict=MODEL_DICT
     )
+
+if __name__ == "__main__":
+    setup_logging()
+    setup_warnings()
+    main()

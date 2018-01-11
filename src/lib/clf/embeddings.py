@@ -16,19 +16,12 @@ import tensorflow as tf
 from sklearn.svm import SVC
 from tensorflow.python.platform import gfile
 
-
 ##########################################################
 # Local Imports
 
-from thickshake.clf.images import get_image_paths, read_data
-from thickshake.clf.metadata import load_dataset
-from thickshake.utils import (
-    logged, setup_logging, setup_warnings
-)
-from thickshake._types import (
-    Any, List, Tuple,
-    FilePath, Tensor, Array
-)
+from thickshake.clf.dataset import get_image_paths, read_data, load_dataset
+from thickshake.utils import logged, setup_logging, setup_warnings
+from thickshake._types import Any, List, Tuple, FilePath, Tensor, Array
 
 ##########################################################
 # Environmental Variables
@@ -50,10 +43,10 @@ def load_images_and_labels(
         dataset_file: FilePath,
         **kwargs: Any
     ) -> Tuple(List[Tensor[Any]], List[str], List[str]):
-    image_paths = thickshake.clf.images.get_image_paths(image_dir)
-    image_paths, labels = thickshake.clf.metadata.load_dataset(dataset_file, image_paths)
+    image_paths = thickshake.clf.dataset.get_image_paths(image_dir)
+    image_paths, labels = thickshake.clf.dataset.load_dataset(dataset_file, image_paths)
     class_names = set(labels)
-    images, labels = thickshake.clf.images.read_data(image_paths, labels, **kwargs)
+    images, labels = thickshake.clf.dataset.read_data(image_paths, labels, **kwargs)
     return images, labels, class_names
 
 
@@ -104,26 +97,28 @@ def create_embeddings(
 def generate_embeddings(
         image_dir: DirPath,
         dataset_file: FilePath,
-        model_file: FilePath
+        model_file: FilePath,
+        sess: Optional[Any]=None
     ) -> Tuple(Any, List[str]):
-    with tf.Session() as sess:
-        images, labels, class_names = load_images_and_labels(image_dir, dataset_file)
-        load_model(model_file)
-        init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-        sess.run(init_op)
-        images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
-        embedding_layer = tf.get_default_graph().get_tensor_by_name("embeddings:0")
-        phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(coord=coord, sess=sess)
-        emb_array, label_array = create_embeddings(
-            embedding_layer, images, labels, images_placeholder,
-            phase_train_placeholder, sess
-        )
-        coord.request_stop()
-        coord.join(threads=threads)
-        logger.info('Created {} embeddings'.format(len(emb_array)))
-        return emb_array, label_array
+    if sess is None: sess = tf.Session()
+    images, labels, class_names = load_images_and_labels(image_dir, dataset_file)
+    load_model(model_file)
+    init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    sess.run(init_op)
+    images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
+    embedding_layer = tf.get_default_graph().get_tensor_by_name("embeddings:0")
+    phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(coord=coord, sess=sess)
+    emb_array, label_array = create_embeddings(
+        embedding_layer, images, labels, images_placeholder,
+        phase_train_placeholder, sess
+    )
+    coord.request_stop()
+    coord.join(threads=threads)
+    logger.info('Created {} embeddings'.format(len(emb_array)))
+    sess.close()
+    return emb_array, label_array
 
 
 ##########################################################

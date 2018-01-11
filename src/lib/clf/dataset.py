@@ -1,11 +1,29 @@
+##########################################################
+# Standard Library Imports
+
 import logging
 import os
+
+##########################################################
+# Third Party Imports
 
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 
+##########################################################
+# Local Imports
+
+##########################################################
+# Environmental Variables
+
+##########################################################
+# Logging Configuration
+
 logger = logging.getLogger(__name__)
+
+##########################################################
+# Functions
 
 
 def read_data(image_paths, label_list, image_size, batch_size, max_nrof_epochs, num_threads, shuffle, random_flip,
@@ -131,3 +149,7 @@ def split_dataset(dataset, split_ratio=0.8):
         train_set.append({"name": record.name, "image_paths": paths[0:split]})
         test_set.append({"name": record.name, "image_paths": paths[split:-1]})
     return train_set, test_set
+
+
+##########################################################
+# Main

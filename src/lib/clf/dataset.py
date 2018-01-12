@@ -10,12 +10,34 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
+from sklearn.model_selection import train_test_split
+from sqlalchemy import text
+import h5py
 
 ##########################################################
 # Local Imports
 
+from thickshake.mtd.database import manage_db_session, initialise_db
+from thickshake.utils import setup_logging, setup_warnings
+from thickshake._types import (
+    Tuple, List, Any, Optional,
+    Dataset, FilePath, DirPath, DBConfig, Features, Label
+)
+
 ##########################################################
 # Environmental Variables
+
+DB_CONFIG = {} # type: DBConfig
+DB_CONFIG["database"] = "/home/app/data/output/face_recognition/metadata/face_recognition.sqlite3"
+DB_CONFIG["drivername"] = "sqlite"
+DB_CONFIG["host"] = None
+DB_CONFIG["username"] = None
+DB_CONFIG["password"] = None
+
+IMAGE_DATA_FILE_PATH = "/home/app/data/output/face_recognition/faces.hdf5"
+
+FEATURE_LIST = None
+LABEL_KEY = "subject.subject_name"
 
 ##########################################################
 # Logging Configuration
@@ -26,130 +48,148 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def read_data(image_paths, label_list, image_size, batch_size, max_nrof_epochs, num_threads, shuffle, random_flip,
-              random_brightness, random_contrast):
-    """
-    Creates Tensorflow Queue to batch load images. Applies transformations to images as they are loaded.
-    :param random_brightness: 
-    :param random_flip: 
-    :param image_paths: image paths to load
-    :param label_list: class labels for image paths
-    :param image_size: size to resize images to
-    :param batch_size: num of images to load in batch
-    :param max_nrof_epochs: total number of epochs to read through image list
-    :param num_threads: num threads to use
-    :param shuffle: Shuffle images
-    :param random_flip: Random Flip image
-    :param random_brightness: Apply random brightness transform to image
-    :param random_contrast: Apply random contrast transform to image
-    :return: images and labels of batch_size
-    """
-
-    images = ops.convert_to_tensor(image_paths, dtype=tf.string)
-    labels = ops.convert_to_tensor(label_list, dtype=tf.int32)
-
-    # Makes an input queue
-    input_queue = tf.train.slice_input_producer(
-        (images, labels),
-        num_epochs=max_nrof_epochs,
-        shuffle=shuffle,
-    )
-
-    images_labels = []
-    imgs = []
-    lbls = []
-    for _ in range(num_threads):
-        image, label = read_image_from_disk(filename_to_label_tuple=input_queue)
-        image = tf.random_crop(image, size=[image_size, image_size, 3])
-        image.set_shape((image_size, image_size, 3))
-        image = tf.image.per_image_standardization(image)
-
-        if random_flip:
-            image = tf.image.random_flip_left_right(image)
-
-        if random_brightness:
-            image = tf.image.random_brightness(image, max_delta=0.3)
-
-        if random_contrast:
-            image = tf.image.random_contrast(image, lower=0.2, upper=1.8)
-
-        imgs.append(image)
-        lbls.append(label)
-        images_labels.append([image, label])
-
-    image_batch, label_batch = tf.train.batch_join(
-        images_labels,
-        batch_size=batch_size,
-        capacity=4 * num_threads,
-        enqueue_many=False,
-        allow_smaller_final_batch=True
-    )
-    return image_batch, label_batch
+def decompose(dataset: Dataset) -> Tuple[List[Features], List[Label]]:
+    return zip(*[(record["features"], record["label"]) for record in dataset])
 
 
-def read_image_from_disk(filename_to_label_tuple):
-    """
-    Consumes input tensor and loads image
-    :param filename_to_label_tuple: 
-    :type filename_to_label_tuple: list
-    :return: tuple of image and label
-    """
-    label = filename_to_label_tuple[1]
-    file_contents = tf.read_file(filename_to_label_tuple[0])
-    example = tf.image.decode_jpeg(file_contents, channels=3)
-    return example, label
+def compose(features: List[Features], labels: List[Label]) -> Dataset:
+    return [{'features': fx, "label": lx} for fx, lx in zip(features, labels)]
 
 
-def get_image_paths(image_dir: DirPath) -> List[FilePath]:
-    image_paths_flat = []
-    labels_flat = []
-    for i in range(int(len(dataset))):
-        image_paths_flat += dataset[i].image_paths
-        labels_flat += [i] * len(dataset[i].image_paths)
-    return image_paths_flat, labels_flat
-
-
-def get_dataset(input_directory):
-    dataset = []
-    classes = os.listdir(input_directory)
-    classes.sort()
-    nrof_classes = len(classes)
-    for i in range(nrof_classes):
-        class_name = classes[i]
-        facedir = os.path.join(input_directory, class_name)
-        if os.path.isdir(facedir):
-            images = os.listdir(facedir)
-            image_paths = [os.path.join(facedir, img) for img in images]
-            dataset.append({"name": class_name, "image_paths": image_paths})
-
-    return dataset
-
-
-def filter_dataset(dataset, min_images_per_label=10):
-    filtered_dataset = []
-    for i in range(len(dataset)):
-        if len(dataset[i].image_paths) < min_images_per_label:
-            logger.info('Skipping class: {}'.format(dataset[i].name))
-            continue
-        else:
-            filtered_dataset.append(dataset[i])
-    return filtered_dataset
-
-
-def split_dataset(dataset, split_ratio=0.8):
-    train_set = []
-    test_set = []
-    min_nrof_images = 2
+def filter_dataset(dataset: Dataset, min_images_per_label: int = 10) -> Dataset:
+    counts = {}
     for record in dataset:
-        paths = record.image_paths
-        np.random.shuffle(paths)
-        split = int(round(len(paths) * split_ratio))
-        if split < min_nrof_images:
-            continue  # Not enough images for test set. Skip class...
-        train_set.append({"name": record.name, "image_paths": paths[0:split]})
-        test_set.append({"name": record.name, "image_paths": paths[split:-1]})
-    return train_set, test_set
+        label = record["label"]
+        if label in counts: counts[label] = 0
+        else: counts[label] += 1
+    filter_dataset = {}
+    for record in dataset:
+        label = record["label"]
+        if counts[label] > min_images_per_label:
+            filter_dataset[label] = dataset[label]
+    return filter_dataset
+
+
+def split_dataset(dataset: Dataset, split_ratio: float = 0.8, **kwargs) -> Tuple[Dataset, Dataset]:
+    X, y = decompose(dataset)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=split_ratio, stratify=y)
+    dataset_train = compose(X_train, y_train)
+    dataset_test = compose(X_test, y_test)
+    return dataset_train, dataset_test
+
+
+def get_face_ids(image_data_file: DirPath) -> List[FilePath]:
+    with h5py.File(image_data_file, "r") as f:
+        return list(f["embeddings"].keys())
+
+
+def get_image_id_from_face_id(face_id: str) -> str:
+    return ("_").join(face_id.split("_")[0:-2])
+
+
+def get_face_embedddings(
+        image_id: str,
+        image_data_file: DirPath,
+        feature_list: Optional[List[str]] = None,
+        **kwargs
+    ) -> Optional[List[List[Any]]]:
+    if feature_list is not None and "facial_features" not in feature_list: return None
+    with h5py.File(image_data_file, "r") as f:
+        embedding_keys = f["embeddings"].keys()
+        embeddings = [f["embeddings"][key].value.tolist() for key in embedding_keys if key.startswith(image_id)]
+        embeddings = [x for emb  in embeddings for x in emb]
+        return embeddings
+
+
+def check_table(table: str, columns: List[str]) -> bool:
+    if len(columns) == 1: return True
+    for column in columns:
+        if ("%s." % table) in column:
+            return True
+    return False
+
+
+def get_metadata(
+        image_id: str,
+        metadata_file: DBConfig,
+        label_key: str,
+        feature_list: Optional[List[str]] = None,
+        **kwargs
+    ) -> Optional[List[List[Any]]]:
+    db_engine = initialise_db(metadata_file)
+    with manage_db_session(db_engine) as session:
+        if feature_list is None: 
+            columns = [label_key]
+            sql_text = "SELECT *\n"
+        else: 
+            columns = [*feature_list, label_key]
+            sql_text = "SELECT %s\n" % ",".join(columns)
+        sql_text += "FROM image\n"
+        if check_table("Collection", columns):
+            sql_text += "LEFT NATURAL OUTER JOIN collection\n"
+        if check_table("CollectionSubject", columns):
+            sql_text += "LEFT NATURAL OUTER JOIN collection_subject\n"
+        if check_table("CollectionLocation", columns):
+            sql_text += "LEFT NATURAL OUTER JOIN collection_location\n"
+        if check_table("CollectionTopic", columns):
+            sql_text += "LEFT NATURAL OUTER JOIN collection_topic\n"
+        if check_table("Subject", columns):
+            sql_text += "LEFT NATURAL OUTER JOIN subject\n"
+        sql_text += "WHERE image.image_id = '%s';" % (image_id)
+        result = session.execute(text(sql_text)).fetchall()
+        result = [dict(record) for record in result]
+    if result:
+        features = [[v for k,v in record.items() if k != label_key] for record in result]
+        labels = [record[label_key.split(".")[-1]] for record in result]
+    else: return None
+    return features, labels
+
+
+def merge_features(a: List[Features], b: List[Features]) -> List[Features]:
+    merge = [[i for j in record for i in j] for record in zip(a, b)]
+    return merge
+
+
+def get_features_and_labels(
+        image_id: str,
+        metadata_file: DBConfig,
+        image_data_file: FilePath,
+        label_key: str,
+        **kwargs
+    ) -> Optional[Tuple[Features, str]]:
+    features_face = get_face_embedddings(image_id, image_data_file, **kwargs)
+    metadata = get_metadata(image_id, metadata_file, label_key, **kwargs)
+    if metadata is None: return None
+    else: features_metadata, labels = metadata
+    features = merge_features(features_face, features_metadata)
+    return features, labels
+
+
+def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, label_key: str, **kwargs) -> Tuple[Dataset, List[str]]:
+    face_ids = get_face_ids(image_data_file)
+    dataset = []
+    for face_id in face_ids:
+        image_id = get_image_id_from_face_id(face_id)
+        image_info = get_features_and_labels(image_id, metadata_file, image_data_file, label_key, **kwargs)
+        if image_info is None: continue
+        else: features, labels = image_info
+        for label in labels:
+            dataset.append({"label": label, "features": features[0]})
+    return dataset
 
 
 ##########################################################
 # Main
+
+def main():
+    dataset = load_dataset(
+        metadata_file=DB_CONFIG,
+        image_data_file=IMAGE_DATA_FILE_PATH,
+        label_key=LABEL_KEY
+    )
+    print(dataset)
+
+if __name__ == "__main__":
+    setup_logging()
+    setup_warnings()
+    main()

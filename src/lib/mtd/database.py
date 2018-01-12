@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 ##########################################################
 # Local Imports
 
-from thickshake.schema import Base
+from thickshake.mtd.schema import Base
 from thickshake.utils import (
     check_and_make_directory, open_file, json_serial
 )

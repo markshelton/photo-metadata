@@ -3,7 +3,7 @@
 
 from typing import (
     List, Optional, NewType, Dict, Iterator,
-    IO, Union, Callable, Any, Pattern,
+    IO, Union, Callable, Any, Pattern, Tuple
 )
 from mypy_extensions import TypedDict, KwArg
 
@@ -15,6 +15,9 @@ import pymarc
 import sqlalchemy.engine
 import sqlalchemy.orm
 import sqlalchemy.ext
+import numbers
+import tensorflow as tf
+import numpy as np
 
 Date = datetime.date
 Record = pymarc.Record
@@ -23,11 +26,13 @@ Engine = sqlalchemy.engine.Engine
 Session = sqlalchemy.orm.Session
 Tensor = tf.Tensor
 Array = np.array
+Real = numbers.Real
 Schema = Any #sqlalchemy - base type
 Image = Any #OpenCV
 Rectangle = Any #dlib
 BoundingBox = Any #dlib
 Shape = Any #dlib
+TFSession = Any #tf
 
 ##########################################################
 # Local Types
@@ -56,3 +61,10 @@ DBConfig = TypedDict("DBConfig", {
     }, total=False
 )
 Face = Any
+Features = List[Real]
+Label = int
+DatasetRecord = TypedDict("DatasetRecord", {
+    "features": Features, "label": Label, "path": FilePath
+    }, total=False
+)
+Dataset = List[DatasetRecord]

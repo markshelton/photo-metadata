@@ -8,19 +8,20 @@ import time
 from functools import reduce, wraps
 import datetime
 import warnings
+import random
+import shutil
 
 ##########################################################
 # Third Party Imports
 
 import sqlalchemy.exc
 
-
 ##########################################################
 # Local Imports
 
 from thickshake._types import (
     Dict, Optional, List, Any,
-    FilePath, File,
+    FilePath, File, DirPath
 )
 
 ##########################################################
@@ -81,3 +82,39 @@ def setup_logging() -> None:
 
 def setup_warnings() -> None:
     warnings.filterwarnings("ignore", category=sqlalchemy.exc.SAWarning)
+
+def clear_directory(dir_path: Optional[DirPath]) -> None:
+    if dir_path is None: return None
+    try:
+        shutil.rmtree(dir_path)
+    except FileNotFoundError:
+        logger.info("Output directory already empty.")
+    os.makedirs(dir_path, exist_ok=True)
+
+
+def get_files_in_directory(
+        dir_path: DirPath,
+        ext: Optional[str]="jpg",
+        sample_size: Optional[int]= None,
+        **kwargs
+    ) -> List[FilePath]:
+    files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
+    if ext: files = [f for f in files if f.endswith(ext)]
+    if sample_size: files = random.sample(files, sample_size)
+    return files
+
+
+def maybe_increment_path(
+        file_path: FilePath,
+        sep: str = "_",
+        overwrite: bool = False,
+        **kwargs
+    ) -> Optional[FilePath]:
+    file_path_base, file_ext = os.path.splitext(file_path)
+    directory_path = os.path.dirname(file_path)
+    i = 1
+    while True:
+        full_file_path = "%s%s%s%s" % (file_path_base, sep, i, file_ext)
+        if not os.path.exists(full_file_path):
+            return full_file_path
+        i += 1

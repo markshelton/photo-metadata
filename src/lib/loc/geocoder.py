@@ -26,9 +26,9 @@ from thickshake._types import (
 # Environmental Variables
 
 CURRENT_DIR, _ = os.path.split(__file__)
-INPUT_STREET_TYPE_FILE = "%s/location/aus_street_types.csv" % (CURRENT_DIR) # type: FilePath
-INPUT_SUBURB_NAMES_FILE = "%s/location/wa_suburb_names.csv" % (CURRENT_DIR) # type: FilePath
-INPUT_STOP_WORDS_FILE = "%s/location/stop_words.csv" % (CURRENT_DIR) # type: FilePath
+INPUT_STREET_TYPE_FILE = "%s/aus_street_types.csv" % (CURRENT_DIR) # type: FilePath
+INPUT_SUBURB_NAMES_FILE = "%s/wa_suburb_names.csv" % (CURRENT_DIR) # type: FilePath
+INPUT_STOP_WORDS_FILE = "%s/stop_words.csv" % (CURRENT_DIR) # type: FilePath
 
 ##########################################################
 # Logging Configuration

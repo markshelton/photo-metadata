@@ -17,12 +17,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 import dlib
 import cv2
+import h5py
 
 ##########################################################
 # Local Imports
 
 from thickshake.utils import (
-    logged, setup_logging, setup_warnings
+    logged, setup_logging, setup_warnings,
+    clear_directory, maybe_increment_path, get_files_in_directory
 )
 from thickshake._types import (
     Dict, List, Pattern, Optional, Any,
@@ -35,22 +37,25 @@ from thickshake._types import (
 
 INPUT_IMAGE_DIR = "/home/app/data/input/images/JPEG_Convert_Resolution_1024" # type: DirPath
 OUTPUT_FACES_IMAGE_DIR = "/home/app/data/output/face_recognition/images/faces" # type: DirPath
+OUTPUT_FACE_INFO_FILE = "/home/app/data/output/face_recognition/faces.hdf5" # type: FilePath
 
 FACE_SIZE = 200
 
-INPUT_SAMPLE_SIZE = None
+INPUT_SAMPLE_SIZE = 20
 
 RESET_FILES_FLAG = True
 CLEAR_FACES_FLAG=True
 OVERWRITE_FACES_FLAG = True
-SAVE_FACES_FLAG = True
+SAVE_FLAG = True
 SHOW_FACES_FLAG = False
 LIST_FILES_FLAG = False
 
 ##########################################################
 # Face Configuration
 
-FACE_PREDICTOR_PATH = "/home/app/data/input/models/shape_predictor_68_face_landmarks.dat"
+CURRENT_DIR, _ = os.path.split(__file__)
+FACE_PREDICTOR_PATH = "%s/shape_predictor_68_face_landmarks.dat" % CURRENT_DIR
+FACE_RECOGNIZER_PATH = "%s/dlib_face_recognition_resnet_model_v1.dat" % CURRENT_DIR
 
 FACIAL_LANDMARKS_IDXS = {
 	"mouth": (48, 68),
@@ -113,98 +118,28 @@ logger = logging.getLogger(__name__)
 #Helpers
 
 
-def rect_to_bb(rect: Rectangle) -> BoundingBox:
-	x = rect.left()
-	y = rect.top()
-	w = rect.right() - x
-	h = rect.bottom() - y
-	return Face(x=x, y=y, w=w, h=h)
-
-
-def shape_to_np(shape: Shape, dtype="int") -> List[int]:
-	coords = np.zeros((68, 2), dtype=dtype)
-	for i in range(0, 68):
-		coords[i] = (shape.part(i).x, shape.part(i).y)
-	return coords
-
-
-def resize_image(
-        image_original: Image,
-        width_target: Optional[int] = None,
-        height_target: Optional[int] = None,
-        interpolation_type: str = cv2.INTER_AREA
-    ) -> Image:
-    height_original, width_original = image.shape[:2]
-    if width_target is None and height_target is None: return image_original
-    if width_target is None:
-        ratio = height_target / float(height_original)
-        dimensions = (int(width_original * ratio), height_target)
-    else:
-        ratio = width_target / float(width_original)
-        dimensions = (width_target, int(height_original * ratio))
-    image_resized = cv2.resize(image_original, dimensions, interpolation=inter)
-    return resized
-
-
-def clear_directory(dir_path: Optional[DirPath]) -> None:
-    if dir_path is None: return None
-    try:
-        shutil.rmtree(dir_path)
-    except FileNotFoundError:
-        logger.info("Output directory already empty.")
-    os.makedirs(dir_path, exist_ok=True)
-
-
-def get_files_in_directory(
-        dir_path: DirPath,
-        ext: Optional[str]="jpg",
-        sample_size: Optional[int]= None,
-        **kwargs
-    ) -> List[FilePath]:
-    files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
-    if ext: files = [f for f in files if f.endswith(ext)]
-    if sample_size: files = random.sample(files, sample_size)
-    return files
-
-
-def maybe_increment_path(
-        file_path: FilePath,
-        sep: str = "_",
-        flag_overwrite_faces: bool = False,
-        **kwargs
-    ) -> Optional[FilePath]:
-    file_path_base, file_ext = os.path.splitext(file_path)
-    directory_path = os.path.dirname(file_path)
-    i = 1
-    while True:
-        full_file_path = "%s%s%s%s" % (file_path_base, sep, i, file_ext)
-        if not os.path.exists(full_file_path):
-            return full_file_path
-        i += 1
-
-
 def show_image(image_rgb: Image) -> None:
     plt.imshow(image_rgb)
     plt.show()
 
 
-def save_image(
-        image_rgb: Image,
-        image_file: FilePath,
-        input_dir: DirPath,
-        output_dir: Optional[DirPath]=None,
-        **kwargs
-    ) -> None:
-    if output_dir is None: return None
-    output_file = image_file.replace(input_dir, output_dir)
-    image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
-    image_file = maybe_increment_path(output_file, **kwargs)
-    print(image_file)
-    cv2.imwrite(image_file, image_bgr)
-
-
 ##########################################################
 # Functions
+
+def adjust_gamma(image, gamma=1.0):
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+    return cv2.LUT(image, table)
+
+
+def enhance_image(image):
+    image_YCrCb = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
+    Y, Cr, Cb = cv2.split(image_YCrCb)
+    Y = cv2.equalizeHist(Y)
+    image_YCrCb = cv2.merge([Y, Cr, Cb])
+    image = cv2.cvtColor(image_YCrCb, cv2.COLOR_YCR_CB2BGR)
+    image = adjust_gamma(image)
+    return image
 
 
 def find_faces_in_image(image: Image) -> List[Rectangle]:
@@ -213,17 +148,23 @@ def find_faces_in_image(image: Image) -> List[Rectangle]:
     return faces
 
 
-def detect_facial_landmarks(image: Image, face: Rectangle, predictor_path: FilePath) -> List[int]:
-    predictor = dlib.shape_predictor(predictor_path)
+def extract_face_landmarks(image: Image, face: Rectangle, predictor: Any) -> np.float32:
     points = predictor(image, face)
     landmarks = list(map(lambda p: (p.x, p.y), points.parts()))
     landmarks_np = np.float32(landmarks)
     return landmarks_np
 
 
+def extract_face_embeddings(image: Image, face: Rectangle, predictor: Any, recognizer: Any) -> np.float32:
+    points = predictor(image, face)
+    embeddings = recognizer.compute_face_descriptor(image, points)
+    embeddings_np = np.float32(embeddings)[np.newaxis, :]
+    return embeddings_np
+
+
 def normalize_face(
         image: Image,
-        landmarks: np.array,
+        landmarks: np.float32,
         key_indices: List[int] = INNER_EYES_AND_BOTTOM_LIP,
         face_template: np.array = MINMAX_TEMPLATE,
         face_size: int = 200,
@@ -235,39 +176,90 @@ def normalize_face(
     return face_norm
 
 
+def save_image(
+        image_rgb: Image,
+        image_file: FilePath,
+        input_images_dir: Optional[DirPath] = None,
+        output_images_dir: Optional[DirPath] = None,
+        **kwargs
+    ) -> FilePath:
+    if output_images_dir is None or input_images_dir is None: return None
+    output_file = image_file.replace(input_images_dir, output_images_dir)
+    image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+    image_file = maybe_increment_path(output_file, **kwargs)
+    cv2.imwrite(image_file, image_bgr)
+    logger.info(image_file)
+    return image_file
+
+
+def save_object(
+        save_object: Any,
+        object_name: str,
+        image_file: FilePath,
+        output_file: Optional[FilePath] = None,
+        **kwargs
+    ) -> None:
+    if output_file is None: return None
+    image_id = os.path.basename(image_file).split(".")[0]
+    f = h5py.File(output_file, "a")
+    grp = f.require_group(object_name)
+    grp.create_dataset(image_id, data=save_object)
+    f.close()
+
+
 def extract_faces_from_image(
         image_file: FilePath,
-        predictor_path: FilePath,
+        predictor: Optional[Any] = None,
+        recognizer: Optional[Any] = None,
+        predictor_path: Optional[FilePath] = None,
+        recognizer_path: Optional[FilePath] = None,
+        output_face_info_file: Optional[FilePath] = None,
         show_flag: bool = False,
         save_flag: bool = False,
         **kwargs: Any
     ) -> List[Image]:
     image_bgr = cv2.imread(image_file)
+    image_bgr = enhance_image(image_bgr)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     faces = find_faces_in_image(image_rgb)
+    if predictor is None: predictor = dlib.shape_predictor(predictor_path)
+    if recognizer is None: recognizer = dlib.face_recognition_model_v1(recognizer_path)
     faces_norm = [] # type: List[Image]
     for face in faces:
-        landmarks = detect_facial_landmarks(image_rgb, face, predictor_path)
+        landmarks = extract_face_landmarks(image_rgb, face, predictor)
+        embeddings = extract_face_embeddings(image_rgb, face, predictor, recognizer)
         face_norm = normalize_face(image_rgb, landmarks, **kwargs)
         if show_flag: show_image(image_rgb)
-        if save_flag: save_image(face_norm, image_file, **kwargs)
+        if save_flag: 
+            output_file = save_image(face_norm, image_file, **kwargs)
+            save_object(landmarks, "landmarks", output_file, output_face_info_file, **kwargs)
+            save_object(embeddings, "embeddings", output_file, output_face_info_file, **kwargs)
         faces_norm.append(face_norm)
     return faces_norm
 
+
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
 def extract_faces_from_images(
-        image_dir: DirPath,
-        output_dir: Optional[DirPath]=None,
+        input_images_dir: DirPath,
+        predictor_path: FilePath,
+        recognizer_path: FilePath,
+        output_images_dir: Optional[DirPath]=None,
         flag_clear_faces: bool=False,
         **kwargs: Any
     ) -> List[Image]:
-    image_files = get_files_in_directory(image_dir, **kwargs)
-    if flag_clear_faces: clear_directory(output_dir)
+    image_files = get_files_in_directory(input_images_dir, **kwargs)
+    if flag_clear_faces: clear_directory(output_images_dir)
+    predictor = dlib.shape_predictor(predictor_path)
+    recognizer = dlib.face_recognition_model_v1(recognizer_path)
     for image_file in image_files:
-        extract_faces_from_image(image_file, input_dir=image_dir, output_dir=output_dir, **kwargs)
-
-
-
+        extract_faces_from_image(
+            image_file=image_file,
+            input_images_dir=input_images_dir,
+            output_images_dir=output_images_dir,
+            predictor=predictor,
+            recognizer=recognizer,
+            **kwargs
+        )
 
 
 ##########################################################
@@ -275,14 +267,16 @@ def extract_faces_from_images(
 
 def main():
     extract_faces_from_images(
-        INPUT_IMAGE_DIR,
-        output_dir=OUTPUT_FACES_IMAGE_DIR,
+        input_images_dir=INPUT_IMAGE_DIR,
+        output_images_dir=OUTPUT_FACES_IMAGE_DIR,
+        output_face_info_file=OUTPUT_FACE_INFO_FILE,
         sample_size=INPUT_SAMPLE_SIZE,
         show_flag=SHOW_FACES_FLAG,
-        save_flag=SAVE_FACES_FLAG,
+        save_flag=SAVE_FLAG,
         flag_clear_faces=CLEAR_FACES_FLAG,
-        flag_overwrite_faces=OVERWRITE_FACES_FLAG,
+        overwrite=OVERWRITE_FACES_FLAG,
         predictor_path=FACE_PREDICTOR_PATH,
+        recognizer_path=FACE_RECOGNIZER_PATH,
         key_indices=INNER_EYES_AND_BOTTOM_LIP,
         face_size=FACE_SIZE
     )
@@ -303,6 +297,7 @@ https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning
 https://medium.com/@ageitgey/machine-learning-is-fun-part-4-modern-face-recognition-with-deep-learning-c3cffc121d78
 https://medium.com/@ageitgey/try-deep-learning-in-python-now-with-a-fully-pre-configured-vm-1d97d4c3e9b
 https://www.pyimagesearch.com/2017/04/03/facial-landmarks-dlib-opencv-python/
+http://www.hackevolve.com/face-recognition-deep-learning/
 
 - Pre-processing Pipeline
 For each image:

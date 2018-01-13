@@ -1,19 +1,23 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
 ##########################################################
 # Standard Library Imports
 
-import os
 import csv
-import logging
 import json
+import logging
+import os
 from contextlib import contextmanager
 
 ##########################################################
 # Third Party Imports
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.engine import url
 from sqlalchemy.exc import IntegrityError, DataError
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 ##########################################################
 # Local Imports

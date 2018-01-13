@@ -1,15 +1,15 @@
 ##########################################################
 # Standard Library Imports
 
+import datetime
+from functools import reduce, wraps
 import logging
 import os
 import pathlib
-import time
-from functools import reduce, wraps
-import datetime
-import warnings
 import random
 import shutil
+import time
+import warnings
 
 ##########################################################
 # Third Party Imports
@@ -19,13 +19,15 @@ import sqlalchemy.exc
 ##########################################################
 # Local Imports
 
-from thickshake._types import (
-    Dict, Optional, List, Any,
-    FilePath, File, DirPath
-)
+from thickshake._types import *
 
 ##########################################################
-# Helper Methods
+# Logging Configuration
+
+logger = logging.getLogger(__name__)
+
+##########################################################
+# Functions
 
 
 def maybe_make_directory(path: FilePath) -> None:
@@ -96,12 +98,12 @@ def clear_directory(dir_path: Optional[DirPath]) -> None:
 def get_files_in_directory(
         dir_path: DirPath,
         ext: Optional[str]="jpg",
-        sample_size: Optional[int]= None,
+        sample_size: int= 0,
         **kwargs
     ) -> List[FilePath]:
     files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
     if ext: files = [f for f in files if f.endswith(ext)]
-    if sample_size: files = random.sample(files, sample_size)
+    if sample_size != 0: files = random.sample(files, sample_size)
     return files
 
 
@@ -119,3 +121,18 @@ def maybe_increment_path(
         if not os.path.exists(full_file_path):
             return full_file_path
         i += 1
+
+
+def log_progress(i: int, total: int, start_time: time.time) -> None:
+    digits = len(str(total))
+    perc = i / float(total)
+    current_time = time.time()
+    elapsed_time = datetime.timedelta(seconds=int(current_time - start_time))
+    exp_time = datetime.timedelta(seconds=int(elapsed_time.total_seconds() / perc))
+    logger.info("|Records:{curr_count:0{width}}/{total_count}|Time:{elapsed_time}/{exp_time}|{perc:>2.2f}%".format(
+            curr_count=i, total_count=total, width=digits, perc=perc*100,
+            elapsed_time=str(elapsed_time), exp_time=str(exp_time), 
+    ))
+
+
+##########################################################

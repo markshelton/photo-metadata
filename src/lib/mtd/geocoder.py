@@ -1,13 +1,18 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
 ##########################################################
 # Standard Library Imports
 
-import re
 import csv
-import urllib.request
-import urllib.parse
 import json
 import logging
 import os
+import re
+import urllib.request
+import urllib.parse
+from envparse import env
 
 ##########################################################
 # Third Party Imports
@@ -22,10 +27,10 @@ from thickshake._types import *
 ##########################################################
 # Environmental Variables
 
-CURRENT_DIR, _ = os.path.split(__file__)
-INPUT_STREET_TYPE_FILE = "%s/aus_street_types.csv" % (CURRENT_DIR) # type: FilePath
-INPUT_SUBURB_NAMES_FILE = "%s/wa_suburb_names.csv" % (CURRENT_DIR) # type: FilePath
-INPUT_STOP_WORDS_FILE = "%s/stop_words.csv" % (CURRENT_DIR) # type: FilePath
+CURRENT_FILE_DIR, _ = os.path.split(__file__)
+MTD_LOC_STREET_TYPES_FILE = env.str("MTD_LOC_STREET_TYPES_FILE", "%s/aus_street_types.csv" % (CURRENT_FILE_DIR)) # type: FilePath
+MTD_LOC_SUBURB_NAMES_FILE = env.str("MTD_LOC_SUBURB_NAMES_FILE", "%s/wa_suburb_names.csv" % (CURRENT_FILE_DIR)) # type: FilePath
+MTD_LOC_ADDRESS_STOP_WORDS_FILE = env.str("MTD_LOC_ADDRESS_STOP_WORDS_FILE", "%s/stop_words.csv" % (CURRENT_FILE_DIR)) # type: FilePath
 
 ##########################################################
 # Logging Configuration
@@ -34,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 ##########################################################
 # Helpers
+
 
 def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
     """Read CSV file into a dictionary"""
@@ -156,6 +162,7 @@ def calculate_bounding_box_size(bb_coords: List[float]) -> float:
     """Calculate Bounding Box Size of GPS Location, using Vincenty algorithm (in km)."""
     return geopy.distance.vincenty((bb_coords[0], bb_coords[2]), (bb_coords[1], bb_coords[3])).km
 
+
 def geocode_addresses(query: str) -> List[Location]:
     locations = []
     try:
@@ -183,6 +190,7 @@ def choose_best_location(coordinates_list: List[Location]) -> Optional[Location]
     best_coords = min(coordinates_list, key=lambda x: x.get('bb_size'))
     return Location(best_coords)
 
+
 #TODO: Convert to Async requests
 def extract_location_from_text(location_text: str) -> Optional[Location]:
     """Parse and geocode location from text using OSM Nominatim."""
@@ -196,35 +204,5 @@ def extract_location_from_text(location_text: str) -> Optional[Location]:
     location = choose_best_location(locations_all)
     return location
 
-
-##########################################################
-# One-time Scripts
-
-
-INPUT_SUBURB_URL = "https://www0.landgate.wa.gov.au/maps-and-imagery/wa-geographic-names/name-history/historical-suburb-names" # type: FilePath
-OUTPUT_SUBURB_FILE = INPUT_SUBURB_NAMES_FILE # type: FilePath
-
-
-def scrape_suburbs_list(output_file: FilePath) -> None:
-    """Scrape list of WA suburb names from Landgate web page and store in file."""
-    from bs4 import BeautifulSoup
-    with urllib.request.urlopen(INPUT_SUBURB_URL) as suburbs_page:
-        suburbs_html = BeautifulSoup(suburbs_page, 'html.parser')
-        suburb_nodes = suburbs_html.findAll('h3')
-        suburbs = [suburb_node.text.strip() for suburb_node in suburb_nodes]
-    with open(output_file, "w+") as outfile:
-        writer = csv.writer(outfile)
-        writer.writerow(["suburb_name"])
-        for suburb in suburbs:
-            writer.writerow([suburb])
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    extract_coordinates_from_text("135 St George's Tce, Perth, 1961")
-    #resolve_location("Spitfire PK481 in front of Air Force Memorial House, 207 Adelaide Terrace, Perth, 1960")
-    #resolve_location("Perth from the State War Memorial in Kings Park, March 1960")
-    #resolve_location("z142982PD: Christmas decorations, Barrack Street, Perth, 1974")
-    # scrape_suburbs_list(OUTPUT_SUBURB_FILE)
 
 ##########################################################

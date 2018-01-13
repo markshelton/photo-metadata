@@ -1,101 +1,51 @@
 ##########################################################
 # Standard Library Imports
 
-import glob
-import os
-import errno
-import shutil
-import functools
-import operator
-import random
 import logging
+import os
+import time
 
 ##########################################################
 # Third Party Imports
 
-#from matplotlib import pyplot as plt
-import numpy as np
-import dlib
 import cv2
+import dlib
 import h5py
+import numpy as np
+
+from envparse import env
+from matplotlib import pyplot as plt
 
 ##########################################################
 # Local Imports
 
 from thickshake.utils import (
-    logged, setup_logging, setup_warnings,
+    logged, setup_logging, setup_warnings, log_progress,
     clear_directory, maybe_increment_path, get_files_in_directory
 )
-from thickshake._types import (
-    Dict, List, Pattern, Optional, Any,
-    FilePath, DirPath, Face,
-    Image, Rectangle, BoundingBox, Shape,
-)
+from thickshake._types import *
 
 ##########################################################
 # Environmental Variables
 
-INPUT_IMAGE_DIR = "/home/app/data/input/images/JPEG_Convert_Resolution_1024" # type: DirPath
-OUTPUT_FACES_IMAGE_DIR = "/home/app/data/output/face_recognition/images/faces" # type: DirPath
-OUTPUT_FACE_INFO_FILE = "/home/app/data/output/face_recognition/faces.hdf5" # type: FilePath
+INPUT_IMAGE_DIR = env.str("INPUT_IMAGE_DIR", default="/home/app/data/input/images/JPEG_Convert_Resolution_1024") # type: DirPath
+OUTPUT_IMAGE_FACES_DIR = env.str("OUTPUT_IMAGE_FACES_DIR", default="/home/app/data/output/face_recognition/images/faces") # type: DirPath
+OUTPUT_IMAGE_DATA_FILE = env.str("OUTPUT_IMAGE_DATA_FILE", default="/home/app/data/output/face_recognition/faces.hdf5") # type: FilePath
 
-FACE_SIZE = 200
+FLAG_IMG_SAMPLE = env.int("FLAG_IMG_SAMPLE", default=0)
+FLAG_IMG_FACE_SIZE = env.int("FLAG_IMG_FACE_SIZE", default=200)
+FLAG_IMG_CLEAR_FACES = env.bool("FLAG_IMG_CLEAR_FACES", default=True)
+FLAG_IMG_OVERWRITE_FACES = env.bool("FLAG_IMG_OVERWRITE_FACES", default=True)
+FLAG_IMG_SAVE_FACES = env.bool("FLAG_IMG_SAVE_FACES", default=True)
+FLAG_IMG_SHOW_FACES = env.bool("FLAG_IMG_SHOW_FACES", default=False)
+FLAG_IMG_LOGGING = env.bool("FLAG_IMG_LOGGING", default=True)
+FLAG_IMG_LANDMARK_INDICES = env.list("", default=[39, 42, 57], subcast=int) #INNER_EYES_AND_BOTTOM_LIP
+#FLAG_IMG_LANDMARK_INDICES = env.list("", default=[36, 45, 33], subcast=int) #OUTER_EYES_AND_NOSE
 
-INPUT_SAMPLE_SIZE = 20
-
-CLEAR_FACES_FLAG=True
-OVERWRITE_FACES_FLAG = True
-SAVE_FLAG = True
-SHOW_FACES_FLAG = False
-
-##########################################################
-# Face Configuration
-
-CURRENT_DIR, _ = os.path.split(__file__)
-FACE_PREDICTOR_PATH = "%s/shape_predictor_68_face_landmarks.dat" % CURRENT_DIR
-FACE_RECOGNIZER_PATH = "%s/dlib_face_recognition_resnet_model_v1.dat" % CURRENT_DIR
-
-INNER_EYES_AND_BOTTOM_LIP = [39, 42, 57]
-OUTER_EYES_AND_NOSE = [36, 45, 33]
-
-FACE_TEMPLATE = np.float32([
-    (0.0792396913815, 0.339223741112), (0.0829219487236, 0.456955367943),
-    (0.0967927109165, 0.575648016728), (0.122141515615, 0.691921601066),
-    (0.168687863544, 0.800341263616), (0.239789390707, 0.895732504778),
-    (0.325662452515, 0.977068762493), (0.422318282013, 1.04329000149),
-    (0.531777802068, 1.06080371126), (0.641296298053, 1.03981924107),
-    (0.738105872266, 0.972268833998), (0.824444363295, 0.889624082279),
-    (0.894792677532, 0.792494155836), (0.939395486253, 0.681546643421),
-    (0.96111933829, 0.562238253072), (0.970579841181, 0.441758925744),
-    (0.971193274221, 0.322118743967), (0.163846223133, 0.249151738053),
-    (0.21780354657, 0.204255863861), (0.291299351124, 0.192367318323),
-    (0.367460241458, 0.203582210627), (0.4392945113, 0.233135599851),
-    (0.586445962425, 0.228141644834), (0.660152671635, 0.195923841854),
-    (0.737466449096, 0.182360984545), (0.813236546239, 0.192828009114),
-    (0.8707571886, 0.235293377042), (0.51534533827, 0.31863546193),
-    (0.516221448289, 0.396200446263), (0.517118861835, 0.473797687758),
-    (0.51816430343, 0.553157797772), (0.433701156035, 0.604054457668),
-    (0.475501237769, 0.62076344024), (0.520712933176, 0.634268222208),
-    (0.565874114041, 0.618796581487), (0.607054002672, 0.60157671656),
-    (0.252418718401, 0.331052263829), (0.298663015648, 0.302646354002),
-    (0.355749724218, 0.303020650651), (0.403718978315, 0.33867711083),
-    (0.352507175597, 0.349987615384), (0.296791759886, 0.350478978225),
-    (0.631326076346, 0.334136672344), (0.679073381078, 0.29645404267),
-    (0.73597236153, 0.294721285802), (0.782865376271, 0.321305281656),
-    (0.740312274764, 0.341849376713), (0.68499850091, 0.343734332172),
-    (0.353167761422, 0.746189164237), (0.414587777921, 0.719053835073),
-    (0.477677654595, 0.706835892494), (0.522732900812, 0.717092275768),
-    (0.569832064287, 0.705414478982), (0.635195811927, 0.71565572516),
-    (0.69951672331, 0.739419187253), (0.639447159575, 0.805236879972),
-    (0.576410514055, 0.835436670169), (0.525398405766, 0.841706377792),
-    (0.47641545769, 0.837505914975), (0.41379548902, 0.810045601727),
-    (0.380084785646, 0.749979603086), (0.477955996282, 0.74513234612),
-    (0.523389793327, 0.748924302636), (0.571057789237, 0.74332894691),
-    (0.672409137852, 0.744177032192), (0.572539621444, 0.776609286626),
-    (0.5240106503, 0.783370783245), (0.477561227414, 0.778476346951)])
-
-TPL_MIN, TPL_MAX = np.min(FACE_TEMPLATE, axis=0), np.max(FACE_TEMPLATE, axis=0)
-MINMAX_TEMPLATE = (FACE_TEMPLATE - TPL_MIN) / (TPL_MAX - TPL_MIN)
+CURRENT_FILE_DIR, _ = os.path.split(__file__)
+IMG_FACE_PREDICTOR_FILE = env.str("IMG_FACE_PREDICTOR_FILE", default="%s/deps/shape_predictor_68_face_landmarks.dat" % CURRENT_FILE_DIR)
+IMG_FACE_RECOGNIZER_FILE = env.str("IMG_FACE_RECOGNIZER_FILE", default="%s/deps/dlib_face_recognition_resnet_model_v1.dat" % CURRENT_FILE_DIR)
+IMG_FACE_TEMPLATE_FILE = env.str("IMG_FACE_TEMPLATE_FILE", default="%s/deps/openface_68_face_template.npy" % CURRENT_FILE_DIR)
 
 ##########################################################
 # Logging Configuration
@@ -103,16 +53,20 @@ MINMAX_TEMPLATE = (FACE_TEMPLATE - TPL_MIN) / (TPL_MAX - TPL_MIN)
 logger = logging.getLogger(__name__)
 
 ##########################################################
-#Helpers
+# Functions
 
-"""
+
 def show_image(image_rgb: Image) -> None:
     plt.imshow(image_rgb)
     plt.show()
-"""
 
-##########################################################
-# Functions
+
+def prepare_template(face_template_file: FilePath) -> None:
+    face_template = np.load(face_template_file)
+    tpl_min, tpl_max = np.min(face_template, axis=0), np.max(face_template, axis=0)
+    minmax_template = (face_template - tpl_min) / (tpl_max - tpl_min)
+    return minmax_template
+
 
 def adjust_gamma(image, gamma=1.0):
     invGamma = 1.0 / gamma
@@ -153,8 +107,8 @@ def extract_face_embeddings(image: Image, face: Rectangle, predictor: Any, recog
 def normalize_face(
         image: Image,
         landmarks: np.float32,
-        key_indices: List[int] = INNER_EYES_AND_BOTTOM_LIP,
-        face_template: np.array = MINMAX_TEMPLATE,
+        face_template: np.array,
+        key_indices: List[int],
         face_size: int = 200,
         **kwargs
     ) -> Image:
@@ -199,8 +153,10 @@ def extract_faces_from_image(
         image_file: FilePath,
         predictor: Optional[Any] = None,
         recognizer: Optional[Any] = None,
+        template: Optional[Any] = None,
         predictor_path: Optional[FilePath] = None,
         recognizer_path: Optional[FilePath] = None,
+        template_path: Optional[FilePath] = None,
         output_face_info_file: Optional[FilePath] = None,
         show_flag: bool = False,
         save_flag: bool = False,
@@ -210,14 +166,16 @@ def extract_faces_from_image(
     image_bgr = enhance_image(image_bgr)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     faces = find_faces_in_image(image_rgb)
+    if template is None: template = prepare_template(template_path)
     if predictor is None: predictor = dlib.shape_predictor(predictor_path)
     if recognizer is None: recognizer = dlib.face_recognition_model_v1(recognizer_path)
     faces_norm = [] # type: List[Image]
     for face in faces:
         landmarks = extract_face_landmarks(image_rgb, face, predictor)
         embeddings = extract_face_embeddings(image_rgb, face, predictor, recognizer)
-        face_norm = normalize_face(image_rgb, landmarks, **kwargs)
-        if show_flag: pass #show_image(image_rgb)
+        face_norm = normalize_face(image_rgb, landmarks, template, **kwargs)
+        if show_flag:
+            show_image(image_rgb)
         if save_flag: 
             output_file = save_image(face_norm, image_file, **kwargs)
             save_object(landmarks, "landmarks", output_file, output_face_info_file, **kwargs)
@@ -231,23 +189,31 @@ def extract_faces_from_images(
         input_images_dir: DirPath,
         predictor_path: FilePath,
         recognizer_path: FilePath,
+        template_path: FilePath,
         output_images_dir: Optional[DirPath]=None,
         flag_clear_faces: bool=False,
+        logging_flag: bool=False,
         **kwargs: Any
     ) -> List[Image]:
     image_files = get_files_in_directory(input_images_dir, **kwargs)
     if flag_clear_faces: clear_directory(output_images_dir)
     predictor = dlib.shape_predictor(predictor_path)
     recognizer = dlib.face_recognition_model_v1(recognizer_path)
-    for image_file in image_files:
+    template = prepare_template(template_path)
+    total = len(image_files)
+    start_time = time.time()
+    for i, image_file in enumerate(image_files):
         extract_faces_from_image(
             image_file=image_file,
             input_images_dir=input_images_dir,
             output_images_dir=output_images_dir,
             predictor=predictor,
             recognizer=recognizer,
+            template=template,
             **kwargs
         )
+        if logging_flag:
+            log_progress(i+1, total, start_time)
 
 
 ##########################################################
@@ -256,17 +222,19 @@ def extract_faces_from_images(
 def main():
     extract_faces_from_images(
         input_images_dir=INPUT_IMAGE_DIR,
-        output_images_dir=OUTPUT_FACES_IMAGE_DIR,
-        output_face_info_file=OUTPUT_FACE_INFO_FILE,
-        sample_size=INPUT_SAMPLE_SIZE,
-        show_flag=SHOW_FACES_FLAG,
-        save_flag=SAVE_FLAG,
-        flag_clear_faces=CLEAR_FACES_FLAG,
-        overwrite=OVERWRITE_FACES_FLAG,
-        predictor_path=FACE_PREDICTOR_PATH,
-        recognizer_path=FACE_RECOGNIZER_PATH,
-        key_indices=INNER_EYES_AND_BOTTOM_LIP,
-        face_size=FACE_SIZE
+        output_images_dir=OUTPUT_IMAGE_FACES_DIR,
+        output_face_info_file=OUTPUT_IMAGE_DATA_FILE,
+        sample_size=FLAG_IMG_SAMPLE,
+        show_flag=FLAG_IMG_SHOW_FACES,
+        save_flag=FLAG_IMG_SAVE_FACES,
+        flag_clear_faces=FLAG_IMG_CLEAR_FACES,
+        logging_flag=FLAG_IMG_LOGGING,
+        overwrite=FLAG_IMG_OVERWRITE_FACES,
+        key_indices=FLAG_IMG_LANDMARK_INDICES,
+        face_size=FLAG_IMG_FACE_SIZE,
+        predictor_path=IMG_FACE_PREDICTOR_FILE,
+        recognizer_path=IMG_FACE_RECOGNIZER_FILE,
+        template_path=IMG_FACE_TEMPLATE_FILE,
     )
 
 

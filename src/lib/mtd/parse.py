@@ -12,14 +12,15 @@ import random
 import urllib.request
 import urllib.error
 import time
+from envparse import env
 
 ##########################################################
 # Third Party Imports
 
-import pymarc
 import datefinder
-from PIL import ImageFile
+import pymarc
 import sqlalchemy.engine
+from PIL import ImageFile
 
 ##########################################################
 # Local Imports
@@ -27,37 +28,36 @@ import sqlalchemy.engine
 from thickshake.mtd.database import manage_db_session, initialise_db
 from thickshake.mtd.geocoder import extract_location_from_text
 from thickshake.mtd.schema import Base
-from thickshake.utils import consolidate_list
+from thickshake.utils import consolidate_list, log_progress
 from thickshake._types import *
 
 ##########################################################
 # Parser Configuration
 
-TAG_DELIMITER = "$"
-TAG_COLLECTION_ID = "035$a"
-TAG_NOTE_TITLE = "245$a"
-TAG_NOTE_GENERAL = "500$a"
-TAG_NOTE_SUMMARY = "520$a"
-TAG_SERIES_TITLE = "830$a"
-TAG_SERIES_VOLUME = "830$v"
-TAG_PHYSICAL_EXTENT = "300$a"
-TAG_PHYSICAL_DETAILS = "300$b"
-TAG_DATE_CREATED = "260$c"
-TAG_DATE_CREATED_APPROX = "264$c"
-TAG_TOPIC = "650$a"
-TAG_LOCATION_DIVISION = "650$z"
-TAG_LOCATION_NAME = "651$a"
-TAG_SUBJECT_PERSON_NAME_MAIN = "100$a"
-TAG_SUBJECT_PERSON_DATES_MAIN = "100$d"
-TAG_SUBJECT_PERSON_RELATION_MAIN = "100$e"
-TAG_SUBJECT_COMPANY_NAME_MAIN = "110$a"
-TAG_SUBJECT_COMPANY_RELATION_MAIN = "110$e"
-TAG_SUBJECT_PERSON_NAME_OTHER = "600$a"
-TAG_SUBJECT_PERSON_DATES_OTHER = "600$d"
-TAG_SUBJECT_COMPANY_NAME_OTHER = "610$a"
-TAG_SUBJECT_COMPANY_RELATION_OTHER = "610$x"
-TAG_IMAGE_URL = "856$u"
-TAG_IMAGE_NOTE = "856$z"
+TAG_COLLECTION_ID = env.list("TAG_COLLECTION_ID", default=['035', 'a']) 
+TAG_NOTE_TITLE = env.list("TAG_NOTE_TITLE", default=["245", "a"])
+TAG_NOTE_GENERAL = env.list("TAG_NOTE_GENERAL", default=["500", "a"])
+TAG_NOTE_SUMMARY = env.list("TAG_NOTE_SUMMARY", default=["520", "a"])
+TAG_SERIES_TITLE = env.list("TAG_SERIES_TITLE", default=["830", "a"])
+TAG_SERIES_VOLUME = env.list("TAG_SERIES_VOLUME", default=["830", "v"])
+TAG_PHYSICAL_EXTENT = env.list("TAG_PHYSICAL_EXTENT", default=["300", "a"])
+TAG_PHYSICAL_DETAILS = env.list("TAG_PHYSICAL_DETAILS", default=["300", "b"])
+TAG_DATE_CREATED = env.list("TAG_DATE_CREATED", default=["260", "c"])
+TAG_DATE_CREATED_APPROX = env.list("TAG_DATE_CREATED_APPROX", default=["264", "c"])
+TAG_TOPIC = env.list("TAG_TOPIC", default=["650", "a"])
+TAG_LOCATION_DIVISION = env.list("TAG_LOCATION_DIVISION", default=["650", "z"])
+TAG_LOCATION_NAME = env.list("TAG_LOCATION_NAME", default=["651", "a"])
+TAG_SUBJECT_PERSON_NAME_MAIN = env.list("TAG_SUBJECT_PERSON_NAME_MAIN", default=["100", "a"])
+TAG_SUBJECT_PERSON_DATES_MAIN = env.list("TAG_SUBJECT_PERSON_DATES_MAIN", default=["100", "d"])
+TAG_SUBJECT_PERSON_RELATION_MAIN = env.list("TAG_SUBJECT_PERSON_RELATION_MAIN", default=["100", "e"])
+TAG_SUBJECT_COMPANY_NAME_MAIN = env.list("TAG_SUBJECT_COMPANY_NAME_MAIN", default=["110", "a"])
+TAG_SUBJECT_COMPANY_RELATION_MAIN = env.list("TAG_SUBJECT_COMPANY_RELATION_MAIN", default=["110", "e"])
+TAG_SUBJECT_PERSON_NAME_OTHER = env.list("TAG_SUBJECT_PERSON_NAME_OTHER", default=["600", "a"])
+TAG_SUBJECT_PERSON_DATES_OTHER = env.list("TAG_SUBJECT_PERSON_DATES_OTHER", default=["600", "d"])
+TAG_SUBJECT_COMPANY_NAME_OTHER = env.list("TAG_SUBJECT_COMPANY_NAME_OTHER", default=["610", "a"])
+TAG_SUBJECT_COMPANY_RELATION_OTHER = env.list("TAG_SUBJECT_COMPANY_RELATION_OTHER", default=["610", "x"])
+TAG_IMAGE_URL = env.list("TAG_IMAGE_URL", default=["856", "u"])
+TAG_IMAGE_NOTE = env.list("TAG_IMAGE_NOTE", default=["856", "z"])
 
 ##########################################################
 # Logging Configuration
@@ -91,10 +91,13 @@ def get_subfields(record: PymarcRecord, field_key: str, subfield_key: str) -> Li
     return subfields
 
 
-def parse_tag_key(tag_key: str) -> Tag:
-    """Split tag (e.g. "700$a") into a tuple of the field and subfield."""
-    m = re.match(r"(?P<field>\S{3})(?:\$?)(?P<subfield>\S*)?", tag_key)
-    tag = Tag(field=m.group("field"), subfield=m.group("subfield"))
+def parse_tag_key(tag_key: List[str]) -> Tag:
+    """Split tag into a tuple of the field and subfield."""
+    if len(tag_key) == 2:
+        tag = Tag(field=tag_key[0], subfield=m.group("subfield"))
+    elif len(tag_key) == 1:
+        tag = Tag(field=tag_key[0], subfield=None)
+    else: tag = None
     return tag
 
 
@@ -370,18 +373,6 @@ def parse_record_section(
             record_object = Schema(**record_parsed)
             session.add(record_object)
 
-
-def log_records(i: int, total: int, start_time: time.time) -> None:
-    digits = len(str(total))
-    perc = i / float(total)
-    current_time = time.time()
-    elapsed_time = datetime.timedelta(seconds=int(current_time - start_time))
-    exp_time = datetime.timedelta(seconds=int(elapsed_time.total_seconds() / perc))
-    logger.info("|Records:{curr_count:0{width}}/{total_count}|Time:{elapsed_time}/{exp_time}|{perc:>2.2f}%".format(
-            curr_count=i, total_count=total, width=digits, perc=perc*100,
-            elapsed_time=str(elapsed_time), exp_time=str(exp_time), 
-    ))
-
         
 def sample_records(records: List[PymarcRecord], sample_size: int = 0) -> List[PymarcRecord]:
     return records if sample_size == 0 else random.sample(records, sample_size)
@@ -406,7 +397,7 @@ def load_marcxml(
     start_time = time.time()
     for i, record in enumerate(records):
         record_parser(record, engine=db_engine, **kwargs)
-        if logging_flag: log_records(i+1, total, start_time)
+        if logging_flag: log_progress(i+1, total, start_time)
 
 
 ##########################################################

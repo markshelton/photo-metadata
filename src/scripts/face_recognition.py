@@ -27,12 +27,12 @@ from thickshake._types import Any, List, Optional, ParsedRecord, DBConfig, FileP
 ##########################################################
 # Environmental Variables
 
-INPUT_MARCXML_FILE = env.str("INPUT_MARCXML_FILE") # type: FilePath
+INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE") # type: FilePath
 
-FLAG_GEOCODING = env.bool("FLAG_PARSE_GEOCODING", default=False) # type: bool
-FLAG_DIMENSIONS = env.bool("FLAG_PARSE_DIMENSIONS", default=False) # type: bool
-FLAG_PARSE_LOGGING = env.bool("FLAG_PARSE_LOGGING", default=False) # type: bool
-FLAG_PARSE_SAMPLE = env.int("FLAG_PARSE_SAMPLE", default=0) # type: int
+FLAG_MTD_GEOCODING = env.bool("FLAG_MTD_GEOCODING", default=False) # type: bool
+FLAG_MTD_DIMENSIONS = env.bool("FLAG_MTD_DIMENSIONS", default=False) # type: bool
+FLAG_MTD_LOGGING = env.bool("FLAG_MTD_LOGGING", default=False) # type: bool
+FLAG_MTD_SAMPLE = env.int("FLAG_MTD_SAMPLE", default=0) # type: int
 
 DB_CONFIG = {} # type: DBConfig
 DB_CONFIG["drivername"] = env.str("DB_DRIVER", default="postgres")
@@ -134,13 +134,13 @@ def parse_record(record: Record, **kwargs: Any) -> None:
 
 def main() -> None:
     load_marcxml(
-        input_file=INPUT_MARCXML_FILE,
+        input_file=INPUT_METADATA_FILE,
         record_parser=parse_record, #TODO: Find way to configure through env variables
         db_config=DB_CONFIG,
-        geocoding=FLAG_GEOCODING,
-        dimensions=FLAG_DIMENSIONS,
-        logging_flag=FLAG_PARSE_LOGGING,
-        sample_size=FLAG_PARSE_SAMPLE
+        geocoding=FLAG_MTD_GEOCODING,
+        dimensions=FLAG_MTD_DIMENSIONS,
+        logging_flag=FLAG_MTD_LOGGING,
+        sample_size=FLAG_MTD_SAMPLE
     )
 
 if __name__ == "__main__":

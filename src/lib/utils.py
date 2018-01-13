@@ -93,7 +93,6 @@ def clear_directory(dir_path: Optional[DirPath]) -> None:
         logger.info("Output directory already empty.")
     os.makedirs(dir_path, exist_ok=True)
 
-
 def get_files_in_directory(
         dir_path: DirPath,
         ext: Optional[str]="jpg",

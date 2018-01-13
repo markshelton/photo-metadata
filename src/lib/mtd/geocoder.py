@@ -17,10 +17,7 @@ import geopy.distance
 ##########################################################
 # Local Imports
 
-from thickshake._types import (
-    Dict, List, Pattern, Optional,
-    FilePath, Match, Location, Address, 
-)
+from thickshake._types import *
 
 ##########################################################
 # Environmental Variables

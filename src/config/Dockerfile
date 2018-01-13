@@ -21,6 +21,7 @@ RUN apt-get update \
     libjpeg-dev \
     liblapacke-dev \
     libpng-dev \
+    libpq-dev \
     libsm6 \
     libxext6 \
     pkg-config \
@@ -41,6 +42,7 @@ RUN pip3 install --no-cache-dir \
     matplotlib \
     opencv-python==$OPENCV_VERSION \
     opencv-contrib-python==$OPENCV_VERSION \
+    psycopg2 \
     dlib==$DLIB_VERSION \
     && python3 -m ipykernel.kernelspec
 RUN pip3 install --no-cache-dir -r config/requirements.txt
@@ -54,6 +56,9 @@ EXPOSE 8888
 
 #Expose Tensorboard
 EXPOSE 6006
+
+#Expose Postgresql
+EXPOSE 5432
 
 # Start Jupyter Server
 CMD ["/run_jupyter.sh", "--allow-root", "--NotebookApp.token=''"]

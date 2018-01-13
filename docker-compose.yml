@@ -1,0 +1,37 @@
+version: '3'
+
+services:      
+  
+  db:
+    container_name: ${CONTAINER_DB_NAME}
+    image: postgres
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+      - ./.secrets
+  
+  app:
+    container_name: ${CONTAINER_APP_NAME}
+    build:
+      context: src/
+      dockerfile: ./config/Dockerfile
+    env_file:
+      - ./.env
+      - ./.secrets
+    environment: 
+      DB_HOST: db
+    volumes:
+      - ${PROJECT_DIR}/:/home/app/
+      - ${PROJECT_DIR}/src/lib/:/libs/thickshake/
+    ports:
+      - "8888:8888"
+      - "6006:6006"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+    external:
+      name: ${VOLUME_DB_NAME}

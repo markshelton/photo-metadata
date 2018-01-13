@@ -1,90 +1,124 @@
+#######################################################################
+# PREAMBLE
+#######################################################################
+
 MAKEFLAGS += --warn-undefined-variables
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := all
 .DELETE_ON_ERROR:
 .SUFFIXES:
-
-BUILD_CONTEXT = ./src/
-DOCKERIGNORE_PATH = ./src/config/.dockerignore
-DOCKERFILE_PATH = ./src/config/Dockerfile
-REQUIREMENTS_PATH = ./src/config/requirements.txt
-PROJECT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
-
-CONFIG ?= ./src/config/config.env
-include $(CONFIG)
-export $(shell sed 's/=.*//' $(CONFIG))
-
-APP_NAME = "$(REPO_NAME)/$(PROJECT_NAME)"
-
 .DEFAULT_GOAL := start
+CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 
-.PHONY: build
-build: prebuild; docker build -t $(APP_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
+#######################################################################
+# APP CONFIGURATION
+#######################################################################
 
-.PHONY: build-nc
-build-nc: prebuild; docker build --no-cache -t $(APP_NAME) -f $(DOCKERFILE_PATH) $(BUILD_CONTEXT)
+APP_CONFIG_PATH = ./.env
+include $(APP_CONFIG_PATH)
+export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
+
+#######################################################################
+# IMAGE CONFIGURATION
+#######################################################################
+
+IMAGE_CONFIG_PATH=./src/config/image.env
+include $(IMAGE_CONFIG_PATH)
+export $(shell sed 's/=.*//' $(IMAGE_CONFIG_PATH))
+
+#######################################################################
+# APP COMMANDS
+#######################################################################
+
+.PHONY: start
+start: up shell
+
+.PHONY: stop
+stop:
+	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
+	-docker-compose down
+
+.PHONY: restart
+restart: stop start
+
+.PHONY: up
+up: volume _up
+
+.PHONY: _up
+_up: 
+	PROJECT_DIR=$(CURRENT_DIR) \
+	CONTAINER_APP_NAME=$(CONTAINER_APP_NAME) \
+	CONTAINER_DB_NAME=$(CONTAINER_DB_NAME) \
+	VOLUME_DB_NAME=$(VOLUME_DB_NAME) \
+	docker-compose up --build -d
+
+#######################################################################
 
 .PHONY: jupyter
 jupyter:
-	sleep 3
-	-explorer.exe "http://localhost:8888/tree"
+	explorer.exe "http://localhost:8888/tree"
+
+.PHONY: shell
+shell:
+	docker exec -it $(CONTAINER_APP_NAME) bash
+
+.PHONY: volume
+volume:
+	-docker volume create --name=$(VOLUME_DB_NAME)
+
+#######################################################################
+# IMAGE COMMANDS
+#######################################################################
 
 .PHONY: prebuild
 prebuild:
 	npm list -g dockerignore --depth=0 || npm install -g dockerignore
-	dockerignore -g=".gitignore" -D="$(DOCKERIGNORE_PATH)"
+	dockerignore -g="$(GIT_IGNORE_PATH)" -D="$(DOCKER_IGNORE_PATH)"
+
+.PHONY: build
+build: prebuild _build
+
+.PHONY: _build
+_build:
+	TENSORFLOW_VERSION=$(TENSORFLOW_VERSION) \
+	OPENCV_VERSION=$(OPENCV_VERSION) \
+	DLIB_VERSION=$(DLIB_VERSION) \
+	docker build \
+		-t $(IMAGE_NAME) \
+		-f $(DOCKER_FILE_PATH) \
+		$(BUILD_CONTEXT)
+
+#######################################################################
 
 .PHONY: publish
 publish: repo-login publish-latest publish-version
 
 .PHONY: publish-latest
 publish-latest: 
-	docker push $(APP_NAME)\:latest
+	docker push $(IMAGE_NAME)\:latest
 
 .PHONY: publish-version
 publish-version: 
-	docker push $(APP_NAME)\:$(VERSION)
+	docker push $(IMAGE_NAME)\:$(VERSION)
 
 .PHONY: repo-login
 repo-login: 
 	docker login -u $(REPO_NAME)
-
-.PHONY: restart
-restart: stop start
-
-.PHONY: run
-run: 
-	docker run -td --rm --name="$(PROJECT_NAME)" \
-		-p 8888:8888 -p 6006:6006 \
-		-v $(PROJECT_DIR):/home/app/ \
-		-v $(PROJECT_DIR)/src/lib/:/libs/thickshake/ \
-		$(APP_NAME)
-
-.PHONY: shell
-shell:
-	docker exec -it $(PROJECT_NAME) /bin/bash
-
-.PHONY: start
-start: build run shell
-
-.PHONY: stop
-stop:
-	-docker exec -it $(PROJECT_NAME) /bin/bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
-	-docker stop $(PROJECT_NAME)
 
 .PHONY: tag
 tag: tag-latest tag-version
 
 .PHONY: tag-latest
 tag-latest: 
-	docker tag $(APP_NAME) $(APP_NAME)\:latest
+	docker tag $(IMAGE_NAME) $(IMAGE_NAME)\:latest
 
 .PHONY: tag-version
 tag-version: 
-	docker tag $(APP_NAME) $(APP_NAME)\:$(VERSION)
-
+	docker tag $(IMAGE_NAME) $(IMAGE_NAME)\:$(VERSION)
 
 .PHONY: version
 version:
 	@echo $(VERSION)
+
+#######################################################################

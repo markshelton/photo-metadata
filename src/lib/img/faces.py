@@ -68,19 +68,12 @@ def prepare_template(face_template_file: FilePath) -> None:
     return minmax_template
 
 
-def adjust_gamma(image, gamma=1.0):
-    invGamma = 1.0 / gamma
-    table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-    return cv2.LUT(image, table)
-
-
 def enhance_image(image):
     image_YCrCb = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
-    Y, Cr, Cb = cv2.split(image_YCrCb)
-    Y = cv2.equalizeHist(Y)
-    image_YCrCb = cv2.merge([Y, Cr, Cb])
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    channels = [clahe.apply(channel) for channel in cv2.split(image_YCrCb)]
+    image = cv2.merge(channels)
     image = cv2.cvtColor(image_YCrCb, cv2.COLOR_YCR_CB2BGR)
-    image = adjust_gamma(image)
     return image
 
 

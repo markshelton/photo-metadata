@@ -4,10 +4,7 @@
 ##########################################################
 # Third Party Imports
 
-from sqlalchemy import (
-    Column, ForeignKey,
-    String, Boolean, Date, Integer,
-)
+from sqlalchemy import Column, ForeignKey, String, Boolean, Date, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 

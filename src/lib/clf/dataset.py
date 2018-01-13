@@ -3,6 +3,7 @@
 
 import logging
 import os
+import numbers
 
 ##########################################################
 # Third Party Imports
@@ -19,10 +20,7 @@ import h5py
 
 from thickshake.mtd.database import manage_db_session, initialise_db
 from thickshake.utils import setup_logging, setup_warnings
-from thickshake._types import (
-    Tuple, List, Any, Optional,
-    Dataset, FilePath, DirPath, DBConfig, Features, Label
-)
+from thickshake._types import *
 
 ##########################################################
 # Environmental Variables

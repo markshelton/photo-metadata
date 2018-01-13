@@ -13,7 +13,7 @@ import logging
 ##########################################################
 # Third Party Imports
 
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import numpy as np
 import dlib
 import cv2
@@ -43,12 +43,10 @@ FACE_SIZE = 200
 
 INPUT_SAMPLE_SIZE = 20
 
-RESET_FILES_FLAG = True
 CLEAR_FACES_FLAG=True
 OVERWRITE_FACES_FLAG = True
 SAVE_FLAG = True
 SHOW_FACES_FLAG = False
-LIST_FILES_FLAG = False
 
 ##########################################################
 # Face Configuration
@@ -56,16 +54,6 @@ LIST_FILES_FLAG = False
 CURRENT_DIR, _ = os.path.split(__file__)
 FACE_PREDICTOR_PATH = "%s/shape_predictor_68_face_landmarks.dat" % CURRENT_DIR
 FACE_RECOGNIZER_PATH = "%s/dlib_face_recognition_resnet_model_v1.dat" % CURRENT_DIR
-
-FACIAL_LANDMARKS_IDXS = {
-	"mouth": (48, 68),
-	"right_eyebrow": (17, 22),
-	"left_eyebrow": (22, 27),
-	"right_eye": (36, 42),
-	"left_eye": (42, 48),
-	"nose": (27, 36),
-	"jaw": (0, 17)
-}
 
 INNER_EYES_AND_BOTTOM_LIP = [39, 42, 57]
 OUTER_EYES_AND_NOSE = [36, 45, 33]
@@ -117,11 +105,11 @@ logger = logging.getLogger(__name__)
 ##########################################################
 #Helpers
 
-
+"""
 def show_image(image_rgb: Image) -> None:
     plt.imshow(image_rgb)
     plt.show()
-
+"""
 
 ##########################################################
 # Functions
@@ -229,7 +217,7 @@ def extract_faces_from_image(
         landmarks = extract_face_landmarks(image_rgb, face, predictor)
         embeddings = extract_face_embeddings(image_rgb, face, predictor, recognizer)
         face_norm = normalize_face(image_rgb, landmarks, **kwargs)
-        if show_flag: show_image(image_rgb)
+        if show_flag: pass #show_image(image_rgb)
         if save_flag: 
             output_file = save_image(face_norm, image_file, **kwargs)
             save_object(landmarks, "landmarks", output_file, output_face_info_file, **kwargs)

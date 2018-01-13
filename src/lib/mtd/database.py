@@ -13,20 +13,14 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.engine import url
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DataError
 
 ##########################################################
 # Local Imports
 
 from thickshake.mtd.schema import Base
-from thickshake.utils import (
-    check_and_make_directory, open_file, json_serial
-)
-from thickshake._types import (
-    List, Optional, Dict, Any, Iterator, TypedDict,
-    ParsedRecord, DBConfig, FilePath, JSONType,
-    Engine, Session, File, 
-)
+from thickshake.utils import maybe_make_directory, open_file, json_serial
+from thickshake._types import *
 
 ##########################################################
 # Logging Configuration
@@ -43,12 +37,12 @@ def make_db_tables(db_engine: Engine) -> None:
 
 def make_db_engine(db_config: DBConfig) -> Engine:
     db_url = url.URL(**db_config)
-    check_and_make_directory(db_config["database"])
+    maybe_make_directory(db_config["database"])
     db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True)
     return db_engine
 
 
-def initialise_db(db_config: DBConfig) -> Engine:
+def initialise_db(db_config: DBConfig, **kwargs: Any) -> Engine:
     db_engine = make_db_engine(db_config)
     make_db_tables(db_engine)
     return db_engine
@@ -61,9 +55,8 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
     try:
         yield session
         session.commit()
-    except IntegrityError as e:
+    except (IntegrityError, DataError) as e:
         session.rollback()
-        print(str(e))
     except BaseException:
         session.rollback()
         raise

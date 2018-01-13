@@ -17,8 +17,8 @@ from sklearn.svm import SVC
 # Local Imports
 
 from thickshake.utils import logged, setup_logging, setup_warnings
-from thickshake._types import List, Optional, Any, FilePath, DirPath, Dataset, DBConfig
 from thickshake.clf.dataset import load_dataset, split_dataset, decompose
+from thickshake._types import *
 
 ##########################################################
 # Environmental Variables

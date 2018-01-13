@@ -11,6 +11,7 @@ import re
 import random
 import urllib.request
 import urllib.error
+import time
 
 ##########################################################
 # Third Party Imports
@@ -18,20 +19,16 @@ import urllib.error
 import pymarc
 import datefinder
 from PIL import ImageFile
-from mypy_extensions import TypedDict
+import sqlalchemy.engine
 
 ##########################################################
 # Local Imports
 
-from thickshake.database import manage_db_session
-from thickshake.geocoder import extract_location_from_text
-from thickshake.schema import Base
-from thickshake.utils import logged, deep_get, consolidate_list
-from thickshake._types import (
-    Dict, List, Pattern, Any, Callable, Optional, Union, KwArg,
-    Tag, Dates, Size, Location, ParsedRecord,
-    Record, Field, Date, Engine, Schema, 
-)
+from thickshake.mtd.database import manage_db_session, initialise_db
+from thickshake.mtd.geocoder import extract_location_from_text
+from thickshake.mtd.schema import Base
+from thickshake.utils import consolidate_list
+from thickshake._types import *
 
 ##########################################################
 # Parser Configuration
@@ -71,7 +68,7 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def get_subfield_from_field(field: Field, subfield_key: str) -> Optional[str]:
+def get_subfield_from_field(field: PymarcField, subfield_key: str) -> Optional[str]:
     if subfield_key in field:
         subfield = field[subfield_key]
     else:
@@ -79,7 +76,7 @@ def get_subfield_from_field(field: Field, subfield_key: str) -> Optional[str]:
     return subfield
 
 
-def get_subfield_from_record(record: Record, field_key: str, subfield_key: str) -> Optional[str]:
+def get_subfield_from_record(record: PymarcRecord, field_key: str, subfield_key: str) -> Optional[str]:
     if field_key in record:
         field = record[field_key]
         subfield = get_subfield_from_field(field, subfield_key)
@@ -88,8 +85,8 @@ def get_subfield_from_record(record: Record, field_key: str, subfield_key: str) 
     return subfield
 
 
-def get_subfields(record: Record, field_key: str, subfield_key: str) -> List[Optional[str]]:
-    fields = record.get_fields(field_key) # type: List[Field]
+def get_subfields(record: PymarcRecord, field_key: str, subfield_key: str) -> List[Optional[str]]:
+    fields = record.get_fields(field_key) # type: List[PymarcField]
     subfields = [get_subfield_from_field(field, subfield_key) for field in fields]
     return subfields
 
@@ -101,20 +98,20 @@ def parse_tag_key(tag_key: str) -> Tag:
     return tag
 
 
-def get_subfield_from_tag(record_or_field: Union[Record, Field], tag_key: str) -> Optional[str]:
+def get_subfield_from_tag(record_or_field: Union[PymarcRecord, PymarcField], tag_key: str) -> Optional[str]:
     tag = parse_tag_key(tag_key)
     field_key = tag["field"]
     subfield_key = tag["subfield"]
-    if isinstance(record_or_field, pymarc.record.Record):
+    if isinstance(record_or_field, PymarcRecord):
         subfield = get_subfield_from_record(record_or_field, field_key, subfield_key)
-    elif isinstance(record_or_field, pymarc.field.Field):
+    elif isinstance(record_or_field, PymarcField):
         subfield = get_subfield_from_field(record_or_field, subfield_key)
     else:
         subfield = None
     return subfield
 
 
-def get_subfields_from_tag(record: Record, tag_key: str) -> List[str]:
+def get_subfields_from_tag(record: PymarcRecord, tag_key: str) -> List[str]:
     tag = parse_tag_key(tag_key)
     field_key = tag["field"]
     subfield_key = tag["subfield"]
@@ -123,10 +120,10 @@ def get_subfields_from_tag(record: Record, tag_key: str) -> List[str]:
     return subfields
 
 
-def get_fields_from_tag(record: Record, tag_key: str) -> List[Field]:
+def get_fields_from_tag(record: PymarcRecord, tag_key: str) -> List[PymarcField]:
     tag = parse_tag_key(tag_key)
     field_key = tag["field"]
-    fields = record.get_fields(field_key) # type: List[Field]
+    fields = record.get_fields(field_key) # type: List[PymarcField]
     return fields
 
 
@@ -158,7 +155,7 @@ def extract_date_from_text(date_text: str, method: str = "first") -> Optional[Da
     return selected_date
 
 
-def get_date_collection_created(record: Record) -> Optional[Date]:
+def get_date_collection_created(record: PymarcRecord) -> Optional[Date]:
     date_created_raw = get_subfield_from_tag(record, TAG_DATE_CREATED)
     date_created_approx_raw = get_subfield_from_tag(record, TAG_DATE_CREATED_APPROX)
     if date_created_raw:
@@ -170,7 +167,7 @@ def get_date_collection_created(record: Record) -> Optional[Date]:
     return date_created
 
 
-def split_dates(record: Record, dates_tag: str) -> Dates:
+def split_dates(record: PymarcRecord, dates_tag: str) -> Dates:
     dates_raw = get_subfield_from_tag(record, dates_tag)
     if dates_raw is None: return Dates({"start": None, "end": None})
     dates_num = len(dates_raw.split("-"))
@@ -186,7 +183,7 @@ def split_dates(record: Record, dates_tag: str) -> Dates:
     return dates
 
 
-def get_image_url(image: Field, tag: str, method: str = "main"):
+def get_image_url(image: PymarcField, tag: str, method: str = "main"):
     image_url_raw = get_subfield_from_tag(image, tag)
     if image_url_raw is None: return None
     if method == "main":
@@ -205,7 +202,7 @@ def get_id_from_url(image_file: Optional[FilePath]) -> Optional[str]:
     return image_id
 
 
-def get_image_dimensions(field: Field, tag: str, dimensions_flag: bool = True) -> Optional[Size]:
+def get_image_dimensions(field: PymarcField, tag: str, dimensions_flag: bool = True) -> Optional[Size]:
     if dimensions_flag is False: return None
     image_url_raw = get_subfield_from_tag(field, tag)
     if image_url_raw is None: return None
@@ -226,7 +223,7 @@ def get_image_dimensions(field: Field, tag: str, dimensions_flag: bool = True) -
     return None
 
 
-def get_location(field: Field, tag: str, geocoding_flag: bool = True) -> Optional[Location]:
+def get_location(field: PymarcField, tag: str, geocoding_flag: bool = True) -> Optional[Location]:
     if not geocoding_flag: return None
     location_text = get_subfield_from_tag(field, tag)
     if location_text is None: return None
@@ -234,13 +231,13 @@ def get_location(field: Field, tag: str, geocoding_flag: bool = True) -> Optiona
     return location
 
 
-def get_date(field: Field, tag: str) -> Optional[Date]:
+def get_date(field: PymarcField, tag: str) -> Optional[Date]:
     date_text = get_subfield_from_tag(field, tag)
     if date_text is None: return None
     extracted_date = extract_date_from_text(date_text)
     return extracted_date
 
-def check_image(field: Field) -> bool:
+def check_image(field: PymarcField) -> bool:
     image_url = get_subfield_from_tag(field, TAG_IMAGE_URL)
     if image_url is None or ".png" in image_url: return False
     return True
@@ -248,18 +245,18 @@ def check_image(field: Field) -> bool:
 
 ##########################################################
 
-def parse_topics(record: Record, **kwargs: Any) -> List[str]:
+def parse_topics(record: PymarcRecord, **kwargs: Any) -> List[str]:
     topics_raw = get_subfields_from_tag(record, TAG_TOPIC)
     topics = consolidate_list(topics_raw)
     return topics
 
-def parse_locations(record: Record, **kwargs: Any) -> List[str]:
+def parse_locations(record: PymarcRecord, **kwargs: Any) -> List[str]:
     location_divisions_raw = get_subfields_from_tag(record, TAG_LOCATION_DIVISION)
     location_names_raw = get_subfields_from_tag(record, TAG_LOCATION_NAME)
     locations = consolidate_list([*location_divisions_raw, *location_names_raw])
     return locations
 
-def parse_main_person(record: Record) -> ParsedRecord:
+def parse_main_person(record: PymarcRecord) -> ParsedRecord:
     subject_name = get_subfield_from_tag(record, TAG_SUBJECT_PERSON_NAME_MAIN)
     main_person = {
         "subject_name": get_subfield_from_tag(record, TAG_SUBJECT_PERSON_NAME_MAIN),
@@ -271,7 +268,7 @@ def parse_main_person(record: Record) -> ParsedRecord:
     return main_person
 
 
-def parse_main_company(record: Record) -> ParsedRecord:
+def parse_main_company(record: PymarcRecord) -> ParsedRecord:
     subject_name = get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_NAME_MAIN)
     main_company = {
         "subject_name": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_NAME_MAIN),
@@ -283,7 +280,7 @@ def parse_main_company(record: Record) -> ParsedRecord:
     return main_company
 
 
-def parse_other_people(record: Record) -> List[ParsedRecord]:
+def parse_other_people(record: PymarcRecord) -> List[ParsedRecord]:
     other_people_raw = get_fields_from_tag(record, TAG_SUBJECT_PERSON_NAME_OTHER)
     other_people = [
         {
@@ -297,7 +294,7 @@ def parse_other_people(record: Record) -> List[ParsedRecord]:
     return other_people
 
 
-def parse_other_companies(record: Record) -> List[ParsedRecord]:
+def parse_other_companies(record: PymarcRecord) -> List[ParsedRecord]:
     other_companies_raw = get_fields_from_tag(record, TAG_SUBJECT_COMPANY_NAME_OTHER)
     other_companies = [
         {
@@ -314,7 +311,7 @@ def parse_other_companies(record: Record) -> List[ParsedRecord]:
 ##########################################################
 
 
-def parse_collection(record: Record, **kwargs: Any) -> ParsedRecord:
+def parse_collection(record: PymarcRecord, **kwargs: Any) -> ParsedRecord:
     collection = {
         "collection_id": get_subfield_from_tag(record, TAG_COLLECTION_ID),
         "note_title": get_subfield_from_tag(record, TAG_NOTE_TITLE),
@@ -329,7 +326,7 @@ def parse_collection(record: Record, **kwargs: Any) -> ParsedRecord:
     return collection
 
 
-def parse_images(record: Record, geocoding_flag: bool = False, dimensions_flag: bool = False, **kwargs: Any) -> List[ParsedRecord]:
+def parse_images(record: PymarcRecord, geocoding_flag: bool = False, dimensions_flag: bool = False, **kwargs: Any) -> List[ParsedRecord]:
     images_raw = get_fields_from_tag(record, TAG_IMAGE_URL)
     images = consolidate_list([
         {
@@ -346,7 +343,7 @@ def parse_images(record: Record, geocoding_flag: bool = False, dimensions_flag: 
     return images
 
 
-def parse_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
+def parse_subjects(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
     main_person = parse_main_person(record)
     main_company = parse_main_company(record)
     other_people = parse_other_people(record)
@@ -360,11 +357,10 @@ def parse_subjects(record: Record, **kwargs: Any) -> List[ParsedRecord]:
 
 ##########################################################
 
-
 def parse_record_section(
-        record: Record,
+        record: PymarcRecord,
         Schema: Schema,
-        parser: Callable[[Record, KwArg(Any)], List[ParsedRecord]],
+        parser: Callable[[PymarcRecord, KwArg(Any)], List[ParsedRecord]],
         engine: Engine,
         **kwargs: Any
     ) -> None:
@@ -375,27 +371,42 @@ def parse_record_section(
             session.add(record_object)
 
 
-def parse_records(
-        records: List[Record],
-        parser: Callable[[Record, KwArg(Any)], None],
-        **kwargs: Any
-    ) -> None:
-    for record in records:
-        parser(record, **kwargs)
+def log_records(i: int, total: int, start_time: time.time) -> None:
+    digits = len(str(total))
+    perc = i / float(total)
+    current_time = time.time()
+    elapsed_time = datetime.timedelta(seconds=int(current_time - start_time))
+    exp_time = datetime.timedelta(seconds=int(elapsed_time.total_seconds() / perc))
+    logger.info("|Records:{curr_count:0{width}}/{total_count}|Time:{elapsed_time}/{exp_time}|{perc:>2.2f}%".format(
+            curr_count=i, total_count=total, width=digits, perc=perc*100,
+            elapsed_time=str(elapsed_time), exp_time=str(exp_time), 
+    ))
+
+        
+def sample_records(records: List[PymarcRecord], sample_size: int = 0) -> List[PymarcRecord]:
+    return records if sample_size == 0 else random.sample(records, sample_size)
 
 
-def sample_records(records: List[Record], sample_size: Optional[int] = None) -> List[Record]:
-    if sample_size:
-        records_sample = random.sample(records, sample_size)
-    else:
-        records_sample = records
-    return records_sample
-
-
-def parse_marcxml(input_file: str, sample_size: Optional[int] = None, **kwargs: Any) -> List[Record]:
+def parse_marcxml_to_records(input_file: str, sample_size: int = 0, **kwargs: Any) -> List[PymarcRecord]:
     records_input = pymarc.parse_xml_to_array(input_file)
     records_sample = sample_records(records_input, sample_size)
     return records_sample
+
+
+def load_marcxml(
+        input_file: FilePath,
+        record_parser: Callable[[PymarcRecord, KwArg(Any)], None],
+        db_config: DBConfig,
+        logging_flag: bool=False,
+        **kwargs: Any
+    ) -> None:
+    records = parse_marcxml_to_records(input_file, **kwargs)
+    db_engine = initialise_db(db_config, **kwargs)
+    total = len(records)
+    start_time = time.time()
+    for i, record in enumerate(records):
+        record_parser(record, engine=db_engine, **kwargs)
+        if logging_flag: log_records(i+1, total, start_time)
 
 
 ##########################################################

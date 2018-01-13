@@ -28,13 +28,13 @@ from thickshake._types import (
 # Helper Methods
 
 
-def check_and_make_directory(path: FilePath) -> None:
+def maybe_make_directory(path: FilePath) -> None:
     path_dir = os.path.dirname(path)
     pathlib.Path(path_dir).mkdir(parents=True, exist_ok=True)
 
 
 def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
-    check_and_make_directory(path)
+    maybe_make_directory(path)
     return open(path, *args, **kwargs)
 
 
@@ -69,19 +69,21 @@ def consolidate_list(full_list: List[Any]) -> List[Any]:
 def json_serial(obj: Any) -> str:
     if isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
-    raise TypeError("Type %s not serializable" % type(obj))
+    else:
+        raise TypeError("Type %s not serializable" % type(obj))
 
 
 def setup_logging() -> None:
     logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
-    logging.getLogger("PIL.Image").setLevel(logging.INFO)
-    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.INFO)
-    logging.getLogger("datefinder").setLevel(logging.INFO)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
+    logging.getLogger("PIL.Image").setLevel(logging.WARN)
+    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARN)
+    logging.getLogger("datefinder").setLevel(logging.WARN)
 
 
 def setup_warnings() -> None:
     warnings.filterwarnings("ignore", category=sqlalchemy.exc.SAWarning)
+
 
 def clear_directory(dir_path: Optional[DirPath]) -> None:
     if dir_path is None: return None

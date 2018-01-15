@@ -5,10 +5,9 @@
 MAKEFLAGS += --warn-undefined-variables
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := start
 .DELETE_ON_ERROR:
 .SUFFIXES:
-.DEFAULT_GOAL := start
 CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 
 #######################################################################
@@ -23,7 +22,7 @@ export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
 # IMAGE CONFIGURATION
 #######################################################################
 
-IMAGE_CONFIG_PATH=./src/config/image.env
+IMAGE_CONFIG_PATH = ./src/config/image.env
 include $(IMAGE_CONFIG_PATH)
 export $(shell sed 's/=.*//' $(IMAGE_CONFIG_PATH))
 
@@ -36,8 +35,11 @@ start: up shell
 
 .PHONY: stop
 stop:
-	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
-	-docker-compose down
+	-docker exec -it \
+		$(CONTAINER_APP_NAME) \
+		bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
+	-docker-compose \
+		--file docker-compose.$(ENV).yml down
 
 .PHONY: restart
 restart: stop start
@@ -51,7 +53,12 @@ _up:
 	CONTAINER_APP_NAME=$(CONTAINER_APP_NAME) \
 	CONTAINER_DB_NAME=$(CONTAINER_DB_NAME) \
 	VOLUME_DB_NAME=$(VOLUME_DB_NAME) \
-	docker-compose up --build -d
+	DB_IMAGE=$(DB_IMAGE) \
+	DB_VERSION=$(DB_VERSION) \
+	docker-compose \
+		--file docker-compose.$(ENV).yml \
+		up --build -d
+	
 
 #######################################################################
 
@@ -61,7 +68,7 @@ jupyter:
 
 .PHONY: shell
 shell:
-	docker exec -it $(CONTAINER_APP_NAME) bash
+	docker exec -it $(CONTAINER_APP_NAME) $(SHELL)
 
 .PHONY: volume
 volume:

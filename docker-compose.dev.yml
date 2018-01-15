@@ -4,7 +4,7 @@ services:
   
   db:
     container_name: ${CONTAINER_DB_NAME}
-    image: postgres
+    image: ${DB_IMAGE}:${DB_VERSION}
     restart: always
     ports:
       - "5432:5432"

@@ -15,7 +15,8 @@ Install Docker on your machine as described in the [Docker documentation](http:/
 ```bash
 git clone https://github.com/markshelton/thickshake
 cd thickshake
-make up
+make start ENV=dev && rm -ri src docs # development
+make start ENV=prod # production
 ```
 
 ## Usage (Note: WIP)
@@ -58,9 +59,9 @@ Database Container (Image: [postgres](https://hub.docker.com/_/postgres/))
 Make commands:
 
 ```bash
-make start # creates data volume, loads and builds images, creates virtual network, opens shell
+make start # loads and builds images, creates data volume, creates virtual network, opens shell
 make stop # saves python environment, stops containers, removes virtual network
-make restart # stops and starts containers
+make restart # stops and restarts containers and virtual network
 make jupyter # opens jupyter service in default internet browser
 make shell # opens interactive session with app container
 make push # tags app image and pushes image to DockerHub

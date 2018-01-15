@@ -28,9 +28,9 @@ from thickshake._types import *
 # Environmental Variables
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-MTD_LOC_STREET_TYPES_FILE = env.str("MTD_LOC_STREET_TYPES_FILE", "%s/aus_street_types.csv" % (CURRENT_FILE_DIR)) # type: FilePath
-MTD_LOC_SUBURB_NAMES_FILE = env.str("MTD_LOC_SUBURB_NAMES_FILE", "%s/wa_suburb_names.csv" % (CURRENT_FILE_DIR)) # type: FilePath
-MTD_LOC_ADDRESS_STOP_WORDS_FILE = env.str("MTD_LOC_ADDRESS_STOP_WORDS_FILE", "%s/stop_words.csv" % (CURRENT_FILE_DIR)) # type: FilePath
+MTD_LOC_STREET_TYPES_FILE = env.str("MTD_LOC_STREET_TYPES_FILE", default="%s/deps/aus_street_types.csv" % (CURRENT_FILE_DIR)) # type: FilePath
+MTD_LOC_SUBURB_NAMES_FILE = env.str("MTD_LOC_SUBURB_NAMES_FILE", default="%s/deps/wa_suburb_names.csv" % (CURRENT_FILE_DIR)) # type: FilePath
+MTD_LOC_ADDRESS_STOP_WORDS_FILE = env.str("MTD_LOC_ADDRESS_STOP_WORDS_FILE", default="%s/deps/stop_words.csv" % (CURRENT_FILE_DIR)) # type: FilePath
 
 ##########################################################
 # Logging Configuration
@@ -108,9 +108,9 @@ def parse_keywords_from_address(location_text: str, stop_words_file: FilePath) -
 
 
 def parse_address(location_text: str) -> Optional[Address]:
-    address = parse_structured_address(location_text, INPUT_STREET_TYPE_FILE, INPUT_SUBURB_NAMES_FILE)
+    address = parse_structured_address(location_text, MTD_LOC_STREET_TYPES_FILE, MTD_LOC_SUBURB_NAMES_FILE)
     if address is None: return None
-    keywords_list = parse_keywords_from_address(location_text, INPUT_STOP_WORDS_FILE)
+    keywords_list = parse_keywords_from_address(location_text, MTD_LOC_ADDRESS_STOP_WORDS_FILE)
     if address["street_name"] is not None and address["street_type"] is not None:
         keywords_list.extend([address["street_name"] + " " + address["street_type"]])
     keywords_list_unique = set(keywords_list) - set(address.values())

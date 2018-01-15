@@ -136,10 +136,9 @@ def save_object(
     ) -> None:
     if output_file is None: return None
     image_id = os.path.basename(image_file).split(".")[0]
-    f = h5py.File(output_file, "a")
-    grp = f.require_group(object_name)
-    grp.create_dataset(image_id, data=save_object)
-    f.close()
+    with h5py.File(output_file, "a") as f
+        grp = f.require_group(object_name)
+        grp.create_dataset(image_id, data=save_object)
 
 
 def extract_faces_from_image(
@@ -180,9 +179,9 @@ def extract_faces_from_image(
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
 def extract_faces_from_images(
         input_images_dir: DirPath,
-        predictor_path: FilePath,
-        recognizer_path: FilePath,
-        template_path: FilePath,
+        predictor_path: FilePath = IMG_FACE_PREDICTOR_FILE,
+        recognizer_path: FilePath = IMG_FACE_RECOGNIZER_FILE,
+        template_path: FilePath = IMG_FACE_TEMPLATE_FILE,
         output_images_dir: Optional[DirPath]=None,
         flag_clear_faces: bool=False,
         logging_flag: bool=False,

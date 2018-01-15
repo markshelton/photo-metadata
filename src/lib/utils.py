@@ -123,7 +123,8 @@ def maybe_increment_path(
         i += 1
 
 
-def log_progress(i: int, total: int, start_time: time.time) -> None:
+def log_progress(i: int, total: int, start_time: time.time, interval: int = 1) -> None:
+    if i % interval != 0: return None
     digits = len(str(total))
     perc = i / float(total)
     current_time = time.time()

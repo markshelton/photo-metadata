@@ -1,6 +1,7 @@
 ##########################################################
 # Standard Library Imports
 
+import json
 import logging
 import os
 import numbers
@@ -8,34 +9,29 @@ import numbers
 ##########################################################
 # Third Party Imports
 
+from envparse import env
+import h5py
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from sklearn.model_selection import train_test_split
-from sqlalchemy import text
-import h5py
 
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db
+from thickshake.mtd.database import manage_db_session, initialise_db, export_records_to_hdf5
 from thickshake.utils import setup_logging, setup_warnings
 from thickshake._types import *
 
 ##########################################################
 # Environmental Variables
 
-DB_CONFIG = {} # type: DBConfig
-DB_CONFIG["database"] = "/home/app/data/output/face_recognition/metadata/face_recognition.sqlite3"
-DB_CONFIG["drivername"] = "sqlite"
-DB_CONFIG["host"] = None
-DB_CONFIG["username"] = None
-DB_CONFIG["password"] = None
+OUTPUT_IMAGE_DATA_FILE =  env.str("OUTPUT_IMAGE_DATA_FILE", default="/home/app/data/output/faces.hdf5")
+OUTPUT_METADATA_FILE =  env.str("OUTPUT_METADATA_FILE", default="/home/app/data/output/metadata.hdf5")
 
-IMAGE_DATA_FILE_PATH = "/home/app/data/output/face_recognition/faces.hdf5"
-
-FEATURE_LIST = None
-LABEL_KEY = "subject.subject_name"
+FLAG_CLF_LABEL_KEY = env.str("FLAG_CLF_LABEL_KEY", default="subject.subject_name") # type: str
+FLAG_CLF_FEATURE_LIST = env.str("FLAG_CLF_FEATURE_LIST", default=None) # type: Optional[str]
+FLAG_CLF_LOGGING = env.str("FLAG_CLF_LOGGING", default=True)
 
 ##########################################################
 # Logging Configuration
@@ -109,37 +105,21 @@ def check_table(table: str, columns: List[str]) -> bool:
 
 def get_metadata(
         image_id: str,
-        metadata_file: DBConfig,
+        metadata_file: FilePath,
         label_key: str,
         feature_list: Optional[List[str]] = None,
         **kwargs
-    ) -> Optional[List[List[Any]]]:
-    db_engine = initialise_db(metadata_file)
-    with manage_db_session(db_engine) as session:
-        if feature_list is None: 
-            columns = [label_key]
-            sql_text = "SELECT *\n"
-        else: 
-            columns = [*feature_list, label_key]
-            sql_text = "SELECT %s\n" % ",".join(columns)
-        sql_text += "FROM image\n"
-        if check_table("Collection", columns):
-            sql_text += "LEFT NATURAL OUTER JOIN collection\n"
-        if check_table("CollectionSubject", columns):
-            sql_text += "LEFT NATURAL OUTER JOIN collection_subject\n"
-        if check_table("CollectionLocation", columns):
-            sql_text += "LEFT NATURAL OUTER JOIN collection_location\n"
-        if check_table("CollectionTopic", columns):
-            sql_text += "LEFT NATURAL OUTER JOIN collection_topic\n"
-        if check_table("Subject", columns):
-            sql_text += "LEFT NATURAL OUTER JOIN subject\n"
-        sql_text += "WHERE image.image_id = '%s';" % (image_id)
-        result = session.execute(text(sql_text)).fetchall()
-        result = [dict(record) for record in result]
-    if result:
-        features = [[v for k,v in record.items() if k != label_key] for record in result]
-        labels = [record[label_key.split(".")[-1]] for record in result]
-    else: return None
+    ) -> Optional[Tuple[List, Dict[str, Any]]]:
+    with h5py.File(metadata_file, "r") as f:
+        records = f.get(image_id, None)
+        if records:
+            features = []
+            labels = []
+            for record_str in records.values():
+                record = json.loads(record_str)
+                features.append([v for k,v in record if k in feature_list])
+                labels.append(record[label_key])
+        else: return None
     return features, labels
 
 
@@ -158,9 +138,9 @@ def get_features_and_labels(
     features_face = get_face_embedddings(image_id, image_data_file, **kwargs)
     metadata = get_metadata(image_id, metadata_file, label_key, **kwargs)
     if metadata is None: return None
-    else: features_metadata, labels = metadata
+    else: features_metadata, label = metadata
     features = merge_features(features_face, features_metadata)
-    return features, labels
+    return features, label
 
 
 def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, label_key: str, **kwargs) -> Tuple[Dataset, List[str]]:
@@ -181,9 +161,10 @@ def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, label_key: 
 
 def main():
     dataset = load_dataset(
-        metadata_file=DB_CONFIG,
-        image_data_file=IMAGE_DATA_FILE_PATH,
-        label_key=LABEL_KEY
+        metadata_file=OUTPUT_METADATA_FILE,
+        image_data_file=OUTPUT_IMAGE_DATA_FILE,
+        label_key=FLAG_CLF_LABEL_KEY,
+        logging_flag=FLAG_CLF_LOGGING
     )
     print(dataset)
 
@@ -191,3 +172,5 @@ if __name__ == "__main__":
     setup_logging()
     setup_warnings()
     main()
+
+##########################################################

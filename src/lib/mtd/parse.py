@@ -25,14 +25,30 @@ from PIL import ImageFile
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db
+from thickshake.mtd.database import manage_db_session, initialise_db, export_records_to_hdf5
 from thickshake.mtd.geocoder import extract_location_from_text
-from thickshake.mtd.schema import Base
-from thickshake.utils import consolidate_list, log_progress
+from thickshake.mtd import schema
+from thickshake.utils import consolidate_list, log_progress, deep_get, setup_warnings, setup_logging
 from thickshake._types import *
 
 ##########################################################
 # Parser Configuration
+
+INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE") # type: FilePath
+
+OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE")
+
+FLAG_MTD_GEOCODING = env.bool("FLAG_MTD_GEOCODING", default=False)
+FLAG_MTD_DIMENSIONS = env.bool("FLAG_MTD_DIMENSIONS", default=False)
+FLAG_MTD_LOGGING = env.bool("FLAG_MTD_LOGGING", default=True)
+FLAG_MTD_SAMPLE = env.int("FLAG_MTD_SAMPLE", default=0)
+
+DB_CONFIG = {} # type: DBConfig
+DB_CONFIG["drivername"] = env.str("DB_DRIVER")
+DB_CONFIG["host"] = env.str("DB_HOST")
+DB_CONFIG["database"] = env.str("POSTGRES_DB")
+DB_CONFIG["username"] = env.str("POSTGRES_USER")
+DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
 
 TAG_COLLECTION_ID = env.list("TAG_COLLECTION_ID", default=['035', 'a']) 
 TAG_NOTE_TITLE = env.list("TAG_NOTE_TITLE", default=["245", "a"])
@@ -94,7 +110,7 @@ def get_subfields(record: PymarcRecord, field_key: str, subfield_key: str) -> Li
 def parse_tag_key(tag_key: List[str]) -> Tag:
     """Split tag into a tuple of the field and subfield."""
     if len(tag_key) == 2:
-        tag = Tag(field=tag_key[0], subfield=m.group("subfield"))
+        tag = Tag(field=tag_key[0], subfield=tag_key[1])
     elif len(tag_key) == 1:
         tag = Tag(field=tag_key[0], subfield=None)
     else: tag = None
@@ -360,9 +376,92 @@ def parse_subjects(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
 
 ##########################################################
 
+
+def collect_collection_data(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
+    collection_data = parse_collection(record, **kwargs)
+    collection = [collection_data]
+    return collection
+
+
+def collect_collection_topics(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
+    topics = parse_topics(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
+    collection_topics = [
+        {
+            "collection_id": collection_data["collection_id"],
+            "topic": topic,
+        } for topic in topics
+    ]
+    return collection_topics
+
+
+def collect_collection_locations(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
+    locations = parse_locations(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
+    collection_locations = [
+        {
+            "collection_id": collection_data["collection_id"],
+            "location": location,
+        } for location in locations
+    ]
+    return collection_locations
+
+
+def collect_subjects(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
+    subjects_data = parse_subjects(record, **kwargs)
+    subjects = [
+        {
+            "subject_name": subject["subject_name"],
+            "subject_type": subject["subject_type"],
+            "subject_start_date": subject["subject_dates"]["start"],
+            "subject_end_date": subject["subject_dates"]["end"],
+        } for subject in subjects_data
+    ]
+    return subjects
+
+
+def collect_collection_subjects(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
+    subjects_data = parse_subjects(record, **kwargs)
+    collection_data = parse_collection(record, **kwargs)
+    collection_subjects = [
+        {
+            "collection_id": collection_data["collection_id"],
+            "subject_name": subject["subject_name"],
+            "subject_relation": subject["subject_relation"],
+            "subject_is_main": subject["subject_is_main"],
+        } for subject in subjects_data
+    ]
+    return collection_subjects
+
+
+def collect_images(record: PymarcRecord, **kwargs: Any) -> List[ParsedRecord]:
+    images_raw = parse_images(record, **kwargs)
+    collection_raw = parse_collection(record, **kwargs)
+    images = [] # type: List[ParsedRecord]
+    for image_raw in images_raw:
+        image = {
+            "image_id": image_raw["image_id"],
+            "image_url_main": image_raw["image_url_main"],
+            "image_url_raw": image_raw["image_url_raw"],
+            "image_url_thumb": image_raw["image_url_thumb"],
+            "image_note": image_raw["image_note"],
+            "image_width": deep_get(image_raw, "image_dimensions", "width"),
+            "image_height": deep_get(image_raw, "image_dimensions", "height"),
+            "image_longitude": deep_get(image_raw, "image_coordinates", "longitude"),
+            "image_latitude": deep_get(image_raw, "image_coordinates", "latitude"),
+            "image_date_created": image_raw["image_date_created"],
+            "collection_id": collection_raw["collection_id"],
+        }
+    images.append(image)
+    return images
+
+
+##########################################################
+
+
 def parse_record_section(
         record: PymarcRecord,
-        Schema: Schema,
+        db_schema: Schema,
         parser: Callable[[PymarcRecord, KwArg(Any)], List[ParsedRecord]],
         engine: Engine,
         **kwargs: Any
@@ -370,10 +469,19 @@ def parse_record_section(
     records_parsed = parser(record, **kwargs)
     for record_parsed in records_parsed:
         with manage_db_session(engine) as session:
-            record_object = Schema(**record_parsed)
+            record_object = db_schema(**record_parsed)
             session.add(record_object)
 
-        
+
+def parse_record(record: PymarcRecord, **kwargs: Any) -> None:
+    parse_record_section(record, schema.Collection, collect_collection_data, **kwargs)
+    parse_record_section(record, schema.CollectionTopic, collect_collection_topics, **kwargs)
+    parse_record_section(record, schema.CollectionLocation, collect_collection_locations, **kwargs)
+    parse_record_section(record, schema.Subject, collect_subjects, **kwargs)
+    parse_record_section(record, schema.CollectionSubject, collect_collection_subjects, **kwargs)
+    parse_record_section(record, schema.Image, collect_images, **kwargs)
+
+
 def sample_records(records: List[PymarcRecord], sample_size: int = 0) -> List[PymarcRecord]:
     return records if sample_size == 0 else random.sample(records, sample_size)
 
@@ -386,7 +494,7 @@ def parse_marcxml_to_records(input_file: str, sample_size: int = 0, **kwargs: An
 
 def load_marcxml(
         input_file: FilePath,
-        record_parser: Callable[[PymarcRecord, KwArg(Any)], None],
+        metadata_file: FilePath,
         db_config: DBConfig,
         logging_flag: bool=False,
         **kwargs: Any
@@ -396,8 +504,24 @@ def load_marcxml(
     total = len(records)
     start_time = time.time()
     for i, record in enumerate(records):
-        record_parser(record, engine=db_engine, **kwargs)
+        parse_record(record, engine=db_engine, **kwargs)
         if logging_flag: log_progress(i+1, total, start_time)
-
+    export_records_to_hdf5(db_config=db_config, metadata_file=metadata_file)
 
 ##########################################################
+
+def main():
+    load_marcxml(
+        input_file=INPUT_METADATA_FILE,
+        metadata_file=OUTPUT_METADATA_FILE,
+        db_config=DB_CONFIG,
+        geocoding=FLAG_MTD_GEOCODING,
+        dimensions=FLAG_MTD_DIMENSIONS,
+        logging_flag=FLAG_MTD_LOGGING,
+        sample_size=FLAG_MTD_SAMPLE
+    )
+
+if __name__ == "__main__":
+    setup_warnings()
+    setup_logging()
+    main()

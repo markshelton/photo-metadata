@@ -91,6 +91,9 @@ _build:
 
 #######################################################################
 
+.PHONY: push
+push: version tag publish
+
 .PHONY: publish
 publish: repo-login publish-latest publish-version
 

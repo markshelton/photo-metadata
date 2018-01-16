@@ -19,6 +19,7 @@ services:
     build:
       context: src/
       dockerfile: ./config/Dockerfile
+    image: ${APP_IMAGE}:${APP_VERSION}
     env_file:
       - ./.env
       - ./.secrets

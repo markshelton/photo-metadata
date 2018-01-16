@@ -9,6 +9,13 @@ SHELL := bash
 .DELETE_ON_ERROR:
 .SUFFIXES:
 CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
+.PHONY:
+	start stop restart up _up \
+	jupyter shell volume \
+	prebuild build _build \
+	push repo-login version \
+	publish publish-latest publish-version \
+	tag tag-latest tag-version 
 
 #######################################################################
 # APP CONFIGURATION
@@ -30,24 +37,16 @@ export $(shell sed 's/=.*//' $(IMAGE_CONFIG_PATH))
 # APP COMMANDS
 #######################################################################
 
-.PHONY: start
 start: up shell
 
-.PHONY: stop
 stop:
-	-docker exec -it \
-		$(CONTAINER_APP_NAME) \
-		bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
-	-docker-compose \
-		--file docker-compose.$(ENV).yml down
+	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
+	-docker-compose --file docker-compose.$(ENV).yml down
 
-.PHONY: restart
 restart: stop start
 
-.PHONY: up
 up: volume _up
 
-.PHONY: _up
 _up: 
 	PROJECT_DIR=$(CURRENT_DIR) \
 	CONTAINER_APP_NAME=$(CONTAINER_APP_NAME) \
@@ -55,22 +54,16 @@ _up:
 	VOLUME_DB_NAME=$(VOLUME_DB_NAME) \
 	DB_IMAGE=$(DB_IMAGE) \
 	DB_VERSION=$(DB_VERSION) \
-	docker-compose \
-		--file docker-compose.$(ENV).yml \
-		up --build -d
-	
+	docker-compose --file docker-compose.$(ENV).yml up --build -d
 
 #######################################################################
 
-.PHONY: jupyter
 jupyter:
 	explorer.exe "http://localhost:8888/tree"
 
-.PHONY: shell
 shell:
 	docker exec -it $(CONTAINER_APP_NAME) $(SHELL)
 
-.PHONY: volume
 volume:
 	-docker volume create --name=$(VOLUME_DB_NAME)
 
@@ -78,57 +71,46 @@ volume:
 # IMAGE COMMANDS
 #######################################################################
 
-.PHONY: prebuild
 prebuild:
 	npm list -g dockerignore --depth=0 || npm install -g dockerignore
 	dockerignore -g="$(GIT_IGNORE_PATH)" -D="$(DOCKER_IGNORE_PATH)"
 
-.PHONY: build
 build: prebuild _build
 
-.PHONY: _build
 _build:
 	TENSORFLOW_VERSION=$(TENSORFLOW_VERSION) \
 	OPENCV_VERSION=$(OPENCV_VERSION) \
 	DLIB_VERSION=$(DLIB_VERSION) \
-	docker build \
-		-t $(IMAGE_NAME) \
-		-f $(DOCKER_FILE_PATH) \
-		$(BUILD_CONTEXT)
+	docker build -t $(IMAGE_NAME) -f $(DOCKER_FILE_PATH) $(BUILD_CONTEXT)
 
 #######################################################################
 
-.PHONY: push
 push: version tag publish
 
-.PHONY: publish
-publish: repo-login publish-latest publish-version
-
-.PHONY: publish-latest
-publish-latest: 
-	docker push $(IMAGE_NAME)\:latest
-
-.PHONY: publish-version
-publish-version: 
-	docker push $(IMAGE_NAME)\:$(VERSION)
-
-.PHONY: repo-login
 repo-login: 
 	docker login -u $(REPO_NAME)
 
-.PHONY: tag
+version:
+	@echo $(VERSION)
+
+#######################################################################
+
+publish: repo-login publish-latest publish-version
+
+publish-latest: 
+	docker push $(IMAGE_NAME)\:latest
+
+publish-version: 
+	docker push $(IMAGE_NAME)\:$(VERSION)
+
+#######################################################################
+
 tag: tag-latest tag-version
 
-.PHONY: tag-latest
 tag-latest: 
 	docker tag $(IMAGE_NAME) $(IMAGE_NAME)\:latest
 
-.PHONY: tag-version
 tag-version: 
 	docker tag $(IMAGE_NAME) $(IMAGE_NAME)\:$(VERSION)
-
-.PHONY: version
-version:
-	@echo $(VERSION)
 
 #######################################################################

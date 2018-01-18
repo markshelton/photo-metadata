@@ -17,6 +17,13 @@ from thickshake.types import *
 # Functions
 
 
+# Train and apply a machine learning classifier
+def fit_model(image_dir: DirPath, metadata_file: FilePath, label: str) -> Any:
+    pass
+
+
+def predict(image_file: FilePath, metadata_file: FilePath) -> Any:
+    pass
 
 
 ##########################################################

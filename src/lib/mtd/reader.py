@@ -29,7 +29,10 @@ from thickshake.mtd.database import manage_db_session, initialise_db
 from thickshake.mtd.writer import write_hdf5
 from thickshake.mtd.geocoder import extract_location_from_text
 from thickshake.mtd import schema
-from thickshake.utils import consolidate_list, log_progress, deep_get, setup_warnings, setup_logging
+from thickshake.utils import (
+    consolidate_list, log_progress, deep_get,
+    setup_warnings, setup_logging, get_file_type,
+)
 from thickshake.types import *
 
 ##########################################################
@@ -507,6 +510,22 @@ def read_hdf5(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
 
 def read_csv(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
     pass
+
+
+def read_file(input_file, **kwargs) -> List[Any]:
+    file_type = get_file_type(input_file) #DONE
+    if file_type == FileType.JSON:
+        records = read_json(input_file, **kwargs) #TODO
+    elif file_type == FileType.HDF5:
+        records = read_hdf5(input_file, **kwargs) #TODO
+    elif file_type == FileType.MARC21:
+        records = read_marc21(input_file, **kwargs) #TODO
+    elif file_type == FileType.MARCXML:
+        records = read_marcxml(input_file, **kwargs) #DONE
+    elif file_type == FileType.CSV:
+        records = read_csv(input_file, **kwargs) #TODO
+    else: raise NotImplementedError
+    return records
 
 
 def load_database(records, db_config, logging_flag: bool = True, **kwargs):

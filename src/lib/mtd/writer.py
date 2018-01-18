@@ -19,7 +19,10 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.utils import open_file, json_serial, log_progress, setup_logging, setup_warnings
+from thickshake.utils import (
+    open_file, json_serial, log_progress,
+    setup_logging, setup_warnings, get_file_type,
+)
 from thickshake.types import *
 
 ##########################################################
@@ -87,6 +90,21 @@ def write_log(records: List[Any], **kwargs: Any) -> None:
     if not records: return None
     for record in records:
         logger.info(str(record))
+
+
+def write_file(records, output_file, **kwargs)
+    file_type = get_file_type(output_file) #DONE
+    if file_type == FileType.JSON:
+        write_json(records, output_file, **kwargs) #DONE
+    elif file_type == FileType.HDF5:
+        write_hdf5(records, output_file, **kwargs) #DONE
+    elif file_type == FileType.MARC21:
+        write_marc21(records, output_file, **kwargs) #TODO
+    elif file_type == FileType.MARCXML:
+        write_marcxml(records, output_file, **kwargs) #TODO
+    elif file_type == FileType.CSV:
+        write_csv(records, output_file, **kwargs) #DONE
+    else: raise NotImplementedError
 
 
 ##########################################################

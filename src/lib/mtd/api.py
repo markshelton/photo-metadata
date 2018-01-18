@@ -13,9 +13,9 @@ from envparse import env
 # Local Imports
 
 from thickshake.mtd.database import dump_database
-from thickshake.mtd.reader import load_database, read_json, read_hdf5, read_marc21, read_marcxml, read_csv
-from thickshake.mtd.writer import write_json, write_hdf5, write_marc21, write_marcxml, write_csv
-from thickshake.utils import get_file_type
+from thickshake.mtd.reader import load_database, read_file
+from thickshake.mtd.writer import write_file
+from thickshake.utils import setup_logging, setup_warnings
 from thickshake.types import *
 
 ##########################################################
@@ -41,41 +41,58 @@ class FileType:
 
 
 # Import metadata files from any format to RDBMS
-def import_metadata(input_file: FilePath, db_config: DBConfig, **kwargs: Any) -> None:
-    if not os.path.exists(input_file): raise IOError
-    file_type = get_file_type(input_file) #DONE
-    if file_type == FileType.JSON:
-        records = read_json(input_file, **kwargs) #TODO
-    elif file_type == FileType.HDF5:
-        records = read_hdf5(input_file, **kwargs) #TODO
-    elif file_type == FileType.MARC21:
-        records = read_marc21(input_file, **kwargs) #TODO
-    elif file_type == FileType.MARCXML:
-        records = read_marcxml(input_file, **kwargs) #DONE
-    elif file_type == FileType.CSV:
-        records = read_csv(input_file, **kwargs) #TODO
-    else: raise NotImplementedError
-    load_database(records, db_config, **kwargs) #TODO
+def import_metadata(input_file: FilePath, db_config: DBConfig=DB_CONFIG, **kwargs: Any) -> None:
+    if not os.path.exists(input_file):
+        logger.error("Input file (%s) does not exist.", input_file)
+    try:
+        logger.info("Importing metadata to database from %s.", input_file)
+        records = read_file(input_file, **kwargs)
+        load_database(records, db_config, **kwargs)
+        logger.info("Import from %s completed successfully.", input_file)
+    except:
+        logger.error("Import from %s failed.", input_file)
 
 
 # Export metadata records from RDBMS to any format
-def export_metadata(output_file: FilePath, db_config: DBConfig, **kwargs: Any) -> None:
-    if os.path.exists(output_file): raise IOError
-    records = dump_database(db_config, **kwargs) #DONE
-    file_type = get_file_type(output_file) #DONE
-    if file_type == FileType.JSON:
-        write_json(records, output_file, **kwargs) #DONE
-    elif file_type == FileType.HDF5:
-        write_hdf5(records, output_file, **kwargs) #DONE
-    elif file_type == FileType.MARC21:
-        write_marc21(records, output_file, **kwargs) #TODO
-    elif file_type == FileType.MARCXML:
-        write_marcxml(records, output_file, **kwargs) #TODO
-    elif file_type == FileType.CSV:
-        write_csv(records, output_file, **kwargs) #DONE
-    else: raise NotImplementedError
+def export_metadata(output_file: FilePath, db_config: DBConfig=DB_CONFIG,, **kwargs: Any) -> None:
+    if os.path.exists(output_file):
+        logger.error("Output file (%s) already exists.", output_file)
+    try:
+        logger.info("Exporting metadata from database to %s.", output_file)
+        records = dump_database(db_config, **kwargs)
+        write_file(records, output_file, **kwargs)
+        logger.info("Export to %s completed successfully.", output_file)
+    except:
+        logger.error("Export to %s failed.", output_file)
+
+
+# Convert metadata files from one format to another
+# e.g. MARCXML -> SQL Dump, MARC21 -> HDF5
+def convert_metadata_format(
+        input_file: FilePath,
+        output_file: FilePath,
+        db_config: DBConfig=DB_CONFIG,
+        **kwargs: Any
+    ) -> None:
+    try:
+        logger.info("Starting conversion from %s to %s.", input_file, output_file)
+        import_metadata(input_file, db_config, **kwargs)
+        export_metadata(output_file, db_config, **kwargs)
+        logger.info("Conversion from %s to %s completed successfully.", input_file, output_file)
+    except:
+        logger.error("Conversion from %s to %s failed.", input_file, output_file)
 
 
 ##########################################################
-# Functions
+# Main
 
+def main():
+    convert_metadata_format(
+        input_file=INPUT_METADATA_FILE,
+        output_file=OUTPUT_METADATA_FILE
+    )
+
+if __name__ == "__main__":
+    setup_logging()
+    setup_warnings()
+    main()

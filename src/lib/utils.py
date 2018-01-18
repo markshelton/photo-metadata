@@ -136,4 +136,8 @@ def log_progress(i: int, total: int, start_time: time.time, interval: int = 1) -
     ))
 
 
+def get_file_type(path: FilePath) -> FileType:
+    return os.path.splitext(path)[1]
+
+
 ##########################################################

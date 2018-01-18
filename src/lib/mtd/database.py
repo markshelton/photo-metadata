@@ -71,6 +71,10 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
         session.close()
 
 
+def load_database(records, db_config):
+    pass
+
+
 def dump_database(db_config: DBConfig) -> List[Dict[str, Any]]:
     db_engine = initialise_db(db_config)
     with manage_db_session(db_engine) as session:
@@ -84,44 +88,6 @@ def dump_database(db_config: DBConfig) -> List[Dict[str, Any]]:
         result = session.execute(text(sql_text)).fetchall()
         result = [dict(record) for record in result]
         return result  #Total = 52,672 -- Check?
-
-
-def export_records_to_csv(records: List[ParsedRecord], output_file: FilePath) -> None:
-    if not records: return None
-    with open_file(output_file, 'w+', encoding='utf-8') as outfile:
-        outcsv = csv.writer(outfile)
-        header = records[0].keys()
-        outcsv.writerow(header)
-        for record in records:
-            record_list = record.values()
-            outcsv.writerow(record_list)
-
-
-def export_records_to_json(records: JSONType, output_file: FilePath) -> None:
-    if not records: return None
-    with open_file(output_file, 'w+', encoding='utf-8') as outfile:
-        json.dump(records, outfile, indent=2, default=json_serial)
-
-
-def export_records_to_log(records: List[Any]) -> None:
-    if not records: return None
-    for record in records:
-        logger.info(str(record))
-
-
-def export_records_to_hdf5(db_config: DBConfig, metadata_file: FilePath) -> None:
-    result = dump_database(db_config)
-    with h5py.File(metadata_file, "a") as f:
-        total = len(result)
-        start_time = time.time()
-        for i, record in enumerate(result):
-            key = record["image_id"]
-            grp = f.require_group(key)
-            index = str(len(grp.keys()) + 1)
-            record_serial = json.dumps(record, default=json_serial)
-            dt = h5py.special_dtype(vlen=str)
-            grp.require_dataset(index, data=record_serial, shape=(1,), dtype=dt)
-            log_progress(i+1, total, start_time, interval=100)
 
 
 ##########################################################

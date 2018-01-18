@@ -486,7 +486,7 @@ def sample_records(records: List[PymarcRecord], sample_size: int = 0) -> List[Py
     return records if sample_size == 0 else random.sample(records, sample_size)
 
 
-def parse_marcxml_to_records(input_file: str, sample_size: int = 0, **kwargs: Any) -> List[PymarcRecord]:
+def read_marcxml(input_file: str, sample_size: int = 0, **kwargs: Any) -> List[PymarcRecord]:
     records_input = pymarc.parse_xml_to_array(input_file)
     records_sample = sample_records(records_input, sample_size)
     return records_sample
@@ -499,14 +499,13 @@ def load_marcxml(
         logging_flag: bool=False,
         **kwargs: Any
     ) -> None:
-    records = parse_marcxml_to_records(input_file, **kwargs)
+    records = read_marcxml(input_file, **kwargs)
     db_engine = initialise_db(db_config, **kwargs)
     total = len(records)
     start_time = time.time()
     for i, record in enumerate(records):
         parse_record(record, engine=db_engine, **kwargs)
         if logging_flag: log_progress(i+1, total, start_time)
-    export_records_to_hdf5(db_config=db_config, metadata_file=metadata_file)
 
 ##########################################################
 

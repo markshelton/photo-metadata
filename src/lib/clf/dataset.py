@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import numbers
+import time
+import random
 
 ##########################################################
 # Third Party Imports
@@ -12,6 +14,7 @@ import numbers
 from envparse import env
 import h5py
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from sklearn.model_selection import train_test_split
@@ -19,9 +22,10 @@ from sklearn.model_selection import train_test_split
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db, export_records_to_hdf5
-from thickshake.utils import setup_logging, setup_warnings
-from thickshake._types import *
+from thickshake.mtd.database import manage_db_session, initialise_db
+from thickshake.mtd.writer import write_hdf5
+from thickshake.utils import setup_logging, setup_warnings, log_progress
+from thickshake.types import *
 
 ##########################################################
 # Environmental Variables
@@ -29,9 +33,10 @@ from thickshake._types import *
 OUTPUT_IMAGE_DATA_FILE =  env.str("OUTPUT_IMAGE_DATA_FILE", default="/home/app/data/output/faces.hdf5")
 OUTPUT_METADATA_FILE =  env.str("OUTPUT_METADATA_FILE", default="/home/app/data/output/metadata.hdf5")
 
-FLAG_CLF_LABEL_KEY = env.str("FLAG_CLF_LABEL_KEY", default="subject.subject_name") # type: str
+FLAG_CLF_LABEL_KEY = env.str("FLAG_CLF_LABEL_KEY", default="subject_name") # type: str
 FLAG_CLF_FEATURE_LIST = env.str("FLAG_CLF_FEATURE_LIST", default=None) # type: Optional[str]
 FLAG_CLF_LOGGING = env.str("FLAG_CLF_LOGGING", default=True)
+FLAG_CLF_SAMPLE = env.int("FLAG_CLF_SAMPLE", default=20)
 
 ##########################################################
 # Logging Configuration
@@ -72,88 +77,87 @@ def split_dataset(dataset: Dataset, split_ratio: float = 0.8, **kwargs) -> Tuple
     return dataset_train, dataset_test
 
 
-def get_face_ids(image_data_file: DirPath) -> List[FilePath]:
+def get_image_ids(image_data_file: FilePath, sample_size: int = 0, **kwargs) -> List[str]:
     with h5py.File(image_data_file, "r") as f:
-        return list(f["embeddings"].keys())
+        face_ids = list(f["embeddings"].keys())
+        if sample_size != 0:
+             face_ids = random.sample(face_ids, sample_size)
+        image_ids = [("_").join(face_id.split("_")[0:-2]) for face_id in face_ids]
+        return image_ids
 
 
-def get_image_id_from_face_id(face_id: str) -> str:
-    return ("_").join(face_id.split("_")[0:-2])
+def get_face_columns(image_data_file: FilePath) -> List[str]:
+    with h5py.File(image_data_file, "r") as f:
+        embedding_size = 128 # f["embeddings"].attrs["size"]
+        face_columns = ["facial_feature_%s" % val for val in range(embedding_size)]
+        return face_columns
 
 
-def get_face_embedddings(
-        image_id: str,
-        image_data_file: DirPath,
-        feature_list: Optional[List[str]] = None,
-        **kwargs
-    ) -> Optional[List[List[Any]]]:
-    if feature_list is not None and "facial_features" not in feature_list: return None
+def get_metadata_columns(metadata_file: FilePath) -> List[str]:
+    with h5py.File(metadata_file, "r") as f:
+        metadata_columns = list(f.attrs["columns"])
+        return metadata_columns
+
+
+#FIXME
+def get_face_embedddings(image_id: str, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
     with h5py.File(image_data_file, "r") as f:
         embedding_keys = f["embeddings"].keys()
         embeddings = [f["embeddings"][key].value.tolist() for key in embedding_keys if key.startswith(image_id)]
         embeddings = [x for emb  in embeddings for x in emb]
-        return embeddings
+        face_columns = get_face_columns(image_data_file)
+        df = pd.DataFrame(columns=face_columns)
+        for embedding in embeddings:
+            record = pd.DataFrame([embedding], columns=face_columns, index=image_id)
+            df = pd.concat([df, record])
+        return df
 
-
-def check_table(table: str, columns: List[str]) -> bool:
-    if len(columns) == 1: return True
-    for column in columns:
-        if ("%s." % table) in column:
-            return True
-    return False
-
-
-def get_metadata(
-        image_id: str,
-        metadata_file: FilePath,
-        label_key: str,
-        feature_list: Optional[List[str]] = None,
-        **kwargs
-    ) -> Optional[Tuple[List, Dict[str, Any]]]:
+#FIXME
+def get_metadata(image_id: str, metadata_file: FilePath, **kwargs) -> pd.DataFrame:
     with h5py.File(metadata_file, "r") as f:
+        df = pd.DataFrame()
         records = f.get(image_id, None)
         if records:
-            features = []
-            labels = []
-            for record_str in records.values():
-                record = json.loads(record_str)
-                features.append([v for k,v in record if k in feature_list])
-                labels.append(record[label_key])
+            for record in records.values():
+                record = pd.Series(json.loads(record.value[0]))
+                df = pd.concat(df, record)
         else: return None
-    return features, labels
+    return df
 
+#FIXME
+def merge_datasets(a: pd.DataFrame, b: pd.DataFrame) -> pd.DataFrame:
+    if a or b is None: return None
+    dataset = pd.concat([a, b], axis=1, join="outer")
+    return dataset
 
-def merge_features(a: List[Features], b: List[Features]) -> List[Features]:
-    merge = [[i for j in record for i in j] for record in zip(a, b)]
-    return merge
-
-
-def get_features_and_labels(
+#FIXME
+def get_records(
         image_id: str,
         metadata_file: DBConfig,
         image_data_file: FilePath,
-        label_key: str,
         **kwargs
-    ) -> Optional[Tuple[Features, str]]:
-    features_face = get_face_embedddings(image_id, image_data_file, **kwargs)
-    metadata = get_metadata(image_id, metadata_file, label_key, **kwargs)
-    if metadata is None: return None
-    else: features_metadata, label = metadata
-    features = merge_features(features_face, features_metadata)
-    return features, label
-
-
-def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, label_key: str, **kwargs) -> Tuple[Dataset, List[str]]:
-    face_ids = get_face_ids(image_data_file)
-    dataset = []
-    for face_id in face_ids:
-        image_id = get_image_id_from_face_id(face_id)
-        image_info = get_features_and_labels(image_id, metadata_file, image_data_file, label_key, **kwargs)
-        if image_info is None: continue
-        else: features, labels = image_info
-        for label in labels:
-            dataset.append({"label": label, "features": features[0]})
+    ) -> pd.DataFrame:
+    faces = get_face_embedddings(image_id, image_data_file, **kwargs)
+    metadata = get_metadata(image_id, metadata_file, **kwargs)
+    dataset = merge_datasets(faces, metadata) # outer join
     return dataset
+
+#FIXME
+def load_dataset(
+        metadata_file: DBConfig,
+        image_data_file: FilePath,
+        logging_flag: bool=True,
+        **kwargs
+    ) -> pd.DataFrame:
+    image_ids = get_image_ids(image_data_file, **kwargs) #DONE
+    total = len(image_ids)
+    start_time = time.time()
+    df = pd.DataFrame()
+    for i, image_id in enumerate(image_ids):
+        records = get_records(image_id, metadata_file, image_data_file, **kwargs) #TODO
+        if records: pd.concat(df, records)
+        if logging_flag: log_progress(i+1, total, start_time)
+    return df
 
 
 ##########################################################
@@ -164,7 +168,8 @@ def main():
         metadata_file=OUTPUT_METADATA_FILE,
         image_data_file=OUTPUT_IMAGE_DATA_FILE,
         label_key=FLAG_CLF_LABEL_KEY,
-        logging_flag=FLAG_CLF_LOGGING
+        logging_flag=FLAG_CLF_LOGGING,
+        sample_size=FLAG_CLF_SAMPLE,
     )
     print(dataset)
 

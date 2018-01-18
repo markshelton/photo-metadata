@@ -23,7 +23,7 @@ from thickshake.utils import (
     logged, setup_logging, setup_warnings, log_progress,
     clear_directory, maybe_increment_path, get_files_in_directory
 )
-from thickshake._types import *
+from thickshake.types import *
 
 ##########################################################
 # Environmental Variables

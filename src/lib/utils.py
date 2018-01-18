@@ -19,7 +19,7 @@ import sqlalchemy.exc
 ##########################################################
 # Local Imports
 
-from thickshake._types import *
+from thickshake.types import *
 
 ##########################################################
 # Logging Configuration
@@ -136,7 +136,7 @@ def log_progress(i: int, total: int, start_time: time.time, interval: int = 1) -
     ))
 
 
-def get_file_type(path: FilePath) -> FileType:
+def get_file_type(path: FilePath) -> str:
     return os.path.splitext(path)[1]
 
 

@@ -5,14 +5,9 @@
 ##########################################################
 # Standard Library Imports
 
-import csv
-import h5py
-import json
 import logging
-import numpy as np
-import os
-import time
 from contextlib import contextmanager
+from envparse import env
 
 ##########################################################
 # Third Party Imports
@@ -26,8 +21,18 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 # Local Imports
 
 from thickshake.mtd.schema import Base
-from thickshake.utils import maybe_make_directory, open_file, json_serial, log_progress
-from thickshake._types import *
+from thickshake.utils import maybe_make_directory
+from thickshake.types import *
+
+##########################################################
+# Environmental Variables
+
+DB_CONFIG = {} # type: DBConfig
+DB_CONFIG["drivername"] = env.str("DB_DRIVER")
+DB_CONFIG["host"] = env.str("DB_HOST")
+DB_CONFIG["database"] = env.str("POSTGRES_DB")
+DB_CONFIG["username"] = env.str("POSTGRES_USER")
+DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
 
 ##########################################################
 # Logging Configuration
@@ -71,10 +76,6 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
         session.close()
 
 
-def load_database(records, db_config):
-    pass
-
-
 def dump_database(db_config: DBConfig) -> List[Dict[str, Any]]:
     db_engine = initialise_db(db_config)
     with manage_db_session(db_engine) as session:
@@ -87,7 +88,7 @@ def dump_database(db_config: DBConfig) -> List[Dict[str, Any]]:
         sql_text += "NATURAL LEFT JOIN subject;"
         result = session.execute(text(sql_text)).fetchall()
         result = [dict(record) for record in result]
-        return result  #Total = 52,672 -- Check?
+        return result
 
 
 ##########################################################

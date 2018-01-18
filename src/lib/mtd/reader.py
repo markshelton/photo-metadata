@@ -25,11 +25,12 @@ from PIL import ImageFile
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db, export_records_to_hdf5
+from thickshake.mtd.database import manage_db_session, initialise_db
+from thickshake.mtd.writer import write_hdf5
 from thickshake.mtd.geocoder import extract_location_from_text
 from thickshake.mtd import schema
 from thickshake.utils import consolidate_list, log_progress, deep_get, setup_warnings, setup_logging
-from thickshake._types import *
+from thickshake.types import *
 
 ##########################################################
 # Parser Configuration
@@ -492,20 +493,30 @@ def read_marcxml(input_file: str, sample_size: int = 0, **kwargs: Any) -> List[P
     return records_sample
 
 
-def load_marcxml(
-        input_file: FilePath,
-        metadata_file: FilePath,
-        db_config: DBConfig,
-        logging_flag: bool=False,
-        **kwargs: Any
-    ) -> None:
-    records = read_marcxml(input_file, **kwargs)
+def read_marc21(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
+    pass
+
+
+def read_json(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
+    pass
+
+
+def read_hdf5(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
+    pass
+
+
+def read_csv(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
+    pass
+
+
+def load_database(records, db_config, logging_flag: bool = True, **kwargs):
     db_engine = initialise_db(db_config, **kwargs)
     total = len(records)
     start_time = time.time()
     for i, record in enumerate(records):
         parse_record(record, engine=db_engine, **kwargs)
         if logging_flag: log_progress(i+1, total, start_time)
+
 
 ##########################################################
 

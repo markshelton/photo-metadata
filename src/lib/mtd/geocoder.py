@@ -22,7 +22,7 @@ import geopy.distance
 ##########################################################
 # Local Imports
 
-from thickshake._types import *
+from thickshake.types import *
 
 ##########################################################
 # Environmental Variables

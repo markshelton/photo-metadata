@@ -21,7 +21,7 @@ CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 # APP CONFIGURATION
 #######################################################################
 
-APP_CONFIG_PATH = ./.env
+APP_CONFIG_PATH = ./config/build.env
 include $(APP_CONFIG_PATH)
 export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
 
@@ -41,7 +41,7 @@ start: up shell
 
 stop:
 	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
-	-docker-compose --file docker-compose.$(ENV).yml down
+	-docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml down
 
 restart: stop start
 
@@ -56,15 +56,15 @@ _up:
 	APP_VERSION=$(APP_VERSION) \
 	DB_IMAGE=$(DB_IMAGE) \
 	DB_VERSION=$(DB_VERSION) \
-	docker-compose --file docker-compose.$(ENV).yml up --build -d
+	docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml up --build -d
 
 #######################################################################
 
 jupyter:
-	explorer.exe "http://localhost:8888/tree"
+	-explorer.exe "http://localhost:8888/tree"
 
 shell:
-	docker exec -it $(CONTAINER_APP_NAME) $(SHELL)
+	-docker exec -it $(CONTAINER_APP_NAME) $(SHELL)
 
 volume:
 	-docker volume create --name=$(VOLUME_DB_NAME)

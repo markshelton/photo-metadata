@@ -11,23 +11,20 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     env_file:
-      - ./.env
-      - ./.secrets
+      - db.env
   
   app:
     container_name: ${CONTAINER_APP_NAME}
-    build:
-      context: src/
-      dockerfile: ./config/Dockerfile
     image: ${APP_IMAGE}:${APP_VERSION}
     env_file:
-      - ./.env
-      - ./.secrets
+      - ../CONFIG.env
+      - app.env
+      - db.env
+      - .secrets
     environment: 
       DB_HOST: db
     volumes:
       - ${PROJECT_DIR}/:/home/app/
-      - ${PROJECT_DIR}/src/lib/:/libs/thickshake/
     ports:
       - "8888:8888"
       - "6006:6006"

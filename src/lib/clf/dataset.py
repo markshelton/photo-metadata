@@ -106,10 +106,8 @@ def get_face_embedddings(image_id: str, image_data_file: FilePath, **kwargs) -> 
         embeddings = [f["embeddings"][key].value.tolist() for key in embedding_keys if key.startswith(image_id)]
         embeddings = [x for emb  in embeddings for x in emb]
         face_columns = get_face_columns(image_data_file)
-        df = pd.DataFrame(columns=face_columns)
-        for embedding in embeddings:
-            record = pd.DataFrame([embedding], columns=face_columns, index=image_id)
-            df = pd.concat([df, record])
+        df = pd.DataFrame(data=embeddings, columns=face_columns)
+        input(df)
         return df
 
 #FIXME

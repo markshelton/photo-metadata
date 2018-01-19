@@ -59,7 +59,7 @@ def find_matching_faces(
         face_file: FilePath,
         image_dir: DirPath,
         metadata_file: FilePath,
-    ) -> Tuple[Subject, List[Record]]:
+    ) -> Tuple[Any, List[Any]]:
     pass
 
 
@@ -68,7 +68,7 @@ def find_similar_images(
         image_file: FilePath,
         image_dir: DirPath,
         metadata_file: FilePath
-    ) -> List[Record]:
+    ) -> List[Any]:
     pass
 
 

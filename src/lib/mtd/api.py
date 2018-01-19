@@ -54,7 +54,7 @@ def import_metadata(input_file: FilePath, db_config: DBConfig=DB_CONFIG, **kwarg
 
 
 # Export metadata records from RDBMS to any format
-def export_metadata(output_file: FilePath, db_config: DBConfig=DB_CONFIG,, **kwargs: Any) -> None:
+def export_metadata(output_file: FilePath, db_config: DBConfig=DB_CONFIG, **kwargs: Any) -> None:
     if os.path.exists(output_file):
         logger.error("Output file (%s) already exists.", output_file)
     try:

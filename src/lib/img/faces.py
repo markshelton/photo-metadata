@@ -136,7 +136,7 @@ def save_object(
     ) -> None:
     if output_file is None: return None
     image_id = os.path.basename(image_file).split(".")[0]
-    with h5py.File(output_file, "a") as f
+    with h5py.File(output_file, "a") as f:
         grp = f.require_group(object_name)
         grp.create_dataset(image_id, data=save_object)
 

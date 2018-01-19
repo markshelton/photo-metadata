@@ -92,7 +92,7 @@ def write_log(records: List[Any], **kwargs: Any) -> None:
         logger.info(str(record))
 
 
-def write_file(records, output_file, **kwargs)
+def write_file(records, output_file, **kwargs) -> None:
     file_type = get_file_type(output_file) #DONE
     if file_type == FileType.JSON:
         write_json(records, output_file, **kwargs) #DONE

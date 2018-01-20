@@ -15,9 +15,10 @@ from sqlalchemy.orm import Session
 from datetime import date as Date
 from pathlib import Path as FilePath
 from numbers import Real
+from pandas import Series, DataFrame
 
 Schema = Any #sqlalchemy - base type
-Image = Any #OpenCV
+ImageType = Any #OpenCV
 Rectangle = Any #dlib
 BoundingBox = Any #dlib
 Shape = Any #dlib
@@ -35,7 +36,8 @@ Match = Dict[str, str]
 Features = List[Real]
 ParsedRecord = Dict[str, Any]
 JSONType = Union[List[ParsedRecord], ParsedRecord]
-Parser = Callable[[PymarcRecord, KwArg(Any)], List[ParsedRecord]]
+PymarcParser = Callable[[PymarcRecord, KwArg(Any)], List[ParsedRecord]]
+Parser = Callable[[Series, KwArg(Any)], DataFrame]
 
 Tag = TypedDict('Tag', {"field": str, "subfield": str})
 Size = TypedDict("Size", {"width": int, "height": int})

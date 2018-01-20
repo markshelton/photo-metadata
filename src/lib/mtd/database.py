@@ -47,6 +47,10 @@ def make_db_tables(db_engine: Engine) -> None:
     Base.metadata.create_all(db_engine)
 
 
+def remove_db_tables(db_engine: Engine) -> None:
+    Base.metadata.drop_all(db_engine)
+
+
 def make_db_engine(db_config: DBConfig) -> Engine:
     db_url = url.URL(**db_config)
     maybe_make_directory(db_config["database"])
@@ -54,8 +58,9 @@ def make_db_engine(db_config: DBConfig) -> Engine:
     return db_engine
 
 
-def initialise_db(db_config: DBConfig, **kwargs: Any) -> Engine:
+def initialise_db(db_config: DBConfig, clear_flag: bool = False, **kwargs: Any) -> Engine:
     db_engine = make_db_engine(db_config)
+    if clear_flag: remove_db_tables(db_engine)
     make_db_tables(db_engine)
     return db_engine
 
@@ -76,7 +81,7 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
         session.close()
 
 
-def dump_database(db_config: DBConfig) -> List[Dict[str, Any]]:
+def dump_database(db_config: DBConfig, **kwargs: Any) -> List[Dict[str, Any]]:
     db_engine = initialise_db(db_config)
     with manage_db_session(db_engine) as session:
         sql_text =  "SELECT *\n"

@@ -9,9 +9,11 @@ import csv
 import json
 import logging
 import os
+import pandas as pd
 import re
 import urllib.request
 import urllib.parse
+import time
 from envparse import env
 
 ##########################################################
@@ -22,6 +24,8 @@ import geopy.distance
 ##########################################################
 # Local Imports
 
+from thickshake.mtd.database import load_column
+from thickshake.utils import setup_logging, setup_warnings, log_progress
 from thickshake.types import *
 
 ##########################################################
@@ -213,4 +217,28 @@ def get_location(field: PymarcField, tag: str, geocoding_flag: bool = True) -> O
     return location
 
 
+def add_locations(series: Series, logging_flag: bool = True, sample_size: int = 5, **kwargs: Any) -> DataFrame:
+    locations = []
+    if sample_size != 0: series = series.sample(n=sample_size)
+    total = len(series)
+    start_time = time.time()
+    for i, text in enumerate(series):
+        location = extract_location_from_text(text)
+        locations.append(location)
+        if logging_flag: log_progress(i+1, total, start_time)
+    locations = pd.DataFrame.from_records(locations, index=series.index)
+    return locations
+
 ##########################################################
+# Main
+
+def main():
+    notes = load_column(table="image",column="image_note")
+    locations = add_locations(notes)
+    print(locations)
+
+if __name__ == "__main__":
+    setup_logging()
+    setup_warnings()
+    main()
+

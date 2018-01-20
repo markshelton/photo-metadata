@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def show_image(image_rgb: Image) -> None:
+def show_image(image_rgb: ImageType) -> None:
     plt.imshow(image_rgb)
     plt.show()
 
@@ -77,20 +77,20 @@ def enhance_image(image):
     return image
 
 
-def find_faces_in_image(image: Image) -> List[Rectangle]:
+def find_faces_in_image(image: ImageType) -> List[Rectangle]:
     detector = dlib.get_frontal_face_detector()
     faces = detector(image, 1)
     return faces
 
 
-def extract_face_landmarks(image: Image, face: Rectangle, predictor: Any) -> np.float32:
+def extract_face_landmarks(image: ImageType, face: Rectangle, predictor: Any) -> np.float32:
     points = predictor(image, face)
     landmarks = list(map(lambda p: (p.x, p.y), points.parts()))
     landmarks_np = np.float32(landmarks)
     return landmarks_np
 
 
-def extract_face_embeddings(image: Image, face: Rectangle, predictor: Any, recognizer: Any) -> np.float32:
+def extract_face_embeddings(image: ImageType, face: Rectangle, predictor: Any, recognizer: Any) -> np.float32:
     points = predictor(image, face)
     embeddings = recognizer.compute_face_descriptor(image, points)
     embeddings_np = np.float32(embeddings)[np.newaxis, :]
@@ -98,13 +98,13 @@ def extract_face_embeddings(image: Image, face: Rectangle, predictor: Any, recog
 
 
 def normalize_face(
-        image: Image,
+        image: ImageType,
         landmarks: np.float32,
         face_template: np.array,
         key_indices: List[int],
         face_size: int = 200,
         **kwargs
-    ) -> Image:
+    ) -> ImageType:
     key_indices_np = np.array(key_indices)
     H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * face_template[key_indices_np])
     face_norm = cv2.warpAffine(image, H, (face_size, face_size))
@@ -112,7 +112,7 @@ def normalize_face(
 
 
 def save_image(
-        image_rgb: Image,
+        image_rgb: ImageType,
         image_file: FilePath,
         input_images_dir: Optional[DirPath] = None,
         output_images_dir: Optional[DirPath] = None,
@@ -153,7 +153,7 @@ def extract_faces_from_image(
         show_flag: bool = False,
         save_flag: bool = False,
         **kwargs: Any
-    ) -> List[Image]:
+    ) -> List[ImageType]:
     image_bgr = cv2.imread(image_file)
     image_bgr = enhance_image(image_bgr)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
@@ -161,7 +161,7 @@ def extract_faces_from_image(
     if template is None: template = prepare_template(template_path)
     if predictor is None: predictor = dlib.shape_predictor(predictor_path)
     if recognizer is None: recognizer = dlib.face_recognition_model_v1(recognizer_path)
-    faces_norm = [] # type: List[Image]
+    faces_norm = [] # type: List[ImageType]
     for face in faces:
         landmarks = extract_face_landmarks(image_rgb, face, predictor)
         embeddings = extract_face_embeddings(image_rgb, face, predictor, recognizer)
@@ -186,7 +186,7 @@ def extract_faces_from_images(
         flag_clear_faces: bool=False,
         logging_flag: bool=False,
         **kwargs: Any
-    ) -> List[Image]:
+    ) -> List[ImageType]:
     image_files = get_files_in_directory(input_images_dir, **kwargs)
     if flag_clear_faces: clear_directory(output_images_dir)
     predictor = dlib.shape_predictor(predictor_path)

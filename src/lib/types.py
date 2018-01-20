@@ -35,6 +35,7 @@ Match = Dict[str, str]
 Features = List[Real]
 ParsedRecord = Dict[str, Any]
 JSONType = Union[List[ParsedRecord], ParsedRecord]
+Parser = Callable[[PymarcRecord, KwArg(Any)], List[ParsedRecord]]
 
 Tag = TypedDict('Tag', {"field": str, "subfield": str})
 Size = TypedDict("Size", {"width": int, "height": int})

@@ -205,4 +205,12 @@ def extract_location_from_text(location_text: str) -> Optional[Location]:
     return location
 
 
+def get_location(field: PymarcField, tag: str, geocoding_flag: bool = True) -> Optional[Location]:
+    if not geocoding_flag: return None
+    location_text = get_subfield_from_tag(field, tag)
+    if location_text is None: return None
+    location = extract_location_from_text(location_text)
+    return location
+
+
 ##########################################################

@@ -11,6 +11,8 @@ from envparse import env
 ##########################################################
 # Local Imports
 
+from thickshake.mtd.parser.geocoder import extract_location_from_text
+from thickshake.mtd.database import load_column, save_columns
 from thickshake.utils import setup_logging, setup_warnings
 from thickshake.types import *
 
@@ -35,7 +37,25 @@ logger = logging.getLogger(__name__)
 
 # 
 def augment_metadata(db_config: DBConfig=DB_CONFIG, **kwargs: Any) -> None:
-    pass
+    process_field(
+        input_field=("image", "image_note"),
+        output_field={}, # TODO
+        parser=extract_location_from_text,
+        db_config=db_config,
+        **kwargs
+    )
+
+
+def process_field(
+        input_field: Tuple[str, str], # Table, Column
+        output_field: Dict[str, Tuple[str, str]], # Map (df column -> (db table, db column))
+        parser: Parser,
+        db_config: DBConfig=DB_CONFIG,
+        **kwargs: Any
+    ) -> None:
+    input_series = load_column(*input_field, db_config=db_config)
+    output_dataframe = parser(input_series, **kwargs)
+    save_columns(*output_field, data=output_dataframe, db_config=db_config)
 
 
 ##########################################################

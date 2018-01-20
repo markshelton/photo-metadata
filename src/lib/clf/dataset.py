@@ -36,7 +36,7 @@ OUTPUT_METADATA_FILE =  env.str("OUTPUT_METADATA_FILE", default="/home/app/data/
 FLAG_CLF_LABEL_KEY = env.str("FLAG_CLF_LABEL_KEY", default="subject_name") # type: str
 FLAG_CLF_FEATURE_LIST = env.str("FLAG_CLF_FEATURE_LIST", default=None) # type: Optional[str]
 FLAG_CLF_LOGGING = env.str("FLAG_CLF_LOGGING", default=True)
-FLAG_CLF_SAMPLE = env.int("FLAG_CLF_SAMPLE", default=20)
+FLAG_CLF_SAMPLE = 20 #env.int("FLAG_CLF_SAMPLE", default=20)
 
 ##########################################################
 # Logging Configuration
@@ -99,61 +99,50 @@ def get_metadata_columns(metadata_file: FilePath) -> List[str]:
         return metadata_columns
 
 
-#FIXME
 def get_face_embedddings(image_id: str, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
     with h5py.File(image_data_file, "r") as f:
         embedding_keys = f["embeddings"].keys()
-        embeddings = [f["embeddings"][key].value.tolist() for key in embedding_keys if key.startswith(image_id)]
+        embedding_keys_subset = [key for key in embedding_keys if key.startswith(image_id)]
+        embeddings = [f["embeddings"][key].value.tolist() for key in embedding_keys_subset]
         embeddings = [x for emb  in embeddings for x in emb]
         face_columns = get_face_columns(image_data_file)
         df = pd.DataFrame(data=embeddings, columns=face_columns)
-        input(df)
+        df["face_id"] = pd.Series(embedding_keys_subset, index=df.index)
+        df['image_id'] = pd.Series(image_id, index=df.index)
+        df.set_index("image_id", inplace=True)
         return df
 
-#FIXME
+
 def get_metadata(image_id: str, metadata_file: FilePath, **kwargs) -> pd.DataFrame:
     with h5py.File(metadata_file, "r") as f:
-        df = pd.DataFrame()
         records = f.get(image_id, None)
-        if records:
-            for record in records.values():
-                record = pd.Series(json.loads(record.value[0]))
-                df = pd.concat(df, record)
-        else: return None
+        metadata_columns = get_metadata_columns(metadata_file)
+        metadata = [json.loads(record.value[0]) for record in records.values()] if records else None
+        df = pd.DataFrame(data=metadata, columns=metadata_columns)
+        df.set_index("image_id", inplace=True)
     return df
 
-#FIXME
+
 def merge_datasets(a: pd.DataFrame, b: pd.DataFrame) -> pd.DataFrame:
-    if a or b is None: return None
-    dataset = pd.concat([a, b], axis=1, join="outer")
+    dataset = pd.merge(a, b, left_index=True, right_index=True, how="outer")
     return dataset
 
-#FIXME
-def get_records(
-        image_id: str,
-        metadata_file: DBConfig,
-        image_data_file: FilePath,
-        **kwargs
-    ) -> pd.DataFrame:
+
+def get_records(image_id: str, metadata_file: DBConfig, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
     faces = get_face_embedddings(image_id, image_data_file, **kwargs)
     metadata = get_metadata(image_id, metadata_file, **kwargs)
-    dataset = merge_datasets(faces, metadata) # outer join
+    dataset = merge_datasets(faces, metadata)
     return dataset
 
-#FIXME
-def load_dataset(
-        metadata_file: DBConfig,
-        image_data_file: FilePath,
-        logging_flag: bool=True,
-        **kwargs
-    ) -> pd.DataFrame:
+
+def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, logging_flag: bool=True, **kwargs) -> pd.DataFrame:
     image_ids = get_image_ids(image_data_file, **kwargs) #DONE
     total = len(image_ids)
     start_time = time.time()
     df = pd.DataFrame()
     for i, image_id in enumerate(image_ids):
         records = get_records(image_id, metadata_file, image_data_file, **kwargs) #TODO
-        if records: pd.concat(df, records)
+        df = pd.concat([df, records])
         if logging_flag: log_progress(i+1, total, start_time)
     return df
 
@@ -162,14 +151,13 @@ def load_dataset(
 # Main
 
 def main():
-    dataset = load_dataset(
+    df = load_dataset(
         metadata_file=OUTPUT_METADATA_FILE,
         image_data_file=OUTPUT_IMAGE_DATA_FILE,
         label_key=FLAG_CLF_LABEL_KEY,
         logging_flag=FLAG_CLF_LOGGING,
         sample_size=FLAG_CLF_SAMPLE,
     )
-    print(dataset)
 
 if __name__ == "__main__":
     setup_logging()

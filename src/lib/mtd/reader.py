@@ -267,7 +267,7 @@ def parse_images(record: PymarcRecord, geocoding_flag: bool = False, dimensions_
 # High-level Parser
 
 
-def parse_record_section(record: PymarcRecord, db_schema: Schema, parser: Parser, collection: PymarcRecord, engine: Engine, **kwargs: Any) -> None:
+def parse_record_section(record: PymarcRecord, db_schema: Schema, parser: PymarcParser, collection: PymarcRecord, engine: Engine, **kwargs: Any) -> None:
     records_parsed = parser(record, **kwargs)
     if not isinstance(records_parsed, list): # for Collection
         records_parsed = [records_parsed]

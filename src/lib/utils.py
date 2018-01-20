@@ -75,12 +75,12 @@ def json_serial(obj: Any) -> str:
         raise TypeError("Type %s not serializable" % type(obj))
 
 
-def setup_logging() -> None:
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
-    logging.getLogger("PIL.Image").setLevel(logging.WARN)
-    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARN)
-    logging.getLogger("datefinder").setLevel(logging.WARN)
+def setup_logging(level=logging.WARN) -> None:
+    logging.basicConfig(level=level)
+    logging.getLogger("sqlalchemy.engine").setLevel(level)
+    logging.getLogger("PIL.Image").setLevel(level)
+    logging.getLogger("PIL.PngImagePlugin").setLevel(level)
+    logging.getLogger("datefinder").setLevel(level)
 
 
 def setup_warnings() -> None:

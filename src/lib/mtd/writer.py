@@ -38,6 +38,13 @@ DB_CONFIG["database"] = env.str("POSTGRES_DB")
 DB_CONFIG["username"] = env.str("POSTGRES_USER")
 DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
 
+class FileType:
+    JSON = ".json"
+    HDF5 = ".hdf5"
+    MARC21 = ".marc"
+    MARCXML = ".xml"
+    CSV = ".csv"
+
 ##########################################################
 # Logging Configuration
 

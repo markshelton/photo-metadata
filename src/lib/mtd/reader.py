@@ -79,6 +79,13 @@ TAG_SUBJECT_COMPANY_RELATION_OTHER = env.list("TAG_SUBJECT_COMPANY_RELATION_OTHE
 TAG_IMAGE_URL = env.list("TAG_IMAGE_URL", default=["856", "u"])
 TAG_IMAGE_NOTE = env.list("TAG_IMAGE_NOTE", default=["856", "z"])
 
+class FileType:
+    JSON = ".json"
+    HDF5 = ".hdf5"
+    MARC21 = ".marc"
+    MARCXML = ".xml"
+    CSV = ".csv"
+
 ##########################################################
 # Logging Configuration
 
@@ -297,7 +304,7 @@ def parse_main_company(record: PymarcRecord) -> ParsedRecord:
         "subject_name": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_NAME_MAIN),
         "subject_relation": get_subfield_from_tag(record, TAG_SUBJECT_COMPANY_RELATION_MAIN),
         "subject_dates": Dates({"start": None, "end": None}),
-        "subject_type": "Person",
+        "subject_type": "Company",
         "subject_is_main": True,
     }
     return main_company

@@ -75,8 +75,10 @@ def convert_metadata_format(
 def main():
     convert_metadata_format(
         input_file=INPUT_METADATA_FILE,
-        output_file=OUTPUT_METADATA_FILE,
-        clear_flag=False
+        output_file="/home/app/data/output/metadata.csv",
+        sample_size=20,
+        logging_flag=True,
+        clear_flag=True,
     )
 
 if __name__ == "__main__":

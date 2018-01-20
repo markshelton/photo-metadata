@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 # Apply metadata parsing and image processing techniques
 # to add to or improve metadata e.g. subject name, gps coordinates
-def augment_metadata(
+def get_metadata_suggestions(
         image_dir: DirPath,
         input_metadata_file: FilePath,
         output_metadata_file: FilePath,

@@ -1,4 +1,4 @@
-from .api import augment_metadata, find_matching_faces, find_similar_images
+from .api import *
 from .mtd.api import convert_metadata_format
 from .img.api import process_images
 from .img.faces import extract_faces_from_image

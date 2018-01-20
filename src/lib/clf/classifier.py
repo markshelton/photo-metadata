@@ -73,6 +73,13 @@ def test_classifier(dataset: Dataset, classifier_file: FilePath) -> None:
         logger.info('Accuracy: %.3f' % accuracy)
 
 
+def apply_constraints(df: pd.DataFrame) -> pd.DataFrame:
+    if label_key == "subject_name": 
+        df = df[df["subject_type"] != "Company"] # remove companies
+        df = df[~df['subject_relation'].str.contains("photo", na=False)] # remove photographers
+        df = df[~df['subject_name'].str.contains("photo", na=False)] # remove photographers
+    return df
+
 #TODO:
 def run_classifier(
         metadata_file: DBConfig,
@@ -83,8 +90,10 @@ def run_classifier(
         is_test: bool = True,
         **kwargs: Any
     ) -> None:
-    dataset = load_dataset(metadata_file, image_data_file, label_key, **kwargs)
-    class_names = set([record["label"] for record in dataset])
+    df = load_dataset(metadata_file, image_data_file, **kwargs)
+    df = apply_constraints(df, label_key)
+    X, y = df[df.columns.drop(label_key)], df[label_key]
+    class_names = set(y)
     dataset_train, dataset_test = dataset, dataset
     #dataset_train, dataset_test = split_dataset(dataset, **kwargs)
     if is_train:

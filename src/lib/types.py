@@ -39,15 +39,12 @@ JSONType = Union[List[ParsedRecord], ParsedRecord]
 PymarcParser = Callable[[PymarcRecord, KwArg(Any)], List[ParsedRecord]]
 Parser = Callable[[Series, KwArg(Any)], DataFrame]
 
+Address = Dict[str, Optional[str]]
+Location = Dict[str, Optional[str]]
+
 Tag = TypedDict('Tag', {"field": str, "subfield": str})
 Size = TypedDict("Size", {"width": int, "height": int})
-Location = TypedDict("Location", {"latitude": float, "longitude": float, "bb_size": float, "query": str, "address": str}, total=False)
 Dates = TypedDict("Dates", {"start": Optional[Date], "end": Optional[Date]})
-Address = TypedDict("Address", {
-    'street_number': Optional[str], 'street_name': Optional[str], 'street_type': Optional[str],
-    'suburb_name': str, 'state': str, 'country': str, 'keywords': List[Optional[str]]
-    }, total=False
-)
 DBConfig = TypedDict("DBConfig", {
     'database': str, 'drivername': str, 'host': Optional[str],
     'username': Optional[str], 'password': Optional[str],

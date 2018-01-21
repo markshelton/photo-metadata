@@ -17,7 +17,7 @@ from thickshake.types import *
 ##########################################################
 # Environmental Variables
 
-SOURCE_BASE_URL = env.str("SOURCE_BASE_URL", default = "http://purl.slwa.wa.gov.au/")
+SLWA_BASE_URL = env.str("SLWA_BASE_URL", default = "http://purl.slwa.wa.gov.au/")
 
 ##########################################################
 # Logging Configuration
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def get_image_url(image_id: str, method: str = None, base_url: Optional[str] = SOURCE_BASE_URL) -> Union[str, Dict[str, str]]:
+def get_image_url(image_id: str, method: str = None, base_url: Optional[str] = SLWA_BASE_URL) -> Union[str, Dict[str, str]]:
     image_urls = {
         "main": base_url + image_id,
         "raw": base_url + image_id + ".jpg",

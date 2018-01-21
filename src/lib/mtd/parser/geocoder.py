@@ -11,8 +11,6 @@ import logging
 import os
 import pandas as pd
 import re
-import urllib.request
-import urllib.parse
 import time
 from envparse import env
 
@@ -20,12 +18,13 @@ from envparse import env
 # Third Party Imports
 
 import geopy.distance
+import requests
 
 ##########################################################
 # Local Imports
 
 from thickshake.mtd.database import load_column
-from thickshake.utils import setup_logging, setup_warnings, log_progress
+from thickshake.utils import setup_logging, setup_warnings, log_progress, deep_get
 from thickshake.types import *
 
 ##########################################################
@@ -35,6 +34,9 @@ CURRENT_FILE_DIR, _ = os.path.split(__file__)
 MTD_LOC_STREET_TYPES_FILE = env.str("MTD_LOC_STREET_TYPES_FILE", default="%s/deps/aus_street_types.csv" % (CURRENT_FILE_DIR)) # type: FilePath
 MTD_LOC_SUBURB_NAMES_FILE = env.str("MTD_LOC_SUBURB_NAMES_FILE", default="%s/deps/wa_suburb_names.csv" % (CURRENT_FILE_DIR)) # type: FilePath
 MTD_LOC_ADDRESS_STOP_WORDS_FILE = env.str("MTD_LOC_ADDRESS_STOP_WORDS_FILE", default="%s/deps/stop_words.csv" % (CURRENT_FILE_DIR)) # type: FilePath
+MTD_LOC_DEFAULT_STATE = env.str("MTD_LOC_DEFAULT_STATE", default="WA")
+MAPPIFY_BASE_URL = env.str("MAPPIFY_BASE_URL", default="https://mappify.io/api/rpc/address/geocode/")
+MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None)
 
 ##########################################################
 # Logging Configuration
@@ -65,28 +67,19 @@ def prepare_search_string(input_file: FilePath) -> str:
 
 def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> List[Match]:
     """Return a dictionary of all named groups for a Regex pattern."""
-    return [match.groupdict() for match in compiled_regex.finditer(target_text)]
+    matches = [match.groupdict() for match in compiled_regex.finditer(target_text)]
+    return [{k:v for k,v in match.items() if v is not None} for match in matches]
 
 
 ##########################################################
 # Functions
 
 
-def clean_up_addresses(address_matches: List[Match]) -> Optional[Address]:
-    if not address_matches: return None
-    address_dict = address_matches[0]
-    address = Address(
-        street_number=address_dict["street_number"],
-        street_name=address_dict["street_name"],
-        street_type=address_dict["street_type"],
-        suburb_name=address_dict["suburb_name"],
-        state="Western Australia",
-        country="Australia"
-    )
-    return address
-
-
-def parse_structured_address(location_text: str, street_types_file: FilePath, suburb_names_file: FilePath) -> Optional[Address]:
+def parse_address(
+        location_text: str,
+        street_types_file: FilePath=MTD_LOC_STREET_TYPES_FILE,
+        suburb_names_file: FilePath=MTD_LOC_SUBURB_NAMES_FILE
+    ) -> Optional[Address]:
     street_types = prepare_search_string(street_types_file)
     suburb_names = prepare_search_string(suburb_names_file)
     re_main = re.compile(
@@ -97,148 +90,112 @@ def parse_structured_address(location_text: str, street_types_file: FilePath, su
         r'(?P<suburb_name>\b(?:{0})\b)'.format(suburb_names), re.IGNORECASE
     )
     addresses = get_matches_from_regex(re_main, location_text)
-    address_clean = clean_up_addresses(addresses)
-    return address_clean
-
-
-def parse_keywords_from_address(location_text: str, stop_words_file: FilePath) -> List[str]:
-    stop_words = prepare_search_string(stop_words_file)
-    re_keywords = re.compile(
-        r'(?P<keywords>(?:\s*(?!\b{0}\b)\b(?:[A-Z][a-z]+)\b)+)'.format(stop_words)
-    )
-    keywords_matches = get_matches_from_regex(re_keywords, location_text)
-    keywords_list = [match["keywords"].strip() for match in keywords_matches]
-    return keywords_list
-
-
-def parse_address(location_text: str) -> Optional[Address]:
-    address = parse_structured_address(location_text, MTD_LOC_STREET_TYPES_FILE, MTD_LOC_SUBURB_NAMES_FILE)
-    if address is None: return None
-    keywords_list = parse_keywords_from_address(location_text, MTD_LOC_ADDRESS_STOP_WORDS_FILE)
-    if address["street_name"] is not None and address["street_type"] is not None:
-        keywords_list.extend([address["street_name"] + " " + address["street_type"]])
-    keywords_list_unique = set(keywords_list) - set(address.values())
-    address["keywords"] = list(keywords_list_unique)
+    if not addresses: return None
+    address = addresses[0]
     return address
 
 
-def create_structured_params(address: Address) -> str:
+def generate_params(
+        address: Address,
+        api_key: str=MAPPIFY_API_KEY,
+        default_state: str=MTD_LOC_DEFAULT_STATE
+    ) -> str:
     params_dict = {}
-    if address["street_number"]:
-        params_dict["street"] = "{0} {1} {2}".format(
-            address["street_number"], address["street_name"], address["street_type"]
-        )
-    else:
-        params_dict["street"] = "{0} {1}".format(address["street_name"], address["street_type"])
+    address_parts = [address.get("street_number"), address.get("street_name"), address.get("street_type") ]
+    address_parts = [part for part in address_parts if part is not None and part is not ""]
+    print(address_parts)
+    if not address_parts: return None
+    params_dict["streetAddress"] = " ".join(address_parts)
     params_dict["suburb"] = address["suburb_name"]
-    params_dict["state"] = address["state"]
-    params_dict["country"] = address["country"]
-    params = urllib.parse.urlencode(params_dict)
-    return params
+    params_dict["state"] = default_state
+    if api_key is not None: params_dict["apiKey"] = api_key
+    return params_dict
 
 
-def create_unstructured_params_list(address: Address) -> List[str]:
-    params_list = []
-    for keyword in address["keywords"]:
-        params_dict = {}
-        params_dict["q"] = "{0} {1} {2} {3}".format(
-            keyword, address["suburb_name"], address["state"], address["country"]
-        )
-        params = urllib.parse.urlencode(params_dict)
-        params_list.append(params)
-    return params_list
+def get_street_number(response: Dict[str, Optional[str]]) -> str:
+    if response["numberFirst"] and response["numberLast"]:
+        return response["numberFirst"] + "-" + response["numberLast"]
+    elif response["numberFirst"]:
+        return response["numberFirst"]
+    elif response["numberLast"]:
+        return response["numberLast"]
+    else: return ""
 
 
-def generate_queries(address: Address) -> List[str]:
-    queries = []
-    url = "http://nominatim.openstreetmap.org/search?format=jsonv2&"
-    if address["street_name"] and address["street_type"]:
-        params = create_structured_params(address)
-        queries.append(url + params)
-    else:
-        params_list = create_unstructured_params_list(address)
-        for params in params_list:
-            queries.append(url + params)
-    return queries
+def choose_best_location(results: List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]:
+    return max(results, key=lambda x: x.get('confidence'))
 
 
-def calculate_bounding_box_size(bb_coords: List[float]) -> float:
-    """Calculate Bounding Box Size of GPS Location, using Vincenty algorithm (in km)."""
-    return geopy.distance.vincenty((bb_coords[0], bb_coords[2]), (bb_coords[1], bb_coords[3])).km
+def geocode_address(address: Address, api_url: str=MAPPIFY_BASE_URL) -> Location:
+    params = generate_params(address)
+    input(params)
+    input(api_url)
+    if params is not None: res = requests.post(api_url, json=params)
+    if params is not None and res.status_code == requests.codes.ok:
+        res_body = res.json()
+        results = res_body["result"]
+        input(results)
+        if isinstance(results, list):
+            response = choose_best_location(results)
+        else: response = results
+        location = {
+            "building_name": response["buildingName"],
+            "street_number": get_street_number(response),
+            "street_name": response["streetName"],
+            "street_type": response["streetType"],
+            "suburb": response["suburb"],
+            "state": response["state"],
+            "post_code": response["postCode"],
+            "street_address": response["streetAddress"],
+            "latitude": deep_get(response, "location", "lat"),
+            "longitude": deep_get(response, "location", "lon"),
+            "confidence": res_body["confidence"],
+            "location_type": "geocoded",
+        }
+    else: 
+        location = {
+            "street_number": address.get("street_number", None),
+            "street_name": address.get("street_name", None),
+            "street_type": address.get("street_type", None),
+            "suburb": params.get("suburb", None),
+            "state": params.get("state", None),
+            "street_address": params.get("streetAddress", None),
+            "location_type": "parsed",
+        }
+    return location
 
 
-def geocode_addresses(query: str) -> List[Location]:
-    locations = []
-    try:
-        res = urllib.request.urlopen(query)
-        res_body = res.read().decode()
-        response = [json.loads(res_body)[0]]
-        #TODO: use multiple results with choose_best_location
-        for location_raw in response:
-            location = Location(
-                address=location_raw["display_name"],
-                latitude=location_raw["lat"],
-                longitude=location_raw["lon"],
-                bb_size=calculate_bounding_box_size(location_raw["boundingbox"]),
-                query=query
-            )
-        locations.append(location)
-    except BaseException:
-        pass
-    return locations
-
-
-def choose_best_location(coordinates_list: List[Location]) -> Optional[Location]:
-    """Choose best coordinates from list based on smallest bounding box."""
-    if not coordinates_list: return None
-    best_coords = min(coordinates_list, key=lambda x: x.get('bb_size'))
-    return Location(best_coords)
+def extract_location(location_text: str) -> Location:
+    """Parse and geocode location from text using OSM Nominatim."""
+    address = parse_address(location_text)
+    if not address: return {}
+    location = geocode_address(address)
+    return location
 
 
 #TODO: Convert to Async requests
-def extract_location_from_text(location_text: str) -> Optional[Location]:
-    """Parse and geocode location from text using OSM Nominatim."""
-    parameterised_address = parse_address(location_text)
-    if not parameterised_address: return None
-    queries = generate_queries(parameterised_address)
-    locations_all = []
-    for query in queries:
-        locations = geocode_addresses(query)
-        locations_all.extend(locations)
-    location = choose_best_location(locations_all)
-    return location
-
-
-def get_location(field: PymarcField, tag: str, geocoding_flag: bool = True) -> Optional[Location]:
-    if not geocoding_flag: return None
-    location_text = get_subfield_from_tag(field, tag)
-    if location_text is None: return None
-    location = extract_location_from_text(location_text)
-    return location
-
-
-def add_locations(series: Series, logging_flag: bool = True, sample_size: int = 5, **kwargs: Any) -> DataFrame:
+def extract_locations(series: Series, logging_flag: bool = True, sample_size: int = 5, **kwargs: Any) -> DataFrame:
     locations = []
     if sample_size != 0: series = series.sample(n=sample_size)
     total = len(series)
     start_time = time.time()
     for i, text in enumerate(series):
-        location = extract_location_from_text(text)
+        location = extract_location(text)
         locations.append(location)
         if logging_flag: log_progress(i+1, total, start_time)
     locations = pd.DataFrame.from_records(locations, index=series.index)
     return locations
+
 
 ##########################################################
 # Main
 
 def main():
     notes = load_column(table="image",column="image_note")
-    locations = add_locations(notes)
+    locations = extract_locations(notes)
     print(locations)
 
 if __name__ == "__main__":
     setup_logging()
     setup_warnings()
     main()
-

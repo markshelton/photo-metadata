@@ -277,15 +277,18 @@ def parse_record_section(record: PymarcRecord, db_schema: Schema, parser: Pymarc
             record_object = db_schema(**dict(**record_parsed, **collection))
             session.add(record_object)
 
-
+#TODO: Fix so this works in a hierarchical fashion so autoincremented PKs
+# are passed down from data tables to relationship tables
 def parse_record(record: PymarcRecord, **kwargs: Any) -> None:
     collection = parse_collection(record, **kwargs)
     parse_record_section(record, schema.Collection, parse_collection, collection, **kwargs)
-    parse_record_section(record, schema.CollectionTopic, parse_topics, collection, **kwargs)
-    parse_record_section(record, schema.CollectionLocation, parse_locations, collection, **kwargs)
     parse_record_section(record, schema.Subject, parse_subjects, collection, **kwargs)
-    parse_record_section(record, schema.CollectionSubject, parse_subjects, collection, **kwargs)
     parse_record_section(record, schema.Image, parse_images, collection, **kwargs)
+    parse_record_section(record, schema.Location, parse_locations, collection, **kwargs)
+    parse_record_section(record, schema.CollectionLocation, parse_locations, collection, **kwargs)
+    parse_record_section(record, schema.CollectionTopic, parse_topics, collection, **kwargs)
+    parse_record_section(record, schema.CollectionSubject, parse_subjects, collection, **kwargs)
+
 
 
 def load_database(records: List[PymarcRecord], db_config: DBConfig, logging_flag: bool = True, **kwargs: Any) -> None:

@@ -24,7 +24,7 @@ import requests
 # Local Imports
 
 from thickshake.mtd.database import load_column
-from thickshake.utils import setup_logging, setup_warnings, log_progress, deep_get
+from thickshake.utils import setup_logging, setup_warnings, log_progress, deep_get, consolidate_list
 from thickshake.types import *
 
 ##########################################################
@@ -71,6 +71,25 @@ def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> Li
     return [{k:v for k,v in match.items() if v is not None} for match in matches]
 
 
+def get_street_number(response: Dict[str, Optional[str]]) -> str:
+    if response["numberFirst"] and response["numberLast"]:
+        return str(response["numberFirst"]) + "-" + str(response["numberLast"])
+    elif response["numberFirst"]:
+        return response["numberFirst"]
+    elif response["numberLast"]:
+        return response["numberLast"]
+    else: return ""
+
+
+def choose_best_location(results: List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]:
+    return max(results, key=lambda x: x.get('confidence'))
+
+
+def title_case(text: Optional[str]):
+    if text is None: return None
+    return text.title()
+
+
 ##########################################################
 # Functions
 
@@ -103,8 +122,7 @@ def generate_params(
     params_dict = {}
     address_parts = [address.get("street_number"), address.get("street_name"), address.get("street_type") ]
     address_parts = [part for part in address_parts if part is not None and part is not ""]
-    print(address_parts)
-    if not address_parts: return None
+    if not address_parts: params_dict["streetAddress"] = ""
     params_dict["streetAddress"] = " ".join(address_parts)
     params_dict["suburb"] = address["suburb_name"]
     params_dict["state"] = default_state
@@ -112,46 +130,38 @@ def generate_params(
     return params_dict
 
 
-def get_street_number(response: Dict[str, Optional[str]]) -> str:
-    if response["numberFirst"] and response["numberLast"]:
-        return response["numberFirst"] + "-" + response["numberLast"]
-    elif response["numberFirst"]:
-        return response["numberFirst"]
-    elif response["numberLast"]:
-        return response["numberLast"]
-    else: return ""
-
-
-def choose_best_location(results: List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]:
-    return max(results, key=lambda x: x.get('confidence'))
-
-
 def geocode_address(address: Address, api_url: str=MAPPIFY_BASE_URL) -> Location:
     params = generate_params(address)
-    input(params)
-    input(api_url)
-    if params is not None: res = requests.post(api_url, json=params)
-    if params is not None and res.status_code == requests.codes.ok:
-        res_body = res.json()
-        results = res_body["result"]
-        input(results)
-        if isinstance(results, list):
-            response = choose_best_location(results)
-        else: response = results
-        location = {
-            "building_name": response["buildingName"],
-            "street_number": get_street_number(response),
-            "street_name": response["streetName"],
-            "street_type": response["streetType"],
-            "suburb": response["suburb"],
-            "state": response["state"],
-            "post_code": response["postCode"],
-            "street_address": response["streetAddress"],
-            "latitude": deep_get(response, "location", "lat"),
-            "longitude": deep_get(response, "location", "lon"),
-            "confidence": res_body["confidence"],
-            "location_type": "geocoded",
-        }
+    if params["streetAddress"] != "":
+        res = requests.post(api_url, json=params)
+        try:
+            res_body = res.json()
+            results = res_body["result"]
+            if isinstance(results, list):
+                response = choose_best_location(results)
+            else: response = results
+            location = {
+                "building_name": title_case(response["buildingName"]),
+                "street_number": get_street_number(response),
+                "street_name": title_case(response["streetName"]),
+                "street_type": title_case(response["streetType"]),
+                "suburb": title_case(response["suburb"]),
+                "state": response["state"],
+                "post_code": response["postCode"],
+                "latitude": deep_get(response, "location", "lat"),
+                "longitude": deep_get(response, "location", "lon"),
+                "confidence": res_body["confidence"],
+                "location_type": "geocoded",
+            }
+        except:
+            location = {
+                "street_number": address.get("street_number", None),
+                "street_name": address.get("street_name", None),
+                "street_type": address.get("street_type", None),
+                "suburb": params.get("suburb", None),
+                "state": params.get("state", None),
+                "location_type": "parsed",
+            }
     else: 
         location = {
             "street_number": address.get("street_number", None),
@@ -159,7 +169,6 @@ def geocode_address(address: Address, api_url: str=MAPPIFY_BASE_URL) -> Location
             "street_type": address.get("street_type", None),
             "suburb": params.get("suburb", None),
             "state": params.get("state", None),
-            "street_address": params.get("streetAddress", None),
             "location_type": "parsed",
         }
     return location
@@ -194,6 +203,7 @@ def main():
     notes = load_column(table="image",column="image_note")
     locations = extract_locations(notes)
     print(locations)
+
 
 if __name__ == "__main__":
     setup_logging()

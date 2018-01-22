@@ -8,7 +8,7 @@
 ##########################################################
 # Third Party Imports
 
-from sqlalchemy import Column, ForeignKey, String, Boolean, Date, Integer, Numeric
+from sqlalchemy import Column, ForeignKey, Text, Boolean, Date, Integer, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -37,17 +37,17 @@ class Record(Constructor, Base):
     __tablename__ = "record"
 
     uuid = Column(Integer, primary_key=True, autoincrement=True)
-    record_label = Column(String(30))
-    note_title = Column(String(255))
-    note_general = Column(String(255))
-    note_summary = Column(String(255))
-    series_title = Column(String(255))
-    series_volume = Column(String(30))
-    date_created = Column(String(255))
-    date_created_approx = Column(String(255))
+    record_label = Column(Text, unique=True)
+    note_title = Column(Text)
+    note_general = Column(Text)
+    note_summary = Column(Text)
+    series_title = Column(Text)
+    series_volume = Column(Text)
+    date_created = Column(Text)
+    date_created_approx = Column(Text)
     date_created_parsed = Column(Date)
-    physical_extent = Column(String(255))
-    physical_details = Column(String(255))
+    physical_extent = Column(Text)
+    physical_details = Column(Text)
 
     images = relationship("Image")
     subjects = relationship("RecordSubject", back_populates="record")
@@ -59,9 +59,9 @@ class Subject(Constructor, Base):
     __tablename__ = "subject"
 
     uuid = Column(Integer, primary_key=True, autoincrement=True)
-    subject_name = Column(String(255))
-    subject_type = Column(String(30))  # Building | Person
-    subject_dates = Column(String(255))
+    subject_name = Column(Text, unique=True)
+    subject_type = Column(Text)  # Building | Person
+    subject_dates = Column(Text)
     subject_start_date = Column(Date)
     subject_end_date = Column(Date)
 
@@ -72,16 +72,13 @@ class Image(Constructor, Base):
     __tablename__ = "image"
 
     uuid = Column(Integer, primary_key=True, autoincrement=True)
-    image_label = Column(String(30))
-    image_url = Column(String(255), nullable=False)
-    image_url_raw = Column(String(255))
-    image_url_thumb = Column(String(255))
-    image_note = Column(String(255), nullable=False)
+    image_label = Column(Text)
+    image_url = Column(Text, unique=True, nullable=False)
+    image_url_raw = Column(Text)
+    image_url_thumb = Column(Text)
+    image_note = Column(Text, nullable=False)
     image_height = Column(Integer)
     image_width = Column(Integer)
-    image_latitude = Column(String(30))
-    image_longitude = Column(String(30))
-    image_address = Column(String(255))
     image_date_created = Column(Date)
     record_uuid = Column(Integer, ForeignKey("record.uuid"))
 
@@ -93,19 +90,19 @@ class Location(Constructor, Base):
     __tablename__ = "location"
 
     uuid = Column(Integer, primary_key=True, autoincrement=True)
-    location_name = Column(String(255))
-    location_division = Column(String(255))
-    building_name = Column(String(255))
-    street_number = Column(String(30))
-    street_name = Column(String(255))
-    street_type = Column(String(30))
-    suburb = Column(String(255))
-    state = Column(String(30))
-    post_code = Column(String(30))
+    location_name = Column(Text)
+    location_division = Column(Text)
+    building_name = Column(Text)
+    street_number = Column(Text)
+    street_name = Column(Text)
+    street_type = Column(Text)
+    suburb = Column(Text)
+    state = Column(Text)
+    post_code = Column(Text)
     latitude = Column(Numeric)
     longitude = Column(Numeric)
     confidence = Column(Numeric)
-    location_type = Column(String(30))
+    location_type = Column(Text)
 
     images = relationship("ImageLocation", back_populates="location")
     records = relationship("RecordLocation", back_populates="location")
@@ -115,7 +112,7 @@ class Topic(Constructor, Base):
     __tablename__ = "topic"
 
     uuid = Column(Integer, primary_key=True)
-    topic_term = Column(String(255))
+    topic_term = Column(Text)
 
     records = relationship("RecordTopic", back_populates="topic")
 
@@ -130,7 +127,7 @@ class RecordSubject(Constructor, Base):
     record_uuid = Column(Integer, ForeignKey("record.uuid"), primary_key=True)
     subject_uuid = Column(Integer, ForeignKey("subject.uuid"), primary_key=True)
     subject_is_main = Column(Boolean, primary_key=True)
-    subject_relation = Column(String(255))
+    subject_relation = Column(Text)
 
     record = relationship("Record", back_populates="subjects")
     subject = relationship("Subject", back_populates="records")

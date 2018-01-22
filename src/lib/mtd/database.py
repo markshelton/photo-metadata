@@ -99,11 +99,15 @@ def dump_database(db_config: DBConfig=DB_CONFIG, **kwargs: Any) -> List[Dict[str
     with manage_db_session(db_engine) as session:
         sql_text =  "SELECT *\n"
         sql_text += "FROM image\n"
-        sql_text += "NATURAL LEFT JOIN collection\n"
-        sql_text += "NATURAL LEFT JOIN collection_subject\n"
-        sql_text += "NATURAL LEFT JOIN collection_location\n"
-        sql_text += "NATURAL LEFT JOIN collection_topic\n"
-        sql_text += "NATURAL LEFT JOIN subject;"
+        sql_text += "NATURAL LEFT JOIN image_location\n"
+        sql_text += "NATURAL LEFT JOIN location\n"
+        sql_text += "NATURAL LEFT JOIN record\n"
+        sql_text += "NATURAL LEFT JOIN record_subject\n"
+        sql_text += "NATURAL LEFT JOIN subject\n"
+        sql_text += "NATURAL LEFT JOIN record_location\n"
+        sql_text += "NATURAL LEFT JOIN record_topic\n"
+        sql_text += "NATURAL LEFT JOIN topic\n"
+        sql_text += ";"
         result = session.execute(text(sql_text)).fetchall()
         result = [dict(record) for record in result]
         return result

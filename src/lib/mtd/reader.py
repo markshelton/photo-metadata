@@ -12,7 +12,6 @@ import random
 import urllib.request
 import urllib.error
 import time
-from envparse import env
 
 ##########################################################
 # Third Party Imports
@@ -21,12 +20,14 @@ import datefinder
 import pymarc
 import sqlalchemy.engine
 import yaml
+
+from envparse import env
 from PIL import ImageFile
 
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db, get_class_by_table_name, inspect_database
+from thickshake.mtd.database import manage_db_session, initialise_db, get_class_by_table_name, dump_database
 from thickshake.utils import consolidate_list, log_progress, setup_warnings, setup_logging, get_file_type, open_file
 from thickshake.types import *
 
@@ -48,6 +49,11 @@ DB_CONFIG["host"] = env.str("DB_HOST")
 DB_CONFIG["database"] = env.str("POSTGRES_DB")
 DB_CONFIG["username"] = env.str("POSTGRES_USER")
 DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
+
+MTD_LOADER_CONFIG_FILE = env.str("MTD_LOADER_CONFIG_FILE", default="/home/app/config/marc_loader.yaml")
+MTD_LOADER_TABLE_PREFIX = env.str("MTD_LOADER_TABLE_PREFIX", default="$")
+MTD_LOADER_TABLE_DELIMITER = env.str("MTD_LOADER_TABLE_DELIMITER", default=".")
+MTD_LOADER_TAG_DELIMITER = env.str("MTD_LOADER_TAG_DELIMITER", default="$")
 
 class FileType:
     JSON = ".json"
@@ -86,7 +92,7 @@ def get_subfields(record: PymarcRecord, field_key: str, subfield_key: str) -> Li
 
 def split_tag_key(tag_key: str) -> Tag:
     """Split tag into a tuple of the field and subfield."""
-    tag_key = tag_key.split("$")
+    tag_key = tag_key.split(MTD_LOADER_TAG_DELIMITER)
     if len(tag_key) == 2:
         tag = Tag(field=tag_key[0], subfield=tag_key[1])
     elif len(tag_key) == 1:
@@ -126,51 +132,80 @@ def get_fields_from_tag(record: PymarcRecord, tag_key: str) -> List[PymarcField]
 ##########################################################
 # MARC Loader
 
-def split_loader(data, loader, temp_uids: Dict[str, str] = None):
-    table_name = ""
-    parsed_data = {}
-    sub_loaders = []
+
+def get_data(data, loader) -> List[Dict[str, str]]:
+    fields = []
+    if not isinstance(data, pymarc.Field): 
+        for k,v in loader.items():
+            if not k.startswith(MTD_LOADER_TABLE_PREFIX):
+                if MTD_LOADER_TAG_DELIMITER in str(v):
+                    field = str(v).split(MTD_LOADER_TAG_DELIMITER)[0]
+                    fields.append(field)
+        if len(set(fields)) == 1:
+            return data.get_fields(fields[0])
+    return [data]
+
+
+def get_loaders(loader) -> List[Dict[str, Any]]:
+    loaders = [v for k,v in loader.items() if k.startswith(MTD_LOADER_TABLE_PREFIX)]
+    return loaders
+
+
+def get_table_name(loader) -> str:
     for k,v in loader.items():
-        if not k.startswith("$"):
+        if not k.startswith(MTD_LOADER_TABLE_PREFIX):
+            table_name = k.split(MTD_LOADER_TABLE_DELIMITER)[0]
+            return table_name
+
+
+def parse_record(record, loader, temp_uids) -> Dict[str, Any]:
+    parsed_record = {} # type: Dict[str, str]
+    for k,v in loader.items():
+        if not k.startswith(MTD_LOADER_TABLE_PREFIX):
             table_name, column = k.split(".")
-            if "$" in str(v):
-                parsed_value = get_subfield_from_tag(data, v)
-            elif "." in str(v):
+            if MTD_LOADER_TAG_DELIMITER in str(v):
+                parsed_value = get_subfield_from_tag(record, v)
+            elif MTD_LOADER_TABLE_DELIMITER in str(v):
                 parsed_value = temp_uids.get(v, None)
-            else:
-                parsed_value = v
-            parsed_data[column] = parsed_value
-        else: sub_loaders.append(v)
-    return table_name, parsed_data, sub_loaders
+            else: parsed_value = v
+            parsed_record[column] = parsed_value
+    return parsed_record
 
 
-#Fix so it can parse multiple relations per record
-#fields = get_fields_from_tag(record, FIRST_TAG)
-#values = [get_subfield_from_tag(field) for field in fields]
+#What happens if a unique constraint is violated on a data table?
+#How do I give the existing uuid to the relationship table? 
+def store_record(parsed_record, engine, temp_uids, table_name) -> Dict[str, str]:
+    with manage_db_session(engine) as session:
+        model = get_class_by_table_name(table_name)
+        db_object = model(**parsed_record)
+        session.add(db_object)
+        session.flush()
+        if hasattr(db_object, "uuid"):
+            temp_uids[table_name + ".uuid"] = db_object.uuid
+    return temp_uids
+
 
 def load_record(data, loader, engine, temp_uids: Dict[str, str] = None, **kwargs: Any) -> None:
     if temp_uids is None: temp_uids = {}
-    table_name, parsed_data, sub_loaders = split_loader(data, loader, temp_uids)
-    if parsed_data:
-        with manage_db_session(engine) as session:
-            model = get_class_by_table_name(table_name)
-            db_object = model(**parsed_data)
-            session.add(db_object)
-            if hasattr(db_object, "uuid"):
-                temp_uids[table_name + ".uuid"] = db_object.uuid
-    if sub_loaders:
+    records = get_data(data, loader)
+    sub_loaders = get_loaders(loader)
+    table_name = get_table_name(loader)
+    for record in records:
+        if table_name:
+            parsed_record = parse_record(record, loader, temp_uids)
+            temp_uids = store_record(parsed_record, engine, temp_uids, table_name)
         for sub_loader in sub_loaders:
-            load_record(data, sub_loader, engine, temp_uids)
+            load_record(data=record, loader=sub_loader, engine=engine, temp_uids=temp_uids)
 
 
 def load_database(records: List[PymarcRecord], db_config: DBConfig, logging_flag: bool = True, **kwargs: Any) -> None:
     db_engine = initialise_db(db_config, **kwargs)
     total = len(records)
     start_time = time.time()
-    with open_file("/home/app/config/marc_loader.yaml") as yaml_file:
+    with open_file(MTD_LOADER_CONFIG_FILE) as yaml_file:
         loader = yaml.load(yaml_file)
     for i, record in enumerate(records):
-        load_record(record, loader, engine=db_engine, **kwargs)
+        load_record(data=record, loader=loader, engine=db_engine, **kwargs)
         if logging_flag: log_progress(i+1, total, start_time)
 
 
@@ -213,7 +248,7 @@ def read_file(input_file: FilePath, sample_size: int = 0, **kwargs: Any) -> List
 def main():
     records = read_file(
         input_file=INPUT_METADATA_FILE,
-        sample_size=FLAG_MTD_SAMPLE
+        sample_size=0
     )
     load_database(
         records=records,

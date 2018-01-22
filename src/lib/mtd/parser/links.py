@@ -38,6 +38,12 @@ def get_image_url(image_id: str, method: str = None, base_url: Optional[str] = S
     else: return image_urls
 
 
+def get_id_from_url(image_file: Optional[FilePath]) -> Optional[str]:
+    if image_file is None: return None
+    image_id = image_file.split("/")[-1].split(".")[0] # type: Optional[str]
+    return image_id
+
+
 ##########################################################
 # Main
 

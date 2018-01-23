@@ -17,8 +17,8 @@ from thickshake.types import *
 ##########################################################
 # Constants
 
-INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE") # type: FilePath
-OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE")
+INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE", default="") # type: FilePath
+OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE", default="")
 
 DB_CONFIG = {} # type: DBConfig
 DB_CONFIG["drivername"] = env.str("DB_DRIVER")

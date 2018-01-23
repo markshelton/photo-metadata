@@ -1,17 +1,39 @@
-data
-dist
+# Python
+####################
+**/__pycache__
+*.pyc
 
+
+# Jupyter
+####################
+**/.ipynb_checkpoints
+*-checkpoint.ipynb
+
+
+# Packaging
+####################
+dist
+*.egg-info
+
+
+# Documentation
+####################
+docs/build
+
+
+# Logs & Databases
+####################
+data
+*.log
+
+
+# Dev Tools
+####################
 .git
 .mypy_cache
 .vscode
 
-**/.ipynb_checkpoints
-**/__pycache__
-*.pyc
-*-checkpoint.ipynb
 
-*.egg-info
-
-*.log
-
+# Env Variables
+####################
 .secrets

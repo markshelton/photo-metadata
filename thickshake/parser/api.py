@@ -11,7 +11,7 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.parser.geocoder import extract_location
+from thickshake.parser.geocoder import extract_location
 from thickshake.mtd.database import load_column, save_columns
 from thickshake.utils import setup_logging, setup_warnings
 from thickshake.types import *

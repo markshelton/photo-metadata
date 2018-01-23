@@ -21,7 +21,8 @@ from matplotlib import pyplot as plt
 
 from thickshake.utils import (
     logged, setup_logging, setup_warnings, log_progress,
-    clear_directory, maybe_increment_path, get_files_in_directory
+    clear_directory, maybe_increment_path, get_files_in_directory,
+    maybe_make_directory,
 )
 from thickshake.types import *
 
@@ -29,7 +30,8 @@ from thickshake.types import *
 # Environmental Variables
 
 INPUT_IMAGE_DIR = env.str("INPUT_IMAGE_DIR", default="/home/app/data/input/images/JPEG_Convert_Resolution_1024") # type: DirPath
-OUTPUT_IMAGE_FACES_DIR = env.str("OUTPUT_IMAGE_FACES_DIR", default="/home/app/data/output/face_recognition/images/faces") # type: DirPath
+OUTPUT_IMAGE_FACES_DIR = env.str("OUTPUT_IMAGE_FACES_DIR", default="/home/app/data/output/images/faces") # type: DirPath
+OUTPUT_IMAGE_ANNOTATIONS_DIR = env.str("OUTPUT_IMAGE_ANNOTATIONS_DIR", default="/home/app/data/output/images/face_annotations") # type: DirPath
 OUTPUT_IMAGE_DATA_FILE = env.str("OUTPUT_IMAGE_DATA_FILE", default="/home/app/data/output/face_recognition/faces.hdf5") # type: FilePath
 
 FLAG_IMG_SAMPLE = env.int("FLAG_IMG_SAMPLE", default=0)
@@ -38,6 +40,8 @@ FLAG_IMG_CLEAR_FACES = env.bool("FLAG_IMG_CLEAR_FACES", default=True)
 FLAG_IMG_OVERWRITE_FACES = env.bool("FLAG_IMG_OVERWRITE_FACES", default=True)
 FLAG_IMG_SAVE_FACES = env.bool("FLAG_IMG_SAVE_FACES", default=True)
 FLAG_IMG_SHOW_FACES = env.bool("FLAG_IMG_SHOW_FACES", default=False)
+FLAG_IMG_SAVE_IMAGES = env.bool("FLAG_IMG_SAVE_IMAGES", default=True)
+FLAG_IMG_SHOW_IMAGES = env.bool("FLAG_IMG_SHOW_IMAGES", default=True)
 FLAG_IMG_LOGGING = env.bool("FLAG_IMG_LOGGING", default=True)
 FLAG_IMG_LANDMARK_INDICES = env.list("", default=[39, 42, 57], subcast=int) #INNER_EYES_AND_BOTTOM_LIP
 #FLAG_IMG_LANDMARK_INDICES = env.list("", default=[36, 45, 33], subcast=int) #OUTER_EYES_AND_NOSE
@@ -54,6 +58,13 @@ logger = logging.getLogger(__name__)
 
 ##########################################################
 # Functions
+
+def rect_to_bb(rect):
+	x = rect.left()
+	y = rect.top()
+	w = rect.right() - x
+	h = rect.bottom() - y
+	return (x, y, w, h)
 
 
 def show_image(image_rgb: ImageType) -> None:
@@ -122,6 +133,7 @@ def save_image(
     output_file = image_file.replace(input_images_dir, output_images_dir)
     image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
     image_file = maybe_increment_path(output_file, **kwargs)
+    maybe_make_directory(image_file)
     cv2.imwrite(image_file, image_bgr)
     logger.info(image_file)
     return image_file
@@ -141,6 +153,16 @@ def save_object(
         grp.create_dataset(image_id, data=save_object)
 
 
+def annotate_image(image_rgb, face, i, landmarks):
+    (x, y, w, h) = rect_to_bb(face)
+    cv2.rectangle(image_rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    cv2.putText(image_rgb, "Face #{}".format(i + 1), (x - 10, y - 10),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    for (x, y) in landmarks:
+        cv2.circle(image_rgb, (x, y), 1, (0, 0, 255), -1)
+    return image_rgb
+
+
 def extract_faces_from_image(
         image_file: FilePath,
         predictor: Optional[Any] = None,
@@ -150,10 +172,10 @@ def extract_faces_from_image(
         recognizer_path: Optional[FilePath] = None,
         template_path: Optional[FilePath] = None,
         output_face_info_file: Optional[FilePath] = None,
-        show_flag: bool = False,
-        save_flag: bool = False,
+        show_faces_flag: bool = False,
+        save_faces_flag: bool = False,
         **kwargs: Any
-    ) -> List[ImageType]:
+    ) -> ImageType:
     image_bgr = cv2.imread(image_file)
     image_bgr = enhance_image(image_bgr)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
@@ -161,19 +183,19 @@ def extract_faces_from_image(
     if template is None: template = prepare_template(template_path)
     if predictor is None: predictor = dlib.shape_predictor(predictor_path)
     if recognizer is None: recognizer = dlib.face_recognition_model_v1(recognizer_path)
-    faces_norm = [] # type: List[ImageType]
-    for face in faces:
+    image_annot = image_rgb.copy()
+    for i, face in enumerate(faces):
         landmarks = extract_face_landmarks(image_rgb, face, predictor)
         embeddings = extract_face_embeddings(image_rgb, face, predictor, recognizer)
         face_norm = normalize_face(image_rgb, landmarks, template, **kwargs)
-        if show_flag:
-            show_image(image_rgb)
-        if save_flag: 
+        if show_faces_flag:
+            show_image(face_norm)
+        if save_faces_flag: 
             output_file = save_image(face_norm, image_file, **kwargs)
             save_object(landmarks, "landmarks", output_file, output_face_info_file, **kwargs)
             save_object(embeddings, "embeddings", output_file, output_face_info_file, **kwargs)
-        faces_norm.append(face_norm)
-    return faces_norm
+        image_annot = annotate_image(image_annot, face, i, landmarks)        
+    return image_annot
 
 
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
@@ -182,8 +204,11 @@ def extract_faces_from_images(
         predictor_path: FilePath = IMG_FACE_PREDICTOR_FILE,
         recognizer_path: FilePath = IMG_FACE_RECOGNIZER_FILE,
         template_path: FilePath = IMG_FACE_TEMPLATE_FILE,
+        output_faces_dir: Optional[DirPath]=None,
         output_images_dir: Optional[DirPath]=None,
         flag_clear_faces: bool=False,
+        show_image_flag: bool=True,
+        save_image_flag: bool=True,
         logging_flag: bool=False,
         **kwargs: Any
     ) -> List[ImageType]:
@@ -195,15 +220,19 @@ def extract_faces_from_images(
     total = len(image_files)
     start_time = time.time()
     for i, image_file in enumerate(image_files):
-        extract_faces_from_image(
+        image_annot = extract_faces_from_image(
             image_file=image_file,
             input_images_dir=input_images_dir,
-            output_images_dir=output_images_dir,
+            output_images_dir=output_faces_dir,
             predictor=predictor,
             recognizer=recognizer,
             template=template,
             **kwargs
         )
+        if show_image_flag:
+            show_image(image_annot)
+        if save_image_flag:
+            save_image(image_annot, image_file, input_images_dir, output_images_dir, **kwargs)
         if logging_flag:
             log_progress(i+1, total, start_time)
 
@@ -214,14 +243,17 @@ def extract_faces_from_images(
 def main():
     extract_faces_from_images(
         input_images_dir=INPUT_IMAGE_DIR,
-        output_images_dir=OUTPUT_IMAGE_FACES_DIR,
+        output_faces_dir=OUTPUT_IMAGE_FACES_DIR,
+        output_images_dir=OUTPUT_IMAGE_ANNOTATIONS_DIR,
         output_face_info_file=OUTPUT_IMAGE_DATA_FILE,
-        sample_size=FLAG_IMG_SAMPLE,
-        show_flag=FLAG_IMG_SHOW_FACES,
-        save_flag=FLAG_IMG_SAVE_FACES,
-        flag_clear_faces=FLAG_IMG_CLEAR_FACES,
-        logging_flag=FLAG_IMG_LOGGING,
-        overwrite=FLAG_IMG_OVERWRITE_FACES,
+        sample_size=20,
+        show_faces_flag=False,
+        save_faces_flag=False,
+        show_image_flag=False,
+        save_image_flag=True,
+        flag_clear_faces=False,
+        logging_flag=True,
+        overwrite=False,
         key_indices=FLAG_IMG_LANDMARK_INDICES,
         face_size=FLAG_IMG_FACE_SIZE,
         predictor_path=IMG_FACE_PREDICTOR_FILE,

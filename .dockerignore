@@ -1,0 +1,16 @@
+data
+dist
+docs
+other
+
+.git
+**/.ipynb_checkpoints
+.mypy_cache
+.vscode
+
+**/__pycache__
+*.pyc
+
+*.egg-info
+
+*.log

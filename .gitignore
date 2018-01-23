@@ -1,163 +1,17 @@
-#########
-# General
-#########
+data
+dist
 
-# ignore dot files/directories
-.*
-!.gitignore
+.git
+.mypy_cache
+.vscode
 
-# Logs and databases
-log/
-*.log
-*.sql
-*.sqlite
-
-# VS Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-#Secure files
-*.secrets
-
-#Large files
-**/data/
-*.tar
-*.gz
-*.zip
-*.tar.gz
-*.tgz
-
-#########
-# OpenCV
-#########
-
-*.autosave
+**/.ipynb_checkpoints
+**/__pycache__
 *.pyc
-*.user
-*~
-Thumbs.db
-tags
-tegra/
-bin/
-*.sdf
-*.opensdf
-*.obj
-*.stamp
-*.depend
-*.rule
-*.tmp
-*/debug
-*.suo
+*-checkpoint.ipynb
+
+*.egg-info
+
 *.log
-*.tlog
-build
 
-#########
-# Tensorflow
-#########
-
-.DS_Store
-.ipynb_checkpoints
-node_modules
-/.bazelrc
-/.tf_configure.bazelrc
-/bazel-*
-/bazel_pip
-/tools/python_bin_path.sh
-/tools/git/gen
-/pip_test
-/_python_build
-*.pyc
-__pycache__
-*.swp
-.vscode/
-cmake_build/
-.idea/**
-/build/
-/tensorflow/core/util/version_info.cc
-/tensorflow/python/framework/fast_tensor_util.cpp
-Pods
-Podfile.lock
-*.pbxproj
-*.xcworkspacedata
-/tensorflow/contrib/lite/downloads/**
-/tensorflow/contrib/lite/gen/**
-/tensorflow/contrib/lite/examples/ios/simple/data/*.txt
-/tensorflow/contrib/lite/examples/ios/simple/data/*.tflite
-xcuserdata/**
-
-#########
-# Python
-#########
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-
-# Translations
-*.mo
-*.pot
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Environments
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
+.secrets

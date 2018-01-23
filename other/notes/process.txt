@@ -1,0 +1,5 @@
+#Setup
+
+ssh athena
+module load python/3.6.1
+module load cuda/8.0.61

@@ -1,0 +1,27 @@
+[
+  {
+    image_id: 856$u
+    note_url: 856$u
+    note_public: 856$z
+    record_id: 035$a
+    record_leader: 008
+    language_code: 041$a
+    location_code: 043$a
+    note_title: 245$a
+    date_created: 260$c
+    date_created_approx: 264$c
+    physical_extent: 300$a
+    physical_details: 300$b
+    note_general: 500$a
+    note_summary: 520$a
+    series_title: 830$a
+    series_volume: 830$v
+    topic: [650$a]
+    location: [650$z]
+    subject_name:  [100$a, 110$a, 600$a, 610$a]
+    subject_dates: [100$d, 600$d]
+    subject_type: [100$a, 100$d, 100$e, 110$a, 110$e, 600$a, 600$d, 610$a]
+    subject_record_relation: [100$e, 110$e]
+    subject_record_is_main: [100$a, 100$d, 100$e, 110$a, 110$e]
+  }
+]

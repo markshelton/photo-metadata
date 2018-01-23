@@ -1,0 +1,68 @@
+#######################################################################
+# PREAMBLE
+#######################################################################
+
+MAKEFLAGS += --warn-undefined-variables
+SHELL := bash
+.SHELLFLAGS := -eu -o pipefail -c
+.DEFAULT_GOAL := start
+.DELETE_ON_ERROR:
+.SUFFIXES:
+CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
+.PHONY:
+	start stop restart up _up \
+	jupyter shell volume \
+
+#######################################################################
+# LIBRARY CONFIGURATION
+#######################################################################
+
+LIBRARY_CONFIG_PATH = ../CONFIG.env
+include $(LIBRARY_CONFIG_PATH)
+export $(shell sed 's/=.*//' $(LIBRARY_CONFIG_PATH))
+
+#######################################################################
+# APP CONFIGURATION
+#######################################################################
+
+APP_CONFIG_PATH = ./build.env
+include $(APP_CONFIG_PATH)
+export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
+
+#######################################################################
+# APP COMMANDS
+#######################################################################
+
+start: up shell
+
+stop:
+	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
+	-docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml down
+
+restart: stop start
+
+up: volume _up
+
+_up: 
+	PROJECT_DIR=$(PROJECT_DIR) \
+	CONTAINER_APP_NAME=$(CONTAINER_APP_NAME) \
+	CONTAINER_DB_NAME=$(CONTAINER_DB_NAME) \
+	VOLUME_DB_NAME=$(VOLUME_DB_NAME) \
+	APP_IMAGE=$(APP_IMAGE) \
+	APP_VERSION=$(APP_VERSION) \
+	DB_IMAGE=$(DB_IMAGE) \
+	DB_VERSION=$(DB_VERSION) \
+	docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml up --build -d
+
+#######################################################################
+
+jupyter:
+	-explorer.exe "http://localhost:8888/tree"
+
+shell:
+	-docker exec -it $(CONTAINER_APP_NAME) $(SHELL)
+
+volume:
+	-docker volume create --name=$(VOLUME_DB_NAME)
+
+#######################################################################

@@ -1,7 +1,10 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
 ##########################################################
 # Standard Library Imports
 
-import enum
 import logging
 import os
 
@@ -13,17 +16,23 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import dump_database, initialise_db
+from thickshake.mtd.database import dump_database
 from thickshake.mtd.reader import load_database, read_file
 from thickshake.mtd.writer import write_file
 from thickshake.utils import setup_logging, setup_warnings
-from thickshake.types import *
 
 ##########################################################
-# Constants
+# Typing Configuration
+
+from typing import Optional, Dict, Any
+
+DBConfig = Dict[str, Optional[str]]
+FilePath = str
+
+##########################################################
+# Environmental Variables
 
 INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE", default="") # type: FilePath
-OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE", default="")
 
 DB_CONFIG = {} # type: DBConfig
 DB_CONFIG["drivername"] = env.str("DB_DRIVER")
@@ -32,12 +41,10 @@ DB_CONFIG["database"] = env.str("POSTGRES_DB")
 DB_CONFIG["username"] = env.str("POSTGRES_USER")
 DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
 
-
 ##########################################################
 # Logging Configuration
 
 logger = logging.getLogger(__name__)
-
 
 ##########################################################
 # Functions

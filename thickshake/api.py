@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
 ##########################################################
 # Standard Library Imports
 
@@ -11,8 +15,7 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.reader import import_metadata
-from thickshake.mtd.writer import export_metadata
+from thickshake.mtd.api import import_metadata, export_metadata
 from thickshake.utils import setup_logging, setup_warnings
 
 ##########################################################
@@ -21,18 +24,12 @@ from thickshake.utils import setup_logging, setup_warnings
 from typing import Any, List, Optional, Tuple
 from mypy_extensions import TypedDict
 
-DBConfig = TypedDict("DBConfig", {
-    'database': str, 'drivername': str, 'host': Optional[str],
-    'username': Optional[str], 'password': Optional[str],
-    }, total=False
-)
+DBConfig = Dict[str, Optional[str]]
 FilePath = str
 DirPath = str
-File = Any
-Time = Any
 
 ##########################################################
-# Constants
+# Environmental Variables
 
 INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE", default="")
 OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE", default="")
@@ -43,10 +40,6 @@ DB_CONFIG["host"] = env.str("DB_HOST")
 DB_CONFIG["database"] = env.str("POSTGRES_DB")
 DB_CONFIG["username"] = env.str("POSTGRES_USER")
 DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
-
-DETECT_FACES = "DETECT_FACES"
-CAPTION_IMAGES = "CAPTION_IMAGES"
-READ_TEXT = "READ_TEXT"
 
 ##########################################################
 # Logging Configuration

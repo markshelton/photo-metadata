@@ -15,14 +15,21 @@ from sqlalchemy.ext.declarative import declarative_base
 ##########################################################
 # Local Imports
 
-from thickshake.types import Any
+##########################################################
+# Typing Configuration
+
+from typing import Any
 
 ##########################################################
+# Environmental Variables
+
+##########################################################
+# Logging Configuration
+
+##########################################################
+# Mix-ins & Base
 
 Base = declarative_base() # type: Any
-
-##########################################################
-# Mix-ins
 
 class Constructor(object):
     def __init__(self, **kwargs):

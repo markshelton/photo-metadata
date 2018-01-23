@@ -22,7 +22,7 @@ import sqlalchemy.exc
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 
 FilePath = str
 DirPath = str
@@ -48,9 +48,9 @@ def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
     return open(path, *args, **kwargs)
 
 
-def logged(f):
+def logged(f: Callable[..., Any]) -> Any:
     @wraps(f)
-    def wrapper(*args: Any, **kwargs: Any):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger = logging.getLogger()
         logger.info("{0} | Started".format(f.__name__))
         start_time = time.time()
@@ -83,7 +83,7 @@ def json_serial(obj: Any) -> str:
         raise TypeError("Type %s not serializable" % type(obj))
 
 
-def setup_logging(internal=logging.DEBUG, external=logging.WARN) -> None:
+def setup_logging(internal: int=logging.DEBUG, external: int=logging.WARN) -> None:
     logging.basicConfig(level=internal)
     logging.getLogger("sqlalchemy.engine").setLevel(external)
     logging.getLogger("PIL.Image").setLevel(external)

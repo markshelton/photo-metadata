@@ -5,34 +5,45 @@
 ##########################################################
 # Standard Library Imports
 
-import datetime
 import logging
-import re
 import random
-import urllib.request
-import urllib.error
 import time
 
 ##########################################################
 # Third Party Imports
 
-import datefinder
+from envparse import env
 import pymarc
 import sqlalchemy.engine
 import yaml
 
-from envparse import env
-from PIL import ImageFile
-
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db, get_class_by_table_name, dump_database
-from thickshake.utils import consolidate_list, log_progress, setup_warnings, setup_logging, get_file_type, open_file
-from thickshake.types import *
+from thickshake.mtd.database import (
+    manage_db_session, initialise_db,
+    get_class_by_table_name,
+)
+from thickshake.utils import (
+    log_progress, setup_warnings,
+    setup_logging, get_file_type, open_file,
+)
 
 ##########################################################
-# Parser Configuration
+# Typing Configuration
+
+from typing import Optional, Union, List, Dict, Any
+
+DBConfig = Dict[str, Optional[str]]
+DBEngine = Any
+Tag = Dict[str, Optional[str]]
+FilePath = str
+DirPath = str
+PymarcField = Any
+PymarcRecord = Any
+
+##########################################################
+# Environmental Variables
 
 INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE") # type: FilePath
 
@@ -84,57 +95,39 @@ def get_subfield_from_record(record: PymarcRecord, field_key: str, subfield_key:
     return subfield
 
 
-def get_subfields(record: PymarcRecord, field_key: str, subfield_key: str) -> List[Optional[str]]:
-    fields = record.get_fields(field_key) # type: List[PymarcField]
-    subfields = [get_subfield_from_field(field, subfield_key) for field in fields]
-    return subfields
-
-
-def split_tag_key(tag_key: str) -> Tag:
-    """Split tag into a tuple of the field and subfield."""
-    tag_key = tag_key.split(MTD_LOADER_TAG_DELIMITER)
-    if len(tag_key) == 2:
-        tag = Tag(field=tag_key[0], subfield=tag_key[1])
-    elif len(tag_key) == 1:
-        tag = Tag(field=tag_key[0], subfield=None)
-    else: tag = None
-    return tag
-
-
 def get_subfield_from_tag(record_or_field: Union[PymarcRecord, PymarcField], tag_key: str) -> Optional[str]:
     tag = split_tag_key(tag_key)
+    if tag is None: return None
     field_key = tag["field"]
     subfield_key = tag["subfield"]
-    if isinstance(record_or_field, PymarcRecord):
-        subfield = get_subfield_from_record(record_or_field, field_key, subfield_key)
-    elif isinstance(record_or_field, PymarcField):
-        subfield = get_subfield_from_field(record_or_field, subfield_key)
-    else: subfield = None
-    return subfield
+    if isinstance(record_or_field, pymarc.Record):
+        if field_key is None or subfield_key is None: return None
+        return get_subfield_from_record(record_or_field, field_key, subfield_key)
+    elif isinstance(record_or_field, pymarc.Field):
+        if subfield_key is None: return None
+        return get_subfield_from_field(record_or_field, subfield_key)
+    else: return None
 
 
-def get_subfields_from_tag(record: PymarcRecord, tag_key: str) -> List[str]:
-    tag = split_tag_key(tag_key)
-    field_key = tag["field"]
-    subfield_key = tag["subfield"]
-    subfields_raw = get_subfields(record, field_key, subfield_key)
-    subfields = consolidate_list(subfields_raw)
-    return subfields
-
-
-def get_fields_from_tag(record: PymarcRecord, tag_key: str) -> List[PymarcField]:
-    tag = split_tag_key(tag_key)
-    field_key = tag["field"]
-    fields = record.get_fields(field_key) # type: List[PymarcField]
-    return fields
+def split_tag_key(tag_key: str) -> Optional[Tag]:
+    """Split tag into a tuple of the field and subfield."""
+    tag_list = tag_key.split(MTD_LOADER_TAG_DELIMITER)
+    if len(tag_key) == 2:
+        return Tag(field=tag_list[0], subfield=tag_list[1])
+    elif len(tag_key) == 1:
+        return Tag(field=tag_list[0], subfield=None)
+    else: return None
 
 
 ##########################################################
 # MARC Loader
 
 
-def get_data(data, loader) -> List[Dict[str, str]]:
-    fields = []
+def get_data(
+        data: Union[PymarcField, PymarcRecord],
+        loader: Dict[str, Any]
+    ) -> Union[List[PymarcField], List[PymarcRecord]]:
+    fields = [] # type: List[str]
     if not isinstance(data, pymarc.Field): 
         for k,v in loader.items():
             if not k.startswith(MTD_LOADER_TABLE_PREFIX):
@@ -146,20 +139,25 @@ def get_data(data, loader) -> List[Dict[str, str]]:
     return [data]
 
 
-def get_loaders(loader) -> List[Dict[str, Any]]:
+def get_loaders(loader: Dict[str, Any]) -> List[Dict[str, Any]]:
     loaders = [v for k,v in loader.items() if k.startswith(MTD_LOADER_TABLE_PREFIX)]
     return loaders
 
 
-def get_table_name(loader) -> str:
+def get_table_name(loader: Dict[str, Any]) -> Optional[str]:
     for k,v in loader.items():
         if not k.startswith(MTD_LOADER_TABLE_PREFIX):
             table_name = k.split(MTD_LOADER_TABLE_DELIMITER)[0]
             return table_name
+    return None
 
 
-def parse_record(record, loader, temp_uids) -> Dict[str, Any]:
-    parsed_record = {} # type: Dict[str, str]
+def parse_record(
+        record: Union[PymarcField, PymarcRecord],
+        loader: Dict[str, Any],
+        temp_uids: Dict[str, str]
+    ) -> Dict[str, Any]:
+    parsed_record = {} # type: Dict[str, Optional[str]]
     for k,v in loader.items():
         if not k.startswith(MTD_LOADER_TABLE_PREFIX):
             table_name, column = k.split(".")
@@ -174,7 +172,12 @@ def parse_record(record, loader, temp_uids) -> Dict[str, Any]:
 
 #What happens if a unique constraint is violated on a data table?
 #How do I give the existing uuid to the relationship table? 
-def store_record(parsed_record, engine, temp_uids, table_name) -> Dict[str, str]:
+def store_record(
+        parsed_record: Dict[str, Any],
+        engine: DBEngine,
+        temp_uids: Dict[str, str],
+        table_name: str
+    ) -> Dict[str, str]:
     with manage_db_session(engine) as session:
         model = get_class_by_table_name(table_name)
         db_object = model(**parsed_record)
@@ -185,7 +188,13 @@ def store_record(parsed_record, engine, temp_uids, table_name) -> Dict[str, str]
     return temp_uids
 
 
-def load_record(data, loader, engine, temp_uids: Dict[str, str] = None, **kwargs: Any) -> None:
+def load_record(
+        data: Union[PymarcField, PymarcRecord],
+        loader: Dict[str, Any],
+        engine: DBEngine,
+        temp_uids: Dict[str, str] = None,
+        **kwargs: Any
+    ) -> None:
     if temp_uids is None: temp_uids = {}
     records = get_data(data, loader)
     sub_loaders = get_loaders(loader)
@@ -198,11 +207,17 @@ def load_record(data, loader, engine, temp_uids: Dict[str, str] = None, **kwargs
             load_record(data=record, loader=sub_loader, engine=engine, temp_uids=temp_uids)
 
 
-def load_database(records: List[PymarcRecord], db_config: DBConfig, logging_flag: bool = True, **kwargs: Any) -> None:
+def load_database(
+        records: List[PymarcRecord],
+        db_config: DBConfig=DB_CONFIG,
+        loader_config_file: str=MTD_LOADER_CONFIG_FILE,
+        logging_flag: bool = True,
+        **kwargs: Any
+    ) -> None:
     db_engine = initialise_db(db_config, **kwargs)
     total = len(records)
     start_time = time.time()
-    with open_file(MTD_LOADER_CONFIG_FILE) as yaml_file:
+    with open_file(loader_config_file) as yaml_file:
         loader = yaml.load(yaml_file)
     for i, record in enumerate(records):
         load_record(data=record, loader=loader, engine=db_engine, **kwargs)
@@ -213,7 +228,7 @@ def load_database(records: List[PymarcRecord], db_config: DBConfig, logging_flag
 # Reader IO Functions
 
 
-def sample_records(records: List[PymarcRecord], sample_size: int = 0) -> List[PymarcRecord]:
+def sample_records(records: List[Any], sample_size: int = 0) -> List[Any]:
     return records if sample_size == 0 else random.sample(records, sample_size)
 
 
@@ -222,11 +237,11 @@ def read_marcxml(input_file: str, sample_size: int = 0, **kwargs: Any) -> List[P
 
 
 def read_marc21(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
-    return list(pymarc.reader.MARCReader(file(input_file)))
+    return list(pymarc.reader.MARCReader(input_file))
 
 
 def read_json(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
-    return list(pymarc.reader.JSONReader(file(input_file)))
+    return list(pymarc.reader.JSONReader(input_file))
 
 
 def read_file(input_file: FilePath, sample_size: int = 0, **kwargs: Any) -> List[PymarcRecord]:

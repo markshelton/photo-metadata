@@ -24,7 +24,17 @@ from sqlalchemy.orm import scoped_session, sessionmaker, load_only
 
 from thickshake.mtd.schema import Base
 from thickshake.utils import maybe_make_directory, setup_logging, setup_warnings
-from thickshake.types import *
+
+##########################################################
+# Typing Configuration
+
+from typing import Optional, Union, List, Dict, Any, Tuple, Iterator, Iterable
+
+DBConfig = Dict[str, Optional[str]]
+DBEngine = Any
+DBSession = Any
+Series = Iterable[Any]
+DataFrame = Dict[str, Series]
 
 ##########################################################
 # Environmental Variables
@@ -50,28 +60,32 @@ def get_class_by_table_name(table_name: str) -> Any:
     if hasattr(c, '__tablename__') and c.__tablename__ == table_name:
       return c
 
+
 def get_primary_key(table_name: str = None, model: Any = None) -> List[str]:
     assert model is not None or table_name is not None
-    if model is None: model = get_class_by_table_name(table_name)
+    if model is None and table_name is not None: 
+        model = get_class_by_table_name(table_name)
     pk_columns = inspect(model).primary_key
     return [pk.name for pk in pk_columns]
 
-def make_db_tables(db_engine: Engine) -> None:
+
+def make_db_tables(db_engine: DBEngine) -> None:
     Base.metadata.create_all(db_engine)
 
 
-def remove_db_tables(db_engine: Engine) -> None:
+def remove_db_tables(db_engine: DBEngine) -> None:
     Base.metadata.drop_all(db_engine)
 
 
-def make_db_engine(db_config: DBConfig=DB_CONFIG) -> Engine:
+def make_db_engine(db_config: DBConfig=DB_CONFIG) -> DBEngine:
     db_url = url.URL(**db_config)
+    if db_config["database"] is None: return None
     maybe_make_directory(db_config["database"])
     db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True)
     return db_engine
 
 
-def initialise_db(db_config: DBConfig=DB_CONFIG, clear_flag: bool = False, **kwargs: Any) -> Engine:
+def initialise_db(db_config: DBConfig=DB_CONFIG, clear_flag: bool = False, **kwargs: Any) -> DBEngine:
     db_engine = make_db_engine(db_config)
     if clear_flag: remove_db_tables(db_engine)
     make_db_tables(db_engine)
@@ -79,7 +93,7 @@ def initialise_db(db_config: DBConfig=DB_CONFIG, clear_flag: bool = False, **kwa
 
 
 @contextmanager
-def manage_db_session(db_engine: Engine) -> Iterator[Session]:
+def manage_db_session(db_engine: DBEngine) -> Iterator[DBSession]:
     Session = sessionmaker(autocommit=False, autoflush=True, bind=db_engine)
     session = scoped_session(Session)
     try:
@@ -94,6 +108,7 @@ def manage_db_session(db_engine: Engine) -> Iterator[Session]:
         session.close()
 
 
+#FIX - convert to Sqlalchemy ORM
 def dump_database(db_config: DBConfig=DB_CONFIG, **kwargs: Any) -> List[Dict[str, Any]]:
     db_engine = initialise_db(db_config, **kwargs)
     with manage_db_session(db_engine) as session:
@@ -125,6 +140,7 @@ def load_column(table: str, column: str, db_config: DBConfig=DB_CONFIG) -> Serie
         series = df[column]
         return series
 
+
 #TODO
 def save_column(table: str, column: str, series: Series, db_config: DBConfig=DB_CONFIG) -> None:
     db_engine = initialise_db(db_config)
@@ -136,7 +152,7 @@ def save_column(table: str, column: str, series: Series, db_config: DBConfig=DB_
 def save_columns(output_map: Dict[str, Tuple[str, str]], data: DataFrame, db_config: DBConfig=DB_CONFIG) -> None:
     for column in data:
         if column in output_map:
-            save_column(*output_map[column], series=data[column], db_config=db_config)
+            save_column(*(output_map[column]), series=data[column], db_config=db_config)
 
 
 def inspect_database(db_config: DBConfig=DB_CONFIG) -> None:

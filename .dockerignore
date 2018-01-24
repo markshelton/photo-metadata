@@ -1,7 +1,7 @@
 data
 dist
 docs
-other
+project
 
 .git
 **/.ipynb_checkpoints

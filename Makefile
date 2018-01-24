@@ -29,7 +29,7 @@ docs-help:
 # DOCKER COMPOSE COMMANDS
 #######################################################################
 
-DOCKER_COMPOSE_MAKE_DIR = config/docker-compose/
+DOCKER_COMPOSE_MAKE_DIR = docker/compose/
 DOCKER_COMPOSE_MAKE = $(MAKE) -C $(DOCKER_COMPOSE_MAKE_DIR) 
 
 .PHONY: start stop restart up jupyter shell
@@ -56,7 +56,7 @@ shell:
 # DOCKER BUILD COMMANDS
 #######################################################################
 
-DOCKER_BUILD_MAKE_DIR = config/docker/
+DOCKER_BUILD_MAKE_DIR = docker/build/
 DOCKER_BUILD_MAKE = $(MAKE) -C $(DOCKER_BUILD_MAKE_DIR) 
 
 .PHONY: build push

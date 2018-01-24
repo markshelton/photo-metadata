@@ -19,6 +19,7 @@ dist
 # Documentation
 ####################
 docs/build
+*.rst
 
 
 # Logs & Databases

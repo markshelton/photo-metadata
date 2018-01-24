@@ -11,16 +11,16 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     env_file:
-      - ../CONFIG.env
-      - build.env
+      - ../docker.env
+      - compose.env
   
   app:
     container_name: ${CONTAINER_APP_NAME}
     image: ${APP_IMAGE}:${APP_VERSION}
     env_file:
-      - ../CONFIG.env
+      - ../docker.env
       - ../.secrets
-      - build.env
+      - compose.env
     environment: 
       DB_HOST: db
     volumes:

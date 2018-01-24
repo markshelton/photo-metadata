@@ -17,7 +17,7 @@ CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 # LIBRARY CONFIGURATION
 #######################################################################
 
-LIBRARY_CONFIG_PATH = ../CONFIG.env
+LIBRARY_CONFIG_PATH = ../docker.env
 include $(LIBRARY_CONFIG_PATH)
 export $(shell sed 's/=.*//' $(LIBRARY_CONFIG_PATH))
 
@@ -25,7 +25,7 @@ export $(shell sed 's/=.*//' $(LIBRARY_CONFIG_PATH))
 # APP CONFIGURATION
 #######################################################################
 
-APP_CONFIG_PATH = ./build.env
+APP_CONFIG_PATH = ./compose.env
 include $(APP_CONFIG_PATH)
 export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
 

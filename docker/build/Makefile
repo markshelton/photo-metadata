@@ -16,18 +16,18 @@ CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 	tag tag-latest tag-version 
 
 #######################################################################
-# LIBRARY CONFIGURATION
+# DOCKER CONFIGURATION
 #######################################################################
 
-LIBRARY_CONFIG_PATH = ../CONFIG.env
-include $(LIBRARY_CONFIG_PATH)
-export $(shell sed 's/=.*//' $(LIBRARY_CONFIG_PATH))
+DOCKER_CONFIG_PATH = ../docker.env
+include $(DOCKER_CONFIG_PATH)
+export $(shell sed 's/=.*//' $(DOCKER_CONFIG_PATH))
 
 #######################################################################
 # IMAGE CONFIGURATION
 #######################################################################
 
-IMAGE_CONFIG_PATH = ./image.env
+IMAGE_CONFIG_PATH = ./build.env
 include $(IMAGE_CONFIG_PATH)
 export $(shell sed 's/=.*//' $(IMAGE_CONFIG_PATH))
 

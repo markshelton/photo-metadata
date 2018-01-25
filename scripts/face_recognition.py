@@ -9,9 +9,9 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.parse import load_marcxml
-from thickshake.img.faces import extract_faces_from_images
-from thickshake.clf.classifier import run_classifier
+from thickshake.metadata.parse import load_marcxml
+from thickshake.image.faces import extract_faces_from_images
+from thickshake.classifier.classifier import run_classifier
 from thickshake.utils import setup_warnings, setup_logging
 from thickshake._types import *
 

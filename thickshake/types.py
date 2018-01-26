@@ -29,7 +29,6 @@ File = Any
 ##########################################################
 # Local Types
 
-DirPath = FilePath
 Label = int
 
 Match = Dict[str, str]
@@ -45,11 +44,6 @@ Location = Dict[str, Optional[str]]
 Tag = TypedDict('Tag', {"field": str, "subfield": str})
 Size = TypedDict("Size", {"width": int, "height": int})
 Dates = TypedDict("Dates", {"start": Optional[Date], "end": Optional[Date]})
-DBConfig = TypedDict("DBConfig", {
-    'database': str, 'drivername': str, 'host': Optional[str],
-    'username': Optional[str], 'password': Optional[str],
-    }, total=False
-)
 
 DatasetRecord = TypedDict("DatasetRecord", {"features": Features, "label": Label, "path": FilePath}, total=False)
 Dataset = List[DatasetRecord]

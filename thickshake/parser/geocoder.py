@@ -9,39 +9,58 @@ import csv
 import json
 import logging
 import os
-import pandas as pd
 import re
 import time
-from envparse import env
 
 ##########################################################
 # Third Party Imports
 
+from envparse import env
 import geopy.distance
+import pandas as pd
 import requests
 
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import load_column
-from thickshake.utils import setup_logging, setup_warnings, log_progress, deep_get, consolidate_list
-from thickshake.types import *
+from thickshake.database import Database
+from thickshake.utils import (
+    setup_logging, setup_warnings,
+    log_progress, deep_get, consolidate_list,
+)
 
 ##########################################################
-# Environmental Variables
+# Typing Configuration
+
+from typing import Any, List, Dict, Optional, Pattern, Match, Iterable
+Address = Dict[str, Optional[str]]
+Location = Dict[str, Optional[str]]
+Series = Iterable[Any]
+DataFrame = Dict[str, Series]
+FilePath = str
+Url = str
+
+##########################################################
+# Constants
+
+MAPPIFY_BASE_URL = env.str("MAPPIFY_BASE_URL", default="https://mappify.io/api/rpc/address/geocode/") # type: Url
+MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None) # type: Optional[str]
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-MTD_LOC_STREET_TYPES_FILE = env.str("MTD_LOC_STREET_TYPES_FILE", default="%s/deps/aus_street_types.csv" % (CURRENT_FILE_DIR)) # type: FilePath
-MTD_LOC_SUBURB_NAMES_FILE = env.str("MTD_LOC_SUBURB_NAMES_FILE", default="%s/deps/wa_suburb_names.csv" % (CURRENT_FILE_DIR)) # type: FilePath
-MTD_LOC_ADDRESS_STOP_WORDS_FILE = env.str("MTD_LOC_ADDRESS_STOP_WORDS_FILE", default="%s/deps/stop_words.csv" % (CURRENT_FILE_DIR)) # type: FilePath
-MTD_LOC_DEFAULT_STATE = env.str("MTD_LOC_DEFAULT_STATE", default="WA")
-MAPPIFY_BASE_URL = env.str("MAPPIFY_BASE_URL", default="https://mappify.io/api/rpc/address/geocode/")
-MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None)
+MTD_LOC_STREET_TYPES_FILE = "%s/deps/aus_street_types.csv" % (CURRENT_FILE_DIR) # type: FilePath
+MTD_LOC_SUBURB_NAMES_FILE = "%s/deps/wa_suburb_names.csv" % (CURRENT_FILE_DIR) # type: FilePath
+MTD_LOC_ADDRESS_STOP_WORDS_FILE ="%s/deps/stop_words.csv" % (CURRENT_FILE_DIR) # type: FilePath
+MTD_LOC_DEFAULT_STATE = "WA" # type: str
 
 ##########################################################
 # Logging Configuration
 
 logger = logging.getLogger(__name__)
+
+##########################################################
+# Database Configuration
+
+database = Database()
 
 ##########################################################
 # Helpers
@@ -130,7 +149,7 @@ def generate_params(
     return params_dict
 
 
-def geocode_address(address: Address, api_url: str=MAPPIFY_BASE_URL) -> Location:
+def geocode_address(address: Address, api_url: Url=MAPPIFY_BASE_URL) -> Location:
     params = generate_params(address)
     if params["streetAddress"] != "":
         res = requests.post(api_url, json=params)
@@ -199,13 +218,15 @@ def extract_locations(series: Series, logging_flag: bool = True, sample_size: in
 ##########################################################
 # Main
 
-def main():
-    notes = load_column(table="image",column="image_note")
-    locations = extract_locations(notes)
-    print(locations)
 
+def main():
+    pass
+    
 
 if __name__ == "__main__":
     setup_logging()
     setup_warnings()
     main()
+
+
+##########################################################

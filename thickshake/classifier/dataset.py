@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
 ##########################################################
 # Standard Library Imports
 
@@ -22,26 +26,20 @@ from sklearn.model_selection import train_test_split
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import manage_db_session, initialise_db
-from thickshake.mtd.writer import write_hdf5
+from thickshake.metadata.database import Database
+from thickshake.metadata.writer import write_hdf5
 from thickshake.utils import setup_logging, setup_warnings, log_progress
 from thickshake.types import *
 
 ##########################################################
-# Environmental Variables
+# Typing Configuration
 
-OUTPUT_IMAGE_DATA_FILE =  env.str("OUTPUT_IMAGE_DATA_FILE", default="/home/app/data/output/faces.hdf5")
-OUTPUT_METADATA_FILE =  env.str("OUTPUT_METADATA_FILE", default="/home/app/data/output/metadata.hdf5")
-
-FLAG_CLF_LABEL_KEY = env.str("FLAG_CLF_LABEL_KEY", default="subject_name") # type: str
-FLAG_CLF_FEATURE_LIST = env.str("FLAG_CLF_FEATURE_LIST", default=None) # type: Optional[str]
-FLAG_CLF_LOGGING = env.str("FLAG_CLF_LOGGING", default=True)
-FLAG_CLF_SAMPLE = 20 #env.int("FLAG_CLF_SAMPLE", default=20)
 
 ##########################################################
-# Logging Configuration
+# Constants & Initialization
 
 logger = logging.getLogger(__name__)
+database = Database()
 
 ##########################################################
 # Functions

@@ -6,27 +6,22 @@
 # Standard Library Imports
 
 import logging
-import random
+import os
 import time
 
 ##########################################################
 # Third Party Imports
 
-from envparse import env
 import pymarc
-import sqlalchemy.engine
 import yaml
 
 ##########################################################
 # Local Imports
 
-from thickshake.mtd.database import (
-    manage_db_session, initialise_db,
-    get_class_by_table_name,
-)
+from thickshake.database import Database
 from thickshake.utils import (
-    log_progress, setup_warnings,
-    setup_logging, get_file_type, open_file,
+    setup_warnings, setup_logging,
+    log_progress, open_file,
 )
 
 ##########################################################
@@ -34,44 +29,23 @@ from thickshake.utils import (
 
 from typing import Optional, Union, List, Dict, Any
 
-DBConfig = Dict[str, Optional[str]]
-DBEngine = Any
 Tag = Dict[str, Optional[str]]
-FilePath = str
-DirPath = str
 PymarcField = Any
 PymarcRecord = Any
 
 ##########################################################
-# Environmental Variables
+# Constants
 
-INPUT_METADATA_FILE = env.str("INPUT_METADATA_FILE") # type: FilePath
+CURRENT_FILE_DIR, _ = os.path.split(__file__)
+METADATA_CONFIG_FILE = "%s/deps/marc_map.yaml" % (CURRENT_FILE_DIR)
+METADATA_CONFIG_TABLE_PREFIX="$"
+METADATA_CONFIG_TABLE_DELIMITER="."
+METADATA_CONFIG_TAG_DELIMITER="$"
 
-OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE", default="")
+##########################################################
+# Database Configuration
 
-FLAG_MTD_GEOCODING = env.bool("FLAG_MTD_GEOCODING", default=False)
-FLAG_MTD_DIMENSIONS = env.bool("FLAG_MTD_DIMENSIONS", default=False)
-FLAG_MTD_LOGGING = env.bool("FLAG_MTD_LOGGING", default=True)
-FLAG_MTD_SAMPLE = env.int("FLAG_MTD_SAMPLE", default=0)
-
-DB_CONFIG = {} # type: DBConfig
-DB_CONFIG["drivername"] = env.str("DB_DRIVER")
-DB_CONFIG["host"] = env.str("DB_HOST")
-DB_CONFIG["database"] = env.str("POSTGRES_DB")
-DB_CONFIG["username"] = env.str("POSTGRES_USER")
-DB_CONFIG["password"] = env.str("POSTGRES_PASSWORD")
-
-MTD_LOADER_CONFIG_FILE = env.str("MTD_LOADER_CONFIG_FILE", default="/home/app/config/marc_loader.yaml")
-MTD_LOADER_TABLE_PREFIX = env.str("MTD_LOADER_TABLE_PREFIX", default="$")
-MTD_LOADER_TABLE_DELIMITER = env.str("MTD_LOADER_TABLE_DELIMITER", default=".")
-MTD_LOADER_TAG_DELIMITER = env.str("MTD_LOADER_TAG_DELIMITER", default="$")
-
-class FileType:
-    JSON = ".json"
-    HDF5 = ".hdf5"
-    MARC21 = ".marc"
-    MARCXML = ".xml"
-    CSV = ".csv"
+database = Database()
 
 ##########################################################
 # Logging Configuration
@@ -120,7 +94,7 @@ def split_tag_key(tag_key: str) -> Optional[Tag]:
 
 
 ##########################################################
-# MARC Loader
+# Functions
 
 
 def get_data(
@@ -174,12 +148,11 @@ def parse_record(
 #How do I give the existing uuid to the relationship table? 
 def store_record(
         parsed_record: Dict[str, Any],
-        engine: DBEngine,
         temp_uids: Dict[str, str],
         table_name: str
     ) -> Dict[str, str]:
-    with manage_db_session(engine) as session:
-        model = get_class_by_table_name(table_name)
+    with database.manage_db_session() as session:
+        model = database.get_class_by_table_name(table_name)
         db_object = model(**parsed_record)
         session.add(db_object)
         session.flush()
@@ -191,7 +164,6 @@ def store_record(
 def load_record(
         data: Union[PymarcField, PymarcRecord],
         loader: Dict[str, Any],
-        engine: DBEngine,
         temp_uids: Dict[str, str] = None,
         **kwargs: Any
     ) -> None:
@@ -204,67 +176,29 @@ def load_record(
             parsed_record = parse_record(record, loader, temp_uids)
             temp_uids = store_record(parsed_record, engine, temp_uids, table_name)
         for sub_loader in sub_loaders:
-            load_record(data=record, loader=sub_loader, engine=engine, temp_uids=temp_uids)
+            load_record(data=record, loader=sub_loader, temp_uids=temp_uids)
 
 
 def load_database(
         records: List[PymarcRecord],
-        db_config: DBConfig=DB_CONFIG,
-        loader_config_file: str=MTD_LOADER_CONFIG_FILE,
+        loader_config_file: str,
         logging_flag: bool = True,
         **kwargs: Any
     ) -> None:
-    db_engine = initialise_db(db_config, **kwargs)
     total = len(records)
     start_time = time.time()
     with open_file(loader_config_file) as yaml_file:
         loader = yaml.load(yaml_file)
     for i, record in enumerate(records):
-        load_record(data=record, loader=loader, engine=db_engine, **kwargs)
+        load_record(data=record, loader=loader, **kwargs)
         if logging_flag: log_progress(i+1, total, start_time)
-
-
-##########################################################
-# Reader IO Functions
-
-
-def sample_records(records: List[Any], sample_size: int = 0) -> List[Any]:
-    return records if sample_size == 0 else random.sample(records, sample_size)
-
-
-def read_marcxml(input_file: str, sample_size: int = 0, **kwargs: Any) -> List[PymarcRecord]:
-    return pymarc.parse_xml_to_array(input_file)
-
-
-def read_marc21(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
-    return list(pymarc.reader.MARCReader(input_file))
-
-
-def read_json(input_file: FilePath, **kwargs: Any) -> List[PymarcRecord]:
-    return list(pymarc.reader.JSONReader(input_file))
-
-
-def read_file(input_file: FilePath, sample_size: int = 0, **kwargs: Any) -> List[PymarcRecord]:
-    file_type = get_file_type(input_file)
-    if file_type == FileType.JSON:
-        records = read_json(input_file, **kwargs)
-    elif file_type == FileType.MARC21:
-        records = read_marc21(input_file, **kwargs)
-    elif file_type == FileType.MARCXML:
-        records = read_marcxml(input_file, **kwargs)
-    else: raise NotImplementedError
-    records = sample_records(records, sample_size=sample_size)
-    return records
 
 
 ##########################################################
 # Main
 
+
 def main():
-    records = read_file(
-        input_file=INPUT_METADATA_FILE,
-        sample_size=0
-    )
     load_database(
         records=records,
         db_config=DB_CONFIG,
@@ -272,7 +206,11 @@ def main():
         logging_flag=True,
     )
 
+
 if __name__ == "__main__":
     setup_warnings()
     setup_logging()
     main()
+
+
+##########################################################

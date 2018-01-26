@@ -8,16 +8,26 @@ import os
 # Third Party Imports
 
 import cv2
-import h5py
 
 ##########################################################
 # Local Imports
 
 from thickshake.utils import maybe_increment_path, maybe_make_directory
-from thickshake.types import *
 
 ##########################################################
-# Logging Configuration
+# Typing Configuration
+
+from typing import Any, Optional
+ImageType = Any
+FilePath = str 
+DirPath = str
+
+##########################################################
+# Constants
+
+
+##########################################################
+# Initialization
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +47,7 @@ def show_image(image_rgb: ImageType) -> None:
     plt.show()
 
 
-def enhance_image(image):
+def enhance_image(image: ImageType) -> ImageType:
     image_YCrCb = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     channels = [clahe.apply(channel) for channel in cv2.split(image_YCrCb)]
@@ -51,7 +61,7 @@ def save_image(
         image_file: FilePath,
         input_images_dir: Optional[DirPath] = None,
         output_images_dir: Optional[DirPath] = None,
-        **kwargs
+        **kwargs: Any
     ) -> FilePath:
     if output_images_dir is None or input_images_dir is None: return None
     output_file = image_file.replace(input_images_dir, output_images_dir)
@@ -61,18 +71,5 @@ def save_image(
     cv2.imwrite(image_file, image_bgr)
     return image_file
 
-
-def save_object(
-        save_object: Any,
-        object_name: str,
-        image_file: FilePath,
-        output_file: Optional[FilePath] = None,
-        **kwargs
-    ) -> None:
-    if output_file is None: return None
-    image_id = os.path.basename(image_file).split(".")[0]
-    with h5py.File(output_file, "a") as f:
-        grp = f.require_group(object_name)
-        grp.create_dataset(image_id, data=save_object)
 
 ##########################################################

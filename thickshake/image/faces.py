@@ -10,41 +10,23 @@ import time
 
 import cv2
 import dlib
+from envparse import env
 import h5py
 import numpy as np
-
-from envparse import env
 from matplotlib import pyplot as plt
 
 ##########################################################
 # Local Imports
 
+from thickshake.datastore import Store
 from thickshake.utils import (
-    logged, setup_logging, setup_warnings, log_progress,
-    clear_directory, maybe_increment_path, get_files_in_directory,
+    setup, log_progress, clear_directory,
+    maybe_increment_path, get_files_in_directory,
     maybe_make_directory,
 )
-from thickshake.types import *
 
 ##########################################################
-# Environmental Variables
-
-INPUT_IMAGE_DIR = env.str("INPUT_IMAGE_DIR", default="/home/app/data/input/images/JPEG_Convert_Resolution_1024") # type: DirPath
-OUTPUT_IMAGE_FACES_DIR = env.str("OUTPUT_IMAGE_FACES_DIR", default="/home/app/data/output/images/faces") # type: DirPath
-OUTPUT_IMAGE_ANNOTATIONS_DIR = env.str("OUTPUT_IMAGE_ANNOTATIONS_DIR", default="/home/app/data/output/images/face_annotations") # type: DirPath
-OUTPUT_IMAGE_DATA_FILE = env.str("OUTPUT_IMAGE_DATA_FILE", default="/home/app/data/output/face_recognition/faces.hdf5") # type: FilePath
-
-FLAG_IMG_SAMPLE = env.int("FLAG_IMG_SAMPLE", default=0)
-FLAG_IMG_FACE_SIZE = env.int("FLAG_IMG_FACE_SIZE", default=200)
-FLAG_IMG_CLEAR_FACES = env.bool("FLAG_IMG_CLEAR_FACES", default=True)
-FLAG_IMG_OVERWRITE_FACES = env.bool("FLAG_IMG_OVERWRITE_FACES", default=True)
-FLAG_IMG_SAVE_FACES = env.bool("FLAG_IMG_SAVE_FACES", default=True)
-FLAG_IMG_SHOW_FACES = env.bool("FLAG_IMG_SHOW_FACES", default=False)
-FLAG_IMG_SAVE_IMAGES = env.bool("FLAG_IMG_SAVE_IMAGES", default=True)
-FLAG_IMG_SHOW_IMAGES = env.bool("FLAG_IMG_SHOW_IMAGES", default=True)
-FLAG_IMG_LOGGING = env.bool("FLAG_IMG_LOGGING", default=True)
-FLAG_IMG_LANDMARK_INDICES = env.list("", default=[39, 42, 57], subcast=int) #INNER_EYES_AND_BOTTOM_LIP
-#FLAG_IMG_LANDMARK_INDICES = env.list("", default=[36, 45, 33], subcast=int) #OUTER_EYES_AND_NOSE
+# Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
 IMG_FACE_PREDICTOR_FILE = env.str("IMG_FACE_PREDICTOR_FILE", default="%s/deps/shape_predictor_68_face_landmarks.dat" % CURRENT_FILE_DIR)
@@ -52,9 +34,10 @@ IMG_FACE_RECOGNIZER_FILE = env.str("IMG_FACE_RECOGNIZER_FILE", default="%s/deps/
 IMG_FACE_TEMPLATE_FILE = env.str("IMG_FACE_TEMPLATE_FILE", default="%s/deps/openface_68_face_template.npy" % CURRENT_FILE_DIR)
 
 ##########################################################
-# Logging Configuration
+# Initialization
 
 logger = logging.getLogger(__name__)
+store = Store()
 
 ##########################################################
 # Functions
@@ -146,7 +129,7 @@ def extract_faces_from_image(
 
 
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
-def extract_faces_from_images(
+def extract_faces(
         input_images_dir: DirPath,
         predictor_path: FilePath = IMG_FACE_PREDICTOR_FILE,
         recognizer_path: FilePath = IMG_FACE_RECOGNIZER_FILE,
@@ -188,7 +171,7 @@ def extract_faces_from_images(
 # Main
 
 def main():
-    extract_faces_from_images(
+    extract_faces(
         input_images_dir=INPUT_IMAGE_DIR,
         output_faces_dir=OUTPUT_IMAGE_FACES_DIR,
         output_images_dir=OUTPUT_IMAGE_ANNOTATIONS_DIR,
@@ -210,8 +193,7 @@ def main():
 
 
 if __name__ == "__main__":
-    setup_logging()
-    setup_warnings()
+    setup()
     main()
 
 ##########################################################
@@ -240,3 +222,4 @@ For each image:
             5. Save face encoding with image metadata
 
 """
+##########################################################

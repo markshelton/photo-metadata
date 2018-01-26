@@ -1,8 +1,8 @@
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
 except ImportError:
     print("WARNING: setuptools not installed. Will try using distutils instead..")
-    from distutils.core import setup
+    from distutils.core import setup, find_packages
 
 setup(name='thickshake',
       version='1.0.0',
@@ -22,6 +22,10 @@ setup(name='thickshake',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
       ],
-      packages=['thickshake'],
+      packages=find_packages(),
+      include_package_data=True,
+      install_requires=[
+          "Click",
+      ]
       test_suite='tests',
       zip_safe=False)

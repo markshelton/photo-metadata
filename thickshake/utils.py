@@ -88,6 +88,7 @@ def setup_logging(internal: int=logging.DEBUG, external: int=logging.WARN) -> No
     logging.getLogger("sqlalchemy.engine").setLevel(external)
     logging.getLogger("PIL.Image").setLevel(external)
     logging.getLogger("PIL.PngImagePlugin").setLevel(external)
+    #logging.getLogger("hyperopt.tpe").setLevel(external)
     logging.getLogger("datefinder").setLevel(external)
 
 

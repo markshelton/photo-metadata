@@ -42,6 +42,15 @@ def rect_to_bb(rect):
 	return (x, y, w, h)
 
 
+def crop(image, box, bleed):
+    return image.crop((
+        box[0] - bleed,
+        box[1] - bleed,
+        box[0] + box[2] + bleed,
+        box[1] + box[3] + bleed
+    ))
+
+
 def show_image(image_rgb: ImageType) -> None:
     plt.imshow(image_rgb)
     plt.show()

@@ -1,6 +1,6 @@
 # Thickshake
 
-Thickshake is a Python library for handling historical images.
+Thickshake is a Python package for improving your library catalogue.
 
 It contains functions to assist with:
 

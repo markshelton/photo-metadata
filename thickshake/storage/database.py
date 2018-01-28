@@ -23,7 +23,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker, load_only
 # Local Imports
 
 from thickshake.metadata.schema import Base
-from thickshake.utils import setup, maybe_make_directory
+from thickshake.helpers import setup, maybe_make_directory
 
 ##########################################################
 # Typing Configuration
@@ -127,6 +127,23 @@ class Database:
             result = session.execute(text(sql_text)).fetchall()
             result = [dict(record) for record in result]
             return result
+
+
+    #Convert to sqlalchemy ORM
+    def dump(self) -> List[Dict[str, Any]]:
+        sql_text =  "SELECT *\n"
+        sql_text += "FROM image\n"
+        sql_text += "NATURAL LEFT JOIN image_location\n"
+        sql_text += "NATURAL LEFT JOIN location\n"
+        sql_text += "NATURAL LEFT JOIN record\n"
+        sql_text += "NATURAL LEFT JOIN record_subject\n"
+        sql_text += "NATURAL LEFT JOIN subject\n"
+        sql_text += "NATURAL LEFT JOIN record_location\n"
+        sql_text += "NATURAL LEFT JOIN record_topic\n"
+        sql_text += "NATURAL LEFT JOIN topic\n"
+        sql_text += ";"
+        result = self.execute_text_query(sql_text)
+        return result
 
 
     def load_column(self, table: str, column: str) -> Series:

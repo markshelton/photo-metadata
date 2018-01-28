@@ -15,21 +15,16 @@ import random
 ##########################################################
 # Third Party Imports
 
-from envparse import env
-import h5py
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.python.framework import ops
 from sklearn.model_selection import train_test_split
 
 ##########################################################
 # Local Imports
 
-from thickshake.metadata.database import Database
-from thickshake.metadata.writer import write_hdf5
-from thickshake.utils import setup_logging, setup_warnings, log_progress
-from thickshake.types import *
+from thickshake.storage.store import Store
+from thickshake.helpers import setup, log_progress
 
 ##########################################################
 # Typing Configuration
@@ -158,8 +153,7 @@ def main():
     )
 
 if __name__ == "__main__":
-    setup_logging()
-    setup_warnings()
+    setup()
     main()
 
 ##########################################################

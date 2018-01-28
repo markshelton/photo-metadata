@@ -57,6 +57,11 @@ class Store:
 
 
     #TODO
+    def save_records(self, obj: Any, group_name: str) -> None:
+        pass
+
+
+    #TODO
     def retrieve_object(self, group_name: str, object_id: str = None) -> None:
         with h5py.File(self.path, "a") as f:
             pass

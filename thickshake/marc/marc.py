@@ -18,7 +18,7 @@ from thickshake.metadata.reader import read_file
 from thickshake.metadata.loader import load_database
 from thickshake.metadata.exporter import dump_database
 from thickshake.metadata.writer import write_file
-from thickshake.utils import setup
+from thickshake.helpers import setup
 
 ##########################################################
 # Typing Configuration
@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Functions
 
+def generate_diff(input_path: FilePath, output_path: FilePath) -> FilePath:
+    pass
 
 # Import metadata files from any format to RDBMS
 def import_metadata(input_file: FilePath, **kwargs) -> None:
@@ -50,6 +52,17 @@ def export_metadata(output_file: FilePath, **kwargs) -> None:
     assert not os.path.exists(output_file)
     records = dump_database()
     write_file(records, output_file)
+
+
+# Convert metadata files from one format to another
+# e.g. MARCXML -> SQL Dump, MARC21 -> HDF5
+def convert_metadata(
+        input_metadata_file: FilePath,
+        output_metadata_file: FilePath,
+        **kwargs
+    ) -> None:
+    import_metadata(input_metadata_file, **kwargs)
+    export_metadata(output_metadata_file, **kwargs)
 
 
 ##########################################################

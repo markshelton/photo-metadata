@@ -13,8 +13,12 @@ from envparse import env
 
 from thickshake.parser.geocoder import extract_location
 from thickshake.database import Database
-from thickshake.utils import setup_logging, setup_warnings
-from thickshake.types import *
+from thickshake.helpers import setup_logging, setup_warnings
+
+##########################################################
+# Typing Configuration
+
+from typing import Tuple, Dict, Any
 
 ##########################################################
 # Constants
@@ -29,16 +33,6 @@ database = Database()
 # Functions
 
 
-# 
-def augment_metadata(**kwargs: Any) -> None:
-    process_field(
-        input_field=("image", "image_note"),
-        output_field={}, # TODO
-        parser=extract_location,
-        **kwargs
-    )
-
-
 def process_field(
         input_field: Tuple[str, str], # Table, Column
         output_field: Dict[str, Tuple[str, str]], # Map (df column -> (db table, db column))
@@ -48,6 +42,21 @@ def process_field(
     input_series = database.load_column(*input_field)
     output_dataframe = parser(input_series, **kwargs)
     database.save_columns(*output_field, data=output_dataframe)
+
+
+def augment_metadata(
+        input_metadata_file: FilePath,
+        output_metadata_file: FilePath = None,
+        input_image_dir: DirPath = None,
+        diff: bool = True,
+        **kwargs
+    ) -> None:
+    if output_metadata_file is None:
+        output_metadata_file = generate_output_path(input_metadata_file)
+    import_metadata(input_metadata_file, **kwargs)
+    apply_parsers(**kwargs)
+    export_metadata(output_metadata_file, **kwargs)
+    if diff: generate_diff(input_metadata_file, output_metadata_file)
 
 
 ##########################################################

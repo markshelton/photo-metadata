@@ -18,7 +18,7 @@ import h5py
 ##########################################################
 # Local Imports
 
-from thickshake.utils import (
+from thickshake.helpers import (
     open_file, json_serial, log_progress,
     setup_logging, setup_warnings, get_file_type,
 )
@@ -38,8 +38,7 @@ JSONType = Union[Dict[str, Any], List[Any]]
 class FileType:
     JSON = ".json"
     HDF5 = ".hdf5"
-    MARC21 = ".marc"
-    MARCXML = ".xml"
+    XML = ".xml"
     CSV = ".csv"
 
 ##########################################################
@@ -83,11 +82,8 @@ def write_hdf5(records: List[Any], output_file: FilePath, logging_flag: bool = T
             if logging_flag: log_progress(i+1, total, start_time, interval=100)
 
 
-def write_marc21(records: List[Any], output_file: FilePath, **kwargs: Any) -> None:
-    pass
-
-
-def write_marcxml(records: List[Any], output_file: FilePath, **kwargs: Any) -> None:
+#TODO
+def write_xml(records: List[Any], output_file: FilePath, **kwargs: Any) -> None:
     pass
 
 
@@ -97,19 +93,37 @@ def write_log(records: List[Any], **kwargs: Any) -> None:
         logger.info(str(record))
 
 
-def write_file(records: List[Any], output_file: FilePath, **kwargs: Any) -> None:
+#TODO
+def write_to_store(records: List[Any], store: Store, **kwargs: Any) -> None:
+    pass
+
+
+def write_flat_file(records: List[Any], output_file: FilePath, **kwargs: Any) -> None:
     file_type = get_file_type(output_file) #DONE
     if file_type == FileType.JSON:
         write_json(records, output_file, **kwargs) #DONE
     elif file_type == FileType.HDF5:
         write_hdf5(records, output_file, **kwargs) #DONE
-    elif file_type == FileType.MARC21:
-        write_marc21(records, output_file, **kwargs) #TODO
-    elif file_type == FileType.MARCXML:
-        write_marcxml(records, output_file, **kwargs) #TODO
+    elif file_type == FileType.XML:
+        write_xml(records, output_file, **kwargs) #TODO
     elif file_type == FileType.CSV:
         write_csv(records, output_file, **kwargs) #DONE
     else: raise NotImplementedError
+
+
+def export_flat_file(output_file: FilePath, **kwargs: Any) -> None:
+    from thickshake.storage.database import Database
+    database = Database()
+    records = database.dump()
+    write_flat_file(records, output_file, **kwargs)
+
+
+def export_to_store(**kwargs: Any) -> None:
+    from thickshake.storage.database import Database
+    from thickshake.storage.store import Store
+    database = Database()
+    records = database.dump()
+    write_to_store(records, store, **kwargs)
 
 
 ##########################################################

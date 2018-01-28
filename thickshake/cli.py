@@ -22,7 +22,6 @@ from thickshake.datastore import Store
 from thickshake.metadata import metadata
 from thickshake.parser import parser
 from thickshake.image import image
-from thickshake.search import search
 
 ##########################################################
 # Typing Configuration
@@ -74,6 +73,7 @@ store = Store()
 @click.option("-f", "--force", is_flag=True, help="overwrite existing files")
 @click.option("-n", "--dry-run", is_flag=True, help="run without creating files")
 @click.option("-d", "--display", is_flag=True, help="display images in GUI")
+@click.option("-s", "--sample", type=int, default=20, help="perform on random sample")
 @click.pass_context
 def cli(ctx, **kwargs):
     """Functions for improving library catalogues."""
@@ -88,7 +88,7 @@ def cli(ctx, **kwargs):
 @click.pass_context
 def augment(ctx, input_metadata_file: FilePath, output_metadata_file: FilePath, input_image_dir: DirPath, diff: bool) -> None:
     """Applies techniques to improve the metadata."""
-    main.augment_metadata(input_metadata_file, output_metadata_file, input_image_dir, diff, **ctx.obj)
+    parser.augment_metadata(input_metadata_file, output_metadata_file, input_image_dir, diff, **ctx.obj)
 
 
 @cli.command(context_settings=context_settings)
@@ -97,24 +97,7 @@ def augment(ctx, input_metadata_file: FilePath, output_metadata_file: FilePath, 
 @click.pass_context
 def convert(ctx, input_metadata_file: FilePath, output_metadata_file: FilePath) -> None:
     """Converts metadata between file formats."""
-    main.convert_metadata(input_metadata_file, output_metadata_file, **ctx.obj)
-
-
-@cli.command(context_settings=context_settings)
-@click.argument("input_image_file", type=click.Path(exists=True, dir_okay=False))
-@click.argument("input_image_dir", required=False, type=click.Path(exists=True, file_okay=False))
-@click.argument("input_metadata_file", required=False, type=click.Path(exists=True, dir_okay=False))
-@click.option("--func", type=click.Choice(["face", "image", "metadata", "all"]), default="image", help="Search function")
-@click.option("--limit", default=10, help="Number of results to return")
-@click.pass_context
-def search(ctx, input_image_file,  input_image_dir, input_metadata_file, func: str, limit: str) -> None:
-    """Finds similar images in the catalogue."""
-    if "combined" == func: results = search.similar_record(input_image, output_image_dir, limit, **ctx.obj)
-    if "subject" == func: results = search.find_subjects(input_image, input_image_dir, input_metadata_file, limit, **ctx.obj)
-    if "image" == func: results = search.similar_images(input_image, input_image_dir, limit, **ctx.obj)
-    if "metadata" == func: results = search.similar_metadata(input_image, output_image_dir, limit, **ctx.obj)
-    store.save_object(results, "search_results", func)
-    click.echo(results)
+    marc.convert_metadata(input_metadata_file, output_metadata_file, **ctx.obj)
 
 
 @cli.command(context_settings=context_settings)
@@ -127,8 +110,8 @@ def process(ctx, func: str, input_image_dir: DirPath, output_image_dir: DirPath)
     input_images = [cv2.imread(image_file) for image_file in input_image_dir]
     if "all" in func: func = ["face", "caption", "text"]
     if "face" in func: image.extract_faces(input_images, output_image_dir, **ctx.obj)
-    if "caption" in func: image.caption_image(input_images, output_image_dir, **ctx.obj)
     if "text" in func: image.read_text(input_images, output_image_dir, **ctx.obj)
+    if "caption" in func: image.caption_image(input_images, output_image_dir, **ctx.obj)
 
 
 @cli.command(context_settings=context_settings)

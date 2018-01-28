@@ -18,11 +18,7 @@ import yaml
 ##########################################################
 # Local Imports
 
-from thickshake.database import Database
-from thickshake.utils import (
-    setup_warnings, setup_logging,
-    log_progress, open_file,
-)
+from thickshake.helpers import setup, log_progress, open_file
 
 ##########################################################
 # Typing Configuration
@@ -37,15 +33,7 @@ PymarcRecord = Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-METADATA_CONFIG_FILE = "%s/deps/marc_map.yaml" % (CURRENT_FILE_DIR)
-METADATA_CONFIG_TABLE_PREFIX="$"
-METADATA_CONFIG_TABLE_DELIMITER="."
-METADATA_CONFIG_TAG_DELIMITER="$"
-
-##########################################################
-# Database Configuration
-
-database = Database()
+METADATA_CONFIG_FILE = "%s/config.yaml" % (CURRENT_FILE_DIR)
 
 ##########################################################
 # Logging Configuration
@@ -69,8 +57,8 @@ def get_subfield_from_record(record: PymarcRecord, field_key: str, subfield_key:
     return subfield
 
 
-def get_subfield_from_tag(record_or_field: Union[PymarcRecord, PymarcField], tag_key: str) -> Optional[str]:
-    tag = split_tag_key(tag_key)
+def get_subfield_from_tag(record_or_field: Union[PymarcRecord, PymarcField], tag_key: str, tag_delimiter: str = "$") -> Optional[str]:
+    tag = split_tag_key(tag_key, tag_delimiter)
     if tag is None: return None
     field_key = tag["field"]
     subfield_key = tag["subfield"]
@@ -83,9 +71,9 @@ def get_subfield_from_tag(record_or_field: Union[PymarcRecord, PymarcField], tag
     else: return None
 
 
-def split_tag_key(tag_key: str) -> Optional[Tag]:
+def split_tag_key(tag_key: str, tag_delimiter: str = "$") -> Optional[Tag]:
     """Split tag into a tuple of the field and subfield."""
-    tag_list = tag_key.split(MTD_LOADER_TAG_DELIMITER)
+    tag_list = tag_key.split(tag_delimiter)
     if len(tag_key) == 2:
         return Tag(field=tag_list[0], subfield=tag_list[1])
     elif len(tag_key) == 1:
@@ -99,29 +87,30 @@ def split_tag_key(tag_key: str) -> Optional[Tag]:
 
 def get_data(
         data: Union[PymarcField, PymarcRecord],
-        loader: Dict[str, Any]
+        loader: Dict[str, Any],
+        config: Dict[str, Any],
     ) -> Union[List[PymarcField], List[PymarcRecord]]:
     fields = [] # type: List[str]
     if not isinstance(data, pymarc.Field): 
         for k,v in loader.items():
-            if not k.startswith(MTD_LOADER_TABLE_PREFIX):
-                if MTD_LOADER_TAG_DELIMITER in str(v):
-                    field = str(v).split(MTD_LOADER_TAG_DELIMITER)[0]
+            if not k.startswith(config.TABLE_PREFIX):
+                if config.TAG_DELIMITER in str(v):
+                    field = str(v).split(config.TAG_DELIMITER)[0]
                     fields.append(field)
         if len(set(fields)) == 1:
             return data.get_fields(fields[0])
     return [data]
 
 
-def get_loaders(loader: Dict[str, Any]) -> List[Dict[str, Any]]:
-    loaders = [v for k,v in loader.items() if k.startswith(MTD_LOADER_TABLE_PREFIX)]
+def get_loaders(loader: Dict[str, Any], config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    loaders = [v for k,v in loader.items() if k.startswith(config.TABLE_PREFIX)]
     return loaders
 
 
-def get_table_name(loader: Dict[str, Any]) -> Optional[str]:
+def get_table_name(loader: Dict[str, Any], config: Dict[str, Any]) -> Optional[str]:
     for k,v in loader.items():
-        if not k.startswith(MTD_LOADER_TABLE_PREFIX):
-            table_name = k.split(MTD_LOADER_TABLE_DELIMITER)[0]
+        if not k.startswith(config.TABLE_PREFIX):
+            table_name = k.split(config.TABLE_DELIMITER)[0]
             return table_name
     return None
 
@@ -129,15 +118,16 @@ def get_table_name(loader: Dict[str, Any]) -> Optional[str]:
 def parse_record(
         record: Union[PymarcField, PymarcRecord],
         loader: Dict[str, Any],
+        config: Dict[str, Any],
         temp_uids: Dict[str, str]
     ) -> Dict[str, Any]:
     parsed_record = {} # type: Dict[str, Optional[str]]
     for k,v in loader.items():
-        if not k.startswith(MTD_LOADER_TABLE_PREFIX):
+        if not k.startswith(config.TABLE_PREFIX):
             table_name, column = k.split(".")
-            if MTD_LOADER_TAG_DELIMITER in str(v):
-                parsed_value = get_subfield_from_tag(record, v)
-            elif MTD_LOADER_TABLE_DELIMITER in str(v):
+            if config.TAG_DELIMITER in str(v):
+                parsed_value = get_subfield_from_tag(record, v, tag_delimiter=config.TAG_DELIMITER)
+            elif config.TABLE_DELIMITER in str(v):
                 parsed_value = temp_uids.get(v, None)
             else: parsed_value = v
             parsed_record[column] = parsed_value
@@ -149,7 +139,8 @@ def parse_record(
 def store_record(
         parsed_record: Dict[str, Any],
         temp_uids: Dict[str, str],
-        table_name: str
+        table_name: str,
+        database: Database,
     ) -> Dict[str, str]:
     with database.manage_db_session() as session:
         model = database.get_class_by_table_name(table_name)
@@ -164,52 +155,57 @@ def store_record(
 def load_record(
         data: Union[PymarcField, PymarcRecord],
         loader: Dict[str, Any],
+        config: Dict[str, Any],
+        database: Database,
         temp_uids: Dict[str, str] = None,
         **kwargs: Any
     ) -> None:
     if temp_uids is None: temp_uids = {}
-    records = get_data(data, loader)
-    sub_loaders = get_loaders(loader)
-    table_name = get_table_name(loader)
+    records = get_data(data, loader, config)
+    sub_loaders = get_loaders(loader, config)
+    table_name = get_table_name(loader, config)
     for record in records:
         if table_name:
-            parsed_record = parse_record(record, loader, temp_uids)
-            temp_uids = store_record(parsed_record, engine, temp_uids, table_name)
+            parsed_record = parse_record(record, loader, config, temp_uids)
+            temp_uids = store_record(parsed_record, temp_uids, table_name, database)
         for sub_loader in sub_loaders:
             load_record(data=record, loader=sub_loader, temp_uids=temp_uids)
 
 
+def load_config_file(loader_config_file: FilePath) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    with open_file(loader_config_file) as yaml_file:
+        documents = yaml.safe_load_all(yaml_file)
+        loader_config = documents[0]
+        loader_map = documents[1]
+        return loader_map, loader_config
+
+
 def load_database(
         records: List[PymarcRecord],
-        loader_config_file: str,
-        logging_flag: bool = True,
+        loader_config_file: FilePath=METADATA_CONFIG_FILE,
+        database: Database=Database(),
+        verbose: bool=False,
         **kwargs: Any
     ) -> None:
     total = len(records)
     start_time = time.time()
-    with open_file(loader_config_file) as yaml_file:
-        loader = yaml.load(yaml_file)
+    loader_map, loader_config = load_config_file(loader_config_file)
     for i, record in enumerate(records):
-        load_record(data=record, loader=loader, **kwargs)
-        if logging_flag: log_progress(i+1, total, start_time)
+        load_record(data=record, loader=loader_map, config=loader_config, database=database, **kwargs)
+        if verbose: log_progress(i+1, total, start_time)
 
 
 ##########################################################
-# Main
+# Scripts
 
 
 def main():
-    load_database(
-        records=records,
-        db_config=DB_CONFIG,
-        clear_flag=True,
-        logging_flag=True,
-    )
+    from thickshake.storage.database import Database
+    load_database(records)
 
 
 if __name__ == "__main__":
-    setup_warnings()
-    setup_logging()
+    setup()
     main()
 
 

@@ -3,7 +3,6 @@
 
 import logging
 import os
-import pickle
 import sys
 
 ##########################################################
@@ -16,27 +15,11 @@ from sklearn.svm import SVC
 ##########################################################
 # Local Imports
 
-from thickshake.utils import logged, setup_logging, setup_warnings
 from thickshake.classifier.dataset import load_dataset, split_dataset, decompose
-from thickshake._types import *
+from thickshake.helpers import setup
 
 ##########################################################
-# Environmental Variables
-
-OUTPUT_METADATA_FILE = env.str("OUTPUT_METADATA_FILE")
-OUTPUT_IMAGE_DATA_FILE = env.str("OUTPUT_IMAGE_DATA_FILE")
-OUTPUT_CLASSIFIER_MODEL_FILE = env.str("OUTPUT_CLASSIFIER_MODEL_FILE")
-
-FLAG_CLF_BATCH_SIZE = env.int("FLAG_CLF_BATCH_SIZE")
-FLAG_CLF_NUM_THREADS = env.int("FLAG_CLF_NUM_THREADS")
-FLAG_CLF_NUM_EPOCHS = env.int("FLAG_CLF_NUM_EPOCHS")
-FLAG_CLF_MIN_IMAGES_PER_LABEL = env.int("FLAG_CLF_MIN_IMAGES_PER_LABEL")
-FLAG_CLF_SPLIT_RATIO = env.int("FLAG_CLF_SPLIT_RATIO")
-FLAG_CLF_IS_TRAIN = env.bool("FLAG_CLF_IS_TRAIN")
-FLAG_CLF_IS_TEST = env.bool("FLAG_CLF_IS_TEST")
-FLAG_CLF_LOGGING = env.bool("FLAG_CLF_LOGGING")
-FLAG_CLF_LABEL_KEY = env.str("FLAG_CLF_LABEL_KEY")
-FLAG_CLF_FEATURE_LIST = env.list("FLAG_CLF_FEATURE_LIST")
+# Constants
 
 ##########################################################
 # Logging Configuration
@@ -103,24 +86,9 @@ def run_classifier(
 
 
 def main():
-    run_classifier(
-        metadata_file=OUTPUT_METADATA_FILE,
-        image_data_file=OUTPUT_IMAGE_DATA_FILE,
-        classifier_file=OUTPUT_CLASSIFIER_MODEL_FILE,
-        label_key=FLAG_CLF_LABEL_KEY,
-        feature_list=FLAG_CLF_FEATURE_LIST,
-        batch_size=FLAG_CLF_BATCH_SIZE,
-        num_threads=FLAG_CLF_NUM_THREADS,
-        num_epochs=FLAG_CLF_NUM_EPOCHS,
-        min_images_per_labels=FLAG_CLF_MIN_IMAGES_PER_LABEL,
-        split_ratio=FLAG_CLF_SPLIT_RATIO,
-        is_train=FLAG_CLF_IS_TRAIN,
-        is_test=FLAG_CLF_IS_TEST,
-        logging_flag=FLAG_CLF_LOGGING
-    )
+    run_classifier()
 
 
 if __name__ == '__main__':
-    setup_logging()
-    setup_warnings()
+    setup()
     main()

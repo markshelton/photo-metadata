@@ -11,15 +11,14 @@ import time
 import cv2
 import dlib
 from envparse import env
-import h5py
 import numpy as np
 from matplotlib import pyplot as plt
 
 ##########################################################
 # Local Imports
 
-from thickshake.datastore import Store
-from thickshake.utils import (
+from thickshake.storage.store import Store
+from thickshake.helpers import (
     setup, log_progress, clear_directory,
     maybe_increment_path, get_files_in_directory,
     maybe_make_directory,

@@ -1,3 +1,8 @@
+---
+TABLE_PREFIX: "$"
+TABLE_DELIMITER: "."
+TAG_DELIMITER: "$"
+---
 $RECORD:
   record.record_label: 035$a
   record.note_title: 245$a
@@ -61,3 +66,4 @@ $RECORD:
         record_subject.subject_uuid: subject.uuid
         record_subject.is_main: False
         record_subject.subject_relation: 610$x
+---

@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
 ##########################################################
 # Standard Library Imports
 
@@ -9,38 +13,39 @@ import logging
 ##########################################################
 # Local Imports
 
-from thickshake.storage.store import Store
 from thickshake.helpers import setup
 
 ##########################################################
 # Typing Configuration
 
-from typing import Any
-FilePath = str
+from typing import List, Any, Union, Dict
 
 ##########################################################
 # Constants
 
+##########################################################
+# Initializations
+
+logger = logging.getLogger(__name__)
 
 ##########################################################
-# Initialization
-
-logger = logging.get_logger(__name__)
-
-##########################################################
-# Functions
 
 
-def caption_images(image_file: FilePath, **kwargs: Any) -> None:
+def export_database(database: Database, store: Store, sql_text: str = None, **kwargs: Any) -> None:
+    if sql_text is None: records = database.dump()
+    else: records = database.execute_sql_text(sql_text)
+    store.save_records(records, group_name="database_export")
+
+
+def import_store(database: Database, store: Store, store_path: str = None, **kwargs: Any) -> None:
     pass
-
 
 
 ##########################################################
 # Main
 
 
-def main() -> None:
+def main():
     pass
 
 
@@ -50,8 +55,3 @@ if __name__ == "__main__":
 
 
 ##########################################################
-# Notes
-
-"""
-https://github.com/tensorflow/models/tree/master/research/im2txt
-"""

@@ -155,14 +155,16 @@ def get_file_type(path: FilePath) -> str:
     return os.path.splitext(path)[1]
 
 
-def generate_diff(input_path: FilePath, output_path: FilePath) -> FilePath:
-    pass
-
 
 def generate_output_path(input_path: FilePath) -> FilePath:
     output_path = input_path.replace("input", "output")
     logger.info("Generated output path: {path}".format(path=output_path))
     return output_path
+
+
+def sample_items(items: List[Any], sample: int = 0, **kwargs) -> List[Any]:
+    if sample == 0: return items
+    else return random.sample(items, sample)
 
 
 ##########################################################

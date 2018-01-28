@@ -11,7 +11,7 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.utils import setup_warnings, setup_logging
+from thickshake.helpers import setup_warnings, setup_logging
 from thickshake.types import *
 
 ##########################################################

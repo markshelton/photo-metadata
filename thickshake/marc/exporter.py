@@ -11,6 +11,7 @@ import os
 ##########################################################
 # Third Party Imports
 
+from envparse import env
 import pymarc
 import yaml
 
@@ -18,7 +19,7 @@ import yaml
 # Local Imports
 
 from thickshake.database import Database
-from thickshake.utils import setup_warnings, setup_logging
+from thickshake.helpers import setup
 
 ##########################################################
 # Typing Configuration
@@ -29,10 +30,7 @@ from typing import Optional, Union, List, Dict, Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-METADATA_CONFIG_FILE = "%s/deps/loader.yaml" % (CURRENT_FILE_DIR)
-METADATA_CONFIG_TABLE_PREFIX="$"
-METADATA_CONFIG_TABLE_DELIMITER="."
-METADATA_CONFIG_TAG_DELIMITER="$"
+METADATA_CONFIG_FILE = env.str("METADATA_CONFIG_FILE", default="%s/config.yaml" % (CURRENT_FILE_DIR))
 
 ##########################################################
 # Database Configuration
@@ -47,23 +45,6 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Functions
 
-
-def dump_database():
-    sql_text =  "SELECT *\n"
-    sql_text += "FROM image\n"
-    sql_text += "NATURAL LEFT JOIN image_location\n"
-    sql_text += "NATURAL LEFT JOIN location\n"
-    sql_text += "NATURAL LEFT JOIN record\n"
-    sql_text += "NATURAL LEFT JOIN record_subject\n"
-    sql_text += "NATURAL LEFT JOIN subject\n"
-    sql_text += "NATURAL LEFT JOIN record_location\n"
-    sql_text += "NATURAL LEFT JOIN record_topic\n"
-    sql_text += "NATURAL LEFT JOIN topic\n"
-    sql_text += ";"
-    results = database.execute_text_query(sql_text)
-    return results
-
-
 def export_to_pymarc():
     pass
 
@@ -75,8 +56,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    setup_logging()
-    setup_warnings()
+    setup()
     main()
 
 ##########################################################

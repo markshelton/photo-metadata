@@ -9,7 +9,8 @@ from functools import partial
 # Third Party Imports
 
 import cv2
-from hyperopt import fmin, hp, tpe
+from envparse import env
+import hyperopt
 from PIL import Image
 import numpy as np
 import pyocr
@@ -17,9 +18,9 @@ import pyocr
 ##########################################################
 # Local Imports
 
-from thickshake.image.utils import crop
-from thickshake.datastore import Store
-from thickshake.utils import setup
+from thickshake.image.image import crop
+from thickshake.storage.store import Store
+from thickshake.helpers import setup
 
 ##########################################################
 # Typing Configuration
@@ -33,15 +34,15 @@ Rect = Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-DICTIONARY_PATH = "%s/deps/dictionary.txt" % CURRENT_FILE_DIR
-CLASSIFIER_NM1_PATH = "%s/deps/trained_classifierNM1.xml" % CURRENT_FILE_DIR
-CLASSIFIER_NM2_PATH = "%s/deps/trained_classifierNM2.xml" % CURRENT_FILE_DIR
-CLASSIFIER_ER_GROUP_PATH = "%s/deps/trained_classifier_erGrouping.xml" % CURRENT_FILE_DIR
+DICTIONARY_PATH = env.str("DICTIONARY_PATH", default="%s/deps/dictionary.txt" % CURRENT_FILE_DIR)
+CLASSIFIER_NM1_PATH = env.str("CLASSIFIER_NM1_PATH", default="%s/deps/trained_classifierNM1.xml" % CURRENT_FILE_DIR)
+CLASSIFIER_NM2_PATH = env.str("CLASSIFIER_NM2_PATH", default="%s/deps/trained_classifierNM2.xml" % CURRENT_FILE_DIR)
+CLASSIFIER_ER_GROUP_PATH = env.str("CLASSIFIER_ER_GROUP_PATH", default="%s/deps/trained_classifier_erGrouping.xml" % CURRENT_FILE_DIR)
 
-SEARCH_SPACE = hp.choice('params',[
+SEARCH_SPACE = hyperopt.hp.choice('params',[
     {
-        "bleed": hp.uniform("bleed", 0, 50),
-        "binary": hp.uniform("binary", 0, 255),
+        "bleed": hyperopt.hp.uniform("bleed", 0, 50),
+        "binary": hyperopt.hp.uniform("binary", 0, 255),
     }
 ])
 
@@ -49,8 +50,6 @@ SEARCH_SPACE = hp.choice('params',[
 # Initialization
 
 logger = logging.getLogger(__name__)
-store = Store()
-tool = pyocr.get_available_tools()[0]
 
 ##########################################################
 # Functions
@@ -95,7 +94,10 @@ def calc_accuracy(text, dictionary):
 
 
 def image_to_string(image) -> str:
-    return tool.image_to_string(image)
+    tools = pyocr.get_available_tools()
+    tool = tools[0]
+    text = tool.image_to_string(image)
+    return text
 
 
 def extract_text(params, image, box):
@@ -121,7 +123,12 @@ def read_text(image_file: FilePath, **kwargs: Any) -> None:
     boxes = set(map(tuple, boxes))
     for box in boxes:
         objective = partial(_objective, image=image, box=box, dictionary=dictionary)
-        best_params = fmin(objective, space=SEARCH_SPACE, algo=tpe.suggest, max_evals=25)
+        best_params = hyperopt.fmin(
+            objective,
+            space=SEARCH_SPACE,
+            algo=hyperopt.tpe.suggest,
+            max_evals=25
+        )
         text_box = extract_text(best_params, image, box)
         try: text_box = text_box.encode("utf8")
         except: pass
@@ -135,7 +142,8 @@ def read_text(image_file: FilePath, **kwargs: Any) -> None:
 
 
 def main() -> None:
-    text = read_text("/home/app/data/input/images/JPEG_Convert_Resolution_1024/slwa_b3104339_3_master.jpg")
+    test_image = "/home/app/data/input/images/JPEG_Convert_Resolution_1024/slwa_b3104339_3_master.jpg"
+    text = read_text(test_image)
     print(text)
 
 if __name__ == "__main__":

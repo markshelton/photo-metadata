@@ -19,6 +19,10 @@ make start ENV=dev && rm -ri src docs # development
 make start ENV=prod # production
 ```
 
+## System Design
+
+![System design flowchart](/docs/assets/system_overview.png)
+
 ## Usage (Note: WIP)
 
 ```python

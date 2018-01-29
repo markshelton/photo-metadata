@@ -19,10 +19,22 @@ from matplotlib import pyplot as plt
 
 from thickshake.storage.store import Store
 from thickshake.helpers import (
-    setup, log_progress, clear_directory,
+    log_progress, clear_directory,
     maybe_increment_path, get_files_in_directory,
     maybe_make_directory,
 )
+
+##########################################################
+#Typing Configuration
+
+from typing import List, Any, Optional
+
+FilePath = str 
+DirPath = str 
+ImageType = Any
+Rectangle = Any
+Recognizer = Any
+Predictor = Any
 
 ##########################################################
 # Constants
@@ -42,7 +54,7 @@ store = Store()
 # Functions
 
 
-def prepare_template(face_template_file: FilePath) -> None:
+def prepare_template(face_template_file: FilePath) -> List[float]:
     face_template = np.load(face_template_file)
     tpl_min, tpl_max = np.min(face_template, axis=0), np.max(face_template, axis=0)
     minmax_template = (face_template - tpl_min) / (tpl_max - tpl_min)
@@ -55,35 +67,28 @@ def find_faces_in_image(image: ImageType) -> List[Rectangle]:
     return faces
 
 
-def extract_face_landmarks(image: ImageType, face: Rectangle, predictor: Any) -> np.float32:
+def extract_face_landmarks(image: ImageType, face: Rectangle, predictor: Predictor) -> List[float]:
     points = predictor(image, face)
     landmarks = list(map(lambda p: (p.x, p.y), points.parts()))
     landmarks_np = np.float32(landmarks)
     return landmarks_np
 
 
-def extract_face_embeddings(image: ImageType, face: Rectangle, predictor: Any, recognizer: Any) -> np.float32:
+def extract_face_embeddings(image: ImageType, face: Rectangle, predictor: Predictor, recognizer: Recognizer) -> List[float]:
     points = predictor(image, face)
     embeddings = recognizer.compute_face_descriptor(image, points)
     embeddings_np = np.float32(embeddings)[np.newaxis, :]
     return embeddings_np
 
 
-def normalize_face(
-        image: ImageType,
-        landmarks: np.float32,
-        face_template: np.array,
-        key_indices: List[int],
-        face_size: int = 200,
-        **kwargs
-    ) -> ImageType:
+def normalize_face(image: ImageType, landmarks: List[float], template: List[float], key_indices: List[int], face_size: int = 200, **kwargs: Any) -> ImageType:
     key_indices_np = np.array(key_indices)
-    H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * face_template[key_indices_np])
-    face_norm = cv2.warpAffine(image, H, (face_size, face_size))
-    return face_norm
+    H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * template[key_indices_np])
+    face_normalized = cv2.warpAffine(image, H, (face_size, face_size))
+    return face_normalized
 
 
-def annotate_image(image_rgb, face, i, landmarks):
+def annotate_image(image_rgb: ImageType, face: Rectangle, i: int, landmarks: List[float]) -> ImageType:
     (x, y, w, h) = rect_to_bb(face)
     cv2.rectangle(image_rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
     cv2.putText(image_rgb, "Face #{}".format(i + 1), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -130,26 +135,28 @@ def extract_faces_from_image(
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
 def extract_faces(
         input_images_dir: DirPath,
-        predictor_path: FilePath = IMG_FACE_PREDICTOR_FILE,
-        recognizer_path: FilePath = IMG_FACE_RECOGNIZER_FILE,
-        template_path: FilePath = IMG_FACE_TEMPLATE_FILE,
+        predictor_path: FilePath=IMG_FACE_PREDICTOR_FILE,
+        recognizer_path: FilePath=IMG_FACE_RECOGNIZER_FILE,
+        template_path: FilePath=IMG_FACE_TEMPLATE_FILE,
         output_faces_dir: Optional[DirPath]=None,
         output_images_dir: Optional[DirPath]=None,
-        flag_clear_faces: bool=False,
-        show_image_flag: bool=True,
-        save_image_flag: bool=True,
-        logging_flag: bool=False,
+        dry_run: bool=False,
+        force: bool=False,
+        display: bool=False,
+        sample: Optional[int]=None,
         **kwargs: Any
     ) -> List[ImageType]:
     image_files = get_files_in_directory(input_images_dir, **kwargs)
-    if flag_clear_faces: clear_directory(output_images_dir)
+    if not force and output_images_dir is not None:
+        if len(get_files_in_directory(output_images_dir)) > 0: raise IOError
+    else: clear_directory(output_images_dir) 
     predictor = dlib.shape_predictor(predictor_path)
     recognizer = dlib.face_recognition_model_v1(recognizer_path)
     template = prepare_template(template_path)
     total = len(image_files)
     start_time = time.time()
     for i, image_file in enumerate(image_files):
-        image_annot = extract_faces_from_image(
+        image_annotated = extract_faces_from_image(
             image_file=image_file,
             input_images_dir=input_images_dir,
             output_images_dir=output_faces_dir,
@@ -158,41 +165,18 @@ def extract_faces(
             template=template,
             **kwargs
         )
-        if show_image_flag:
-            show_image(image_annot)
-        if save_image_flag:
-            save_image(image_annot, image_file, input_images_dir, output_images_dir, **kwargs)
-        if logging_flag:
-            log_progress(i+1, total, start_time)
+        if display: show_image(image_annotated)
+        if not dry_run: save_image(image_annotated, image_file, input_images_dir, output_images_dir, **kwargs)
+        log_progress(logger, i+1, total, start_time)
 
 
 ##########################################################
 # Main
 
 def main():
-    extract_faces(
-        input_images_dir=INPUT_IMAGE_DIR,
-        output_faces_dir=OUTPUT_IMAGE_FACES_DIR,
-        output_images_dir=OUTPUT_IMAGE_ANNOTATIONS_DIR,
-        output_face_info_file=OUTPUT_IMAGE_DATA_FILE,
-        sample_size=20,
-        show_faces_flag=False,
-        save_faces_flag=False,
-        show_image_flag=False,
-        save_image_flag=True,
-        flag_clear_faces=False,
-        logging_flag=True,
-        overwrite=False,
-        key_indices=FLAG_IMG_LANDMARK_INDICES,
-        face_size=FLAG_IMG_FACE_SIZE,
-        predictor_path=IMG_FACE_PREDICTOR_FILE,
-        recognizer_path=IMG_FACE_RECOGNIZER_FILE,
-        template_path=IMG_FACE_TEMPLATE_FILE,
-    )
-
+    pass
 
 if __name__ == "__main__":
-    setup()
     main()
 
 ##########################################################

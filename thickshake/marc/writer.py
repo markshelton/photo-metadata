@@ -16,12 +16,12 @@ from pymarc.writer import MARCWriter, XMLWriter, JSONWriter
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import setup, open_file, log_progress, get_file_type
+from thickshake.helpers import open_file, log_progress, get_file_type
 
 ##########################################################
 # Typing Configuration
 
-from typing import List, Any, Union, Dict, Callable
+from typing import List, Any, Union, Dict, Callable, Optional
 
 FilePath = str
 File = Any
@@ -48,7 +48,6 @@ def _write_file(
         records: List[PymarcRecord],
         output_file: FilePath,
         PymarcWriter: Callable[[File], None],
-        verbose: bool=False,
         force: bool=False,
         dry_run: bool=False,
         sample: Optional[int]=None,
@@ -59,10 +58,10 @@ def _write_file(
     with PymarcWriter(open_file(output_file, "wb")) as writer:
         total = len(records)
         start_time = time.time()
-        if verbose: logger.info("Writing %s records to %s.", total, output_file)
+        logger.info("Writing %s records to %s.", total, output_file)
         for i, record in enumerate(records):
             if not dry_run: writer.write(record)
-            if verbose: log_progress(i, total, start_time)
+            log_progress(i, total, start_time)
 
 
 def write_file(records: List[PymarcRecord], output_file: FilePath, **kwargs: Any) -> None:
@@ -70,8 +69,8 @@ def write_file(records: List[PymarcRecord], output_file: FilePath, **kwargs: Any
     if file_type == FileType.MARC: PymarcWriter = MARCWriter
     elif file_type == FileType.XML: PymarcWriter = XMLWriter
     elif file_type == FileType.JSON: PymarcWriter = JSONWriter
-    _write_file(records, output_file, PymarcWriter, **kwargs)
     else: raise NotImplementedError
+    _write_file(records, output_file, PymarcWriter, **kwargs)
 
 
 ##########################################################
@@ -83,7 +82,6 @@ def main():
 
 
 if __name__ == "__main__":
-    setup()
     main()
 
 

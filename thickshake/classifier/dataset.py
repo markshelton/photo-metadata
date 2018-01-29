@@ -24,7 +24,7 @@ from sklearn.model_selection import train_test_split
 # Local Imports
 
 from thickshake.storage.store import Store
-from thickshake.helpers import setup, log_progress
+from thickshake.helpers import log_progress
 
 ##########################################################
 # Typing Configuration
@@ -128,7 +128,7 @@ def get_records(image_id: str, metadata_file: DBConfig, image_data_file: FilePat
     return dataset
 
 
-def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, logging_flag: bool=True, **kwargs) -> pd.DataFrame:
+def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
     image_ids = get_image_ids(image_data_file, **kwargs) #DONE
     total = len(image_ids)
     start_time = time.time()
@@ -136,7 +136,7 @@ def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, logging_fla
     for i, image_id in enumerate(image_ids):
         records = get_records(image_id, metadata_file, image_data_file, **kwargs) #TODO
         df = pd.concat([df, records])
-        if logging_flag: log_progress(i+1, total, start_time)
+        log_progress(logger, i+1, total, start_time)
     return df
 
 
@@ -153,7 +153,6 @@ def main():
     )
 
 if __name__ == "__main__":
-    setup()
     main()
 
 ##########################################################

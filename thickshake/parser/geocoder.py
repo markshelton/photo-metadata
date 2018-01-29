@@ -23,11 +23,8 @@ import requests
 ##########################################################
 # Local Imports
 
-from thickshake.database import Database
-from thickshake.helpers import (
-    setup_logging, setup_warnings,
-    log_progress, deep_get, consolidate_list,
-)
+from thickshake.storage.database import Database
+from thickshake.helpers import log_progress, deep_get, consolidate_list
 
 ##########################################################
 # Typing Configuration

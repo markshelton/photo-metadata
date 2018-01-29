@@ -18,8 +18,7 @@ import yaml
 ##########################################################
 # Local Imports
 
-from thickshake.database import Database
-from thickshake.helpers import setup
+from thickshake.storage.database import Database
 
 ##########################################################
 # Typing Configuration
@@ -45,7 +44,7 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Functions
 
-def export_to_pymarc():
+def export_database():
     pass
 
 ##########################################################
@@ -56,7 +55,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    setup()
     main()
 
 ##########################################################

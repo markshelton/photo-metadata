@@ -13,8 +13,6 @@ import logging
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import setup
-
 ##########################################################
 # Typing Configuration
 
@@ -50,7 +48,6 @@ def main():
 
 
 if __name__ == "__main__":
-    setup()
     main()
 
 

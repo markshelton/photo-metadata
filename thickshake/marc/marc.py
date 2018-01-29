@@ -14,11 +14,10 @@ import os
 ##########################################################
 # Local Imports
 
-from thickshake.metadata.reader import read_file
-from thickshake.metadata.loader import load_database
-from thickshake.metadata.exporter import dump_database
-from thickshake.metadata.writer import write_file
-from thickshake.helpers import setup
+from thickshake.marc.reader import read_file
+from thickshake.marc.importer import load_database
+from thickshake.marc.exporter import export_database
+from thickshake.marc.writer import write_file
 
 ##########################################################
 # Typing Configuration
@@ -40,17 +39,18 @@ logger = logging.getLogger(__name__)
 def generate_diff(input_path: FilePath, output_path: FilePath) -> FilePath:
     pass
 
+
 # Import metadata files from any format to RDBMS
-def import_metadata(input_file: FilePath, **kwargs) -> None:
-    assert os.path.exists(input_file)
-    records = read_file(input_file)
-    load_database(records)
+def import_metadata(input_metadata_file: FilePath, **kwargs) -> None:
+    assert os.path.exists(input_metadata_file)
+    records = read_file(input_metadata_file, **kwargs)
+    load_database(records, **kwargs)
 
 
 # Export metadata records from RDBMS to any format
 def export_metadata(output_file: FilePath, **kwargs) -> None:
     assert not os.path.exists(output_file)
-    records = dump_database()
+    records = export_database()
     write_file(records, output_file)
 
 
@@ -74,7 +74,6 @@ def main():
 
 
 if __name__ == "__main__":
-    setup()
     main()
 
 

@@ -12,13 +12,15 @@ from envparse import env
 # Local Imports
 
 from thickshake.parser.geocoder import extract_location
-from thickshake.database import Database
-from thickshake.helpers import setup_logging, setup_warnings
+from thickshake.storage.database import Database
 
 ##########################################################
 # Typing Configuration
 
 from typing import Tuple, Dict, Any
+Parser = Any
+FilePath = str
+DirPath = str
 
 ##########################################################
 # Constants

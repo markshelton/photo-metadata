@@ -20,7 +20,6 @@ import pyocr
 
 from thickshake.image.image import crop
 from thickshake.storage.store import Store
-from thickshake.helpers import setup
 
 ##########################################################
 # Typing Configuration
@@ -147,7 +146,6 @@ def main() -> None:
     print(text)
 
 if __name__ == "__main__":
-    setup()
     main()
 
 ##########################################################

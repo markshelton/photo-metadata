@@ -16,7 +16,6 @@ from sklearn.svm import SVC
 # Local Imports
 
 from thickshake.classifier.dataset import load_dataset, split_dataset, decompose
-from thickshake.helpers import setup
 
 ##########################################################
 # Constants
@@ -90,5 +89,4 @@ def main():
 
 
 if __name__ == '__main__':
-    setup()
     main()

@@ -88,6 +88,11 @@ COPY requirements.txt /home/app/
 WORKDIR /home/app
 RUN pip3 install -r requirements.txt && python3 -m ipykernel.kernelspec
 
+# Set EnvVars for Python encoding
+ENV PYTHONIOENCODING=utf-8
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
 #Copy over Thickshake Library
 COPY thickshake/ /libs/thickshake/
 ENV PYTHONPATH $PYTHONPATH:/libs

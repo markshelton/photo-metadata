@@ -119,7 +119,7 @@ class Topic(Constructor, Base):
     __tablename__ = "topic"
 
     uuid = Column(Integer, primary_key=True)
-    topic_term = Column(Text)
+    topic_term = Column(Text, unique=True, nullable=False)
 
     records = relationship("RecordTopic", back_populates="topic")
 

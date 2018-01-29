@@ -13,17 +13,16 @@ from contextlib import contextmanager
 
 import pandas as pd
 from envparse import env
-from sqlalchemy import create_engine, text, func
+from sqlalchemy import create_engine, text, func, inspect
 from sqlalchemy.engine import url
 from sqlalchemy.exc import IntegrityError, DataError
-from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import scoped_session, sessionmaker, load_only
 
 ##########################################################
 # Local Imports
 
-from thickshake.metadata.schema import Base
-from thickshake.helpers import setup, maybe_make_directory
+from thickshake.storage.schema import Base
+from thickshake.helpers import maybe_make_directory
 
 ##########################################################
 # Typing Configuration
@@ -41,6 +40,7 @@ DBConfig = TypedDict("DBConfig", {
 )
 DBEngine = Any
 DBSession = Any
+DBObject = Any
 Series = Iterable[Any]
 DataFrame = Dict[str, Series]
 
@@ -67,12 +67,11 @@ class Database:
     session = None
     base = None
     
-    def __init__(self, db_config: DBConfig = DB_CONFIG, options = None) -> None:
+    def __init__(self, db_config: DBConfig = DB_CONFIG, force: bool=False, **kwargs: Any) -> None:
         if self.engine is None:
             self.engine = self.make_engine(db_config)
             self.base = Base
-            if options is not None and options.force:
-                self.remove_db_tables()
+            if force: self.remove_db_tables()
             self.make_db_tables()
             
 
@@ -93,19 +92,38 @@ class Database:
 
 
     @contextmanager
-    def manage_db_session(self) -> Iterator[DBSession]:
-        Session = sessionmaker(autocommit=False, autoflush=True, bind=self.engine)
+    def manage_db_session(self, dry_run: bool = False, **kwargs: Any) -> Iterator[DBSession]:
+        Session = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.session = scoped_session(Session)
         try:
             yield self.session
-            self.session.commit()
-        except (IntegrityError, DataError) as e:
+            if not dry_run: self.session.commit()
+        except IntegrityError as e:
             self.session.rollback()
+            raise e
         except BaseException:
             self.session.rollback()
             raise
         finally:
             self.session.close()
+
+
+    def merge_record(self, table_name: str, parsed_record: Dict[str, Any], **kwargs: Any) -> DBObject:
+        model = self.get_class_by_table_name(table_name)
+        db_object = model(**parsed_record)
+        try: 
+            self.session.add(db_object)
+            self.session.flush()
+        except IntegrityError as e:
+            self.session.rollback()
+            unique_columns = self.get_unique_columns(table_name)
+            q = self.session.query(model)
+            for col in unique_columns:
+                try: q = q.filter(getattr(model, col).like(getattr(db_object, col)))
+                except: q = q.filter(getattr(model, col) == getattr(db_object, col))
+            matched_obj = q.first()
+            db_object = matched_obj
+        return db_object
 
 
     def get_class_by_table_name(self, table_name: str) -> Any:
@@ -121,6 +139,11 @@ class Database:
         pk_columns = inspect(model).primary_key
         return [pk.name for pk in pk_columns]
 
+
+    def get_unique_columns(self, table_name: str) -> List[str]:
+        insp = inspect(self.engine)
+        unique_constraints = insp.get_unique_constraints(table_name)
+        return [unique_constraint["column_names"][0] for unique_constraint in unique_constraints]
 
     def execute_text_query(self, sql_text: str) -> List[Dict[str, Any]]:
         with self.manage_db_session() as session:

@@ -37,7 +37,7 @@ $RECORD:
       $RECORD_SUBJECT:
         record_subject.record_uuid: record.uuid
         record_subject.subject_uuid: subject.uuid
-        record_subject.is_main: True
+        record_subject.subject_is_main: True
         record_subject.subject_relation: 100$e
     $MAIN_COMPANY:
       subject.subject_name: 110$a
@@ -46,7 +46,7 @@ $RECORD:
       $RECORD_SUBJECT:
         record_subject.record_uuid: record.uuid
         record_subject.subject_uuid: subject.uuid
-        record_subject.is_main: True
+        record_subject.subject_is_main: True
         record_subject.subject_relation: 110$e
     $OTHER_PERSON:
       subject.subject_name: 600$a
@@ -55,7 +55,7 @@ $RECORD:
       $RECORD_SUBJECT:
         record_subject.record_uuid: record.uuid
         record_subject.subject_uuid: subject.uuid
-        record_subject.is_main: False
+        record_subject.subject_is_main: False
         record_subject.subject_relation: 600$x
     $OTHER_COMPANY:
       subject.subject_name: 610$a
@@ -64,6 +64,6 @@ $RECORD:
       $RECORD_SUBJECT:
         record_subject.record_uuid: record.uuid
         record_subject.subject_uuid: subject.uuid
-        record_subject.is_main: False
+        record_subject.subject_is_main: False
         record_subject.subject_relation: 610$x
 ---

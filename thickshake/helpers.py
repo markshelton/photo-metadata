@@ -48,25 +48,7 @@ def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
     return open(path, *args, **kwargs)
 
 
-def logged(f: Callable[..., Any]) -> Any:
-    @wraps(f)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        logger = logging.getLogger()
-        logger.info("{0} | Started".format(f.__name__))
-        start_time = time.time()
-        try: result = f(*args, **kwargs)
-        except Exception as e:
-            elapsed_time = time.time() - start_time
-            logger.error("{0} | Failed | {1:.2f}".format(f.__name__,elapsed_time), exc_info=True)
-            raise e
-        else:
-            elapsed_time = time.time() - start_time
-            logger.info("{0} | Passed | {1:.2f}".format(f.__name__,elapsed_time))
-            return result
-    return wrapper    
-
-
-def deep_get(dictionary: Dict, *keys: str) -> Optional[Any]:
+def deep_get(dictionary: Dict[str, Any], *keys: str) -> Optional[Any]:
     return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
 
 
@@ -77,28 +59,8 @@ def consolidate_list(full_list: List[Any]) -> List[Any]:
 
 
 def json_serial(obj: Any) -> str:
-    if isinstance(obj, (datetime.datetime, datetime.date)):
-        return obj.isoformat()
-    else:
-        raise TypeError("Type %s not serializable" % type(obj))
-
-
-def setup_logging(internal: int=logging.DEBUG, external: int=logging.WARN) -> None:
-    logging.basicConfig(level=internal)
-    logging.getLogger("sqlalchemy.engine").setLevel(external)
-    logging.getLogger("PIL.Image").setLevel(external)
-    logging.getLogger("PIL.PngImagePlugin").setLevel(external)
-    #logging.getLogger("hyperopt.tpe").setLevel(external)
-    logging.getLogger("datefinder").setLevel(external)
-
-
-def setup_warnings() -> None:
-    warnings.filterwarnings("ignore", category=sqlalchemy.exc.SAWarning)
-
-
-def setup(internal: int=logging.DEBUG, external: int=logging.WARN) -> None:
-    setup_logging(internal, external)
-    setup_warnings()
+    if isinstance(obj, (datetime.datetime, datetime.date)): return obj.isoformat()
+    else: raise TypeError("Type %s not serializable" % type(obj))
 
 
 def clear_directory(dir_path: Optional[DirPath]) -> None:
@@ -113,12 +75,10 @@ def clear_directory(dir_path: Optional[DirPath]) -> None:
 def get_files_in_directory(
         dir_path: DirPath,
         ext: Optional[str]="jpg",
-        sample_size: int= 0,
         **kwargs: Any
     ) -> List[FilePath]:
     files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
     if ext: files = [f for f in files if f.endswith(ext)]
-    if sample_size != 0: files = random.sample(files, sample_size)
     return files
 
 
@@ -138,14 +98,14 @@ def maybe_increment_path(
         i += 1
 
 
-def log_progress(i: int, total: int, start_time: Time, interval: int = 1) -> None:
+def log_progress(logger, i: int, total: int, start_time: Time, interval: int = 1) -> None:
     if i % interval != 0: return None
     digits = len(str(total))
     perc = i / float(total)
     current_time = time.time()
     elapsed_time = datetime.timedelta(seconds=int(current_time - start_time))
     exp_time = datetime.timedelta(seconds=int(elapsed_time.total_seconds() / perc))
-    logger.info("|Records:{curr_count:0{width}}/{total_count}|Time:{elapsed_time}/{exp_time}|{perc:>2.2f}%".format(
+    logger.info("Records:{curr_count:0{width}}/{total_count} | Time:{elapsed_time}/{exp_time} | {perc:>2.2f}%".format(
             curr_count=i, total_count=total, width=digits, perc=perc*100,
             elapsed_time=str(elapsed_time), exp_time=str(exp_time), 
     ))
@@ -164,7 +124,7 @@ def generate_output_path(input_path: FilePath) -> FilePath:
 
 def sample_items(items: List[Any], sample: int = 0, **kwargs) -> List[Any]:
     if sample == 0: return items
-    else return random.sample(items, sample)
+    else: return random.sample(items, sample)
 
 
 ##########################################################

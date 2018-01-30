@@ -6,7 +6,7 @@
 # Standard Library Imports
 
 import logging
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 
 ##########################################################
 # Third Party Imports
@@ -108,6 +108,7 @@ class Database:
             self.session.close()
 
 
+
     def merge_record(self, table_name: str, parsed_record: Dict[str, Any], **kwargs: Any) -> DBObject:
         model = self.get_class_by_table_name(table_name)
         db_object = model(**parsed_record)
@@ -124,6 +125,13 @@ class Database:
             matched_obj = q.first()
             db_object = matched_obj
         return db_object
+
+
+    def get_records(self, table_name: str="record", **kwargs: Any) -> List[DBObject]:
+        model = self.get_class_by_table_name(table_name)
+        q = self.session.query(model)
+        db_objects = q.all()
+        return db_objects
 
 
     def get_class_by_table_name(self, table_name: str) -> Any:
@@ -153,7 +161,7 @@ class Database:
 
 
     #Convert to sqlalchemy ORM
-    def dump(self) -> List[Dict[str, Any]]:
+    def dump(self, sample: int = 0, **kwargs: Any) -> List[Dict[str, Any]]:
         sql_text =  "SELECT *\n"
         sql_text += "FROM image\n"
         sql_text += "NATURAL LEFT JOIN image_location\n"
@@ -164,6 +172,7 @@ class Database:
         sql_text += "NATURAL LEFT JOIN record_location\n"
         sql_text += "NATURAL LEFT JOIN record_topic\n"
         sql_text += "NATURAL LEFT JOIN topic\n"
+        if sample != 0: sql_text += "LIMIT %i\n" % sample
         sql_text += ";"
         result = self.execute_text_query(sql_text)
         return result

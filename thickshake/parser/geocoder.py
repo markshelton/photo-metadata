@@ -19,12 +19,13 @@ from envparse import env
 import geopy.distance
 import pandas as pd
 import requests
+from tqdm import tqdm
 
 ##########################################################
 # Local Imports
 
 from thickshake.storage.database import Database
-from thickshake.helpers import log_progress, deep_get, consolidate_list
+from thickshake.helpers import deep_get, consolidate_list
 
 ##########################################################
 # Typing Configuration
@@ -199,15 +200,12 @@ def extract_location(location_text: str) -> Location:
 
 
 #TODO: Convert to Async requests
-def extract_locations(series: Series, logging_flag: bool = True, sample_size: int = 5, **kwargs: Any) -> DataFrame:
+def extract_locations(series: Series, sample_size: int = 5, **kwargs: Any) -> DataFrame:
     locations = []
     if sample_size != 0: series = series.sample(n=sample_size)
-    total = len(series)
-    start_time = time.time()
-    for i, text in enumerate(series):
+    for text in tqdm(series, desc="Detecting Locations"):
         location = extract_location(text)
         locations.append(location)
-        if logging_flag: log_progress(i+1, total, start_time)
     locations = pd.DataFrame.from_records(locations, index=series.index)
     return locations
 

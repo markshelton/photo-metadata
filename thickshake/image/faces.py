@@ -13,15 +13,15 @@ import dlib
 from envparse import env
 import numpy as np
 from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 ##########################################################
 # Local Imports
 
 from thickshake.storage.store import Store
 from thickshake.helpers import (
-    log_progress, clear_directory,
-    maybe_increment_path, get_files_in_directory,
-    maybe_make_directory,
+    clear_directory, maybe_increment_path,
+    get_files_in_directory, maybe_make_directory,
 )
 
 ##########################################################
@@ -142,7 +142,7 @@ def extract_faces(
         output_images_dir: Optional[DirPath]=None,
         dry_run: bool=False,
         force: bool=False,
-        display: bool=False,
+        graphics: bool=False,
         sample: Optional[int]=None,
         **kwargs: Any
     ) -> List[ImageType]:
@@ -153,9 +153,7 @@ def extract_faces(
     predictor = dlib.shape_predictor(predictor_path)
     recognizer = dlib.face_recognition_model_v1(recognizer_path)
     template = prepare_template(template_path)
-    total = len(image_files)
-    start_time = time.time()
-    for i, image_file in enumerate(image_files):
+    for image_file in tqdm(image_files, desc="Extracting Faces"):
         image_annotated = extract_faces_from_image(
             image_file=image_file,
             input_images_dir=input_images_dir,
@@ -165,9 +163,8 @@ def extract_faces(
             template=template,
             **kwargs
         )
-        if display: show_image(image_annotated)
+        if graphics: show_image(image_annotated)
         if not dry_run: save_image(image_annotated, image_file, input_images_dir, output_images_dir, **kwargs)
-        log_progress(logger, i+1, total, start_time)
 
 
 ##########################################################

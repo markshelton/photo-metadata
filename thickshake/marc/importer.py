@@ -130,10 +130,11 @@ def parse_record(
     for k,v in loader.items():
         if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
             table_name, column = k.split(".")
-            if config["TAG_DELIMITER"] in str(v):
+            if str(v).startswith(config["TABLE_PREFIX"]):
+                table = str(v).replace(config["TABLE_PREFIX"], "").lower()
+                parsed_value = next(v for k,v in temp_uids.items() if k.startswith(table))
+            elif config["TAG_DELIMITER"] in str(v):
                 parsed_value = get_subfield_from_tag(record, v, tag_delimiter=config["TAG_DELIMITER"])
-            elif config["TABLE_DELIMITER"] in str(v):
-                parsed_value = temp_uids.get(v, None)
             else: parsed_value = v
             parsed_record[column] = parsed_value
     return parsed_record

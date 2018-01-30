@@ -17,7 +17,7 @@ from pymarc.reader import MARCReader, JSONReader
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import open_file, get_file_type, sample_items
+from thickshake.helpers import open_file, get_file_type, sample_items, FileType
 
 ##########################################################
 # Typing Configuration
@@ -31,10 +31,6 @@ PymarcRecord = Any
 ##########################################################
 # Constants
 
-class FileType:
-    JSON = ".json"
-    MARC = ".marc"
-    XML = ".xml"
 
 ##########################################################
 # Initializations

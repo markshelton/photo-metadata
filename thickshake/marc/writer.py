@@ -6,17 +6,19 @@
 # Standard Library Imports
 
 import logging
+import os
 import time
 
 ##########################################################
 # Third Party Imports
 
 from pymarc.writer import MARCWriter, XMLWriter, JSONWriter
+from tqdm import tqdm
 
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import open_file, log_progress, get_file_type
+from thickshake.helpers import open_file, get_file_type, sample_items, FileType
 
 ##########################################################
 # Typing Configuration
@@ -30,11 +32,6 @@ PymarcRecord = Any
 ##########################################################
 # Constants
 
-class FileType:
-    JSON = ".json"
-    MARC = ".marc"
-    XML = ".xml"
-
 ##########################################################
 # Initializations
 
@@ -47,7 +44,7 @@ logger = logging.getLogger(__name__)
 def _write_file(
         records: List[PymarcRecord],
         output_file: FilePath,
-        PymarcWriter: Callable[[File], None],
+        writer: Any,
         force: bool=False,
         dry_run: bool=False,
         sample: Optional[int]=None,
@@ -55,22 +52,18 @@ def _write_file(
     ) -> None:
     if not force and os.path.exists(output_file): raise IOError
     if sample is not None: records = sample_items(records, sample)
-    with PymarcWriter(open_file(output_file, "wb")) as writer:
-        total = len(records)
-        start_time = time.time()
-        logger.info("Writing %s records to %s.", total, output_file)
-        for i, record in enumerate(records):
-            if not dry_run: writer.write(record)
-            log_progress(i, total, start_time)
+    for record in tqdm(records, desc="Writing Records"):
+        if not dry_run: writer.write(record)
+    writer.close()
 
 
 def write_file(records: List[PymarcRecord], output_file: FilePath, **kwargs: Any) -> None:
     file_type = get_file_type(output_file)
-    if file_type == FileType.MARC: PymarcWriter = MARCWriter
-    elif file_type == FileType.XML: PymarcWriter = XMLWriter
-    elif file_type == FileType.JSON: PymarcWriter = JSONWriter
+    if file_type == FileType.MARC: writer = MARCWriter(open_file(output_file, "wb+"))
+    elif file_type == FileType.XML: writer = XMLWriter(open_file(output_file, "wb+"))
+    elif file_type == FileType.JSON: writer = JSONWriter(open_file(output_file, "w+", encoding="utf-8"))
     else: raise NotImplementedError
-    _write_file(records, output_file, PymarcWriter, **kwargs)
+    _write_file(records, output_file, writer, **kwargs)
 
 
 ##########################################################

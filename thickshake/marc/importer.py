@@ -7,21 +7,22 @@
 
 import logging
 import os
-import time
 
 ##########################################################
 # Third Party Imports
 
 from sqlalchemy.exc import IntegrityError
 import pymarc
+from tqdm import tqdm
 import yaml
 
 ##########################################################
 # Local Imports
 
 from thickshake.marc.reader import read_file
+from thickshake.marc.utils import load_config_file
 from thickshake.storage.database import Database
-from thickshake.helpers import log_progress, open_file
+from thickshake.helpers import open_file
 
 ##########################################################
 # Typing Configuration
@@ -33,12 +34,11 @@ PymarcField = Any
 PymarcRecord = Any
 FilePath = str
 DBSession = Any
+DBObject = Any
 
 ##########################################################
 # Constants
 
-CURRENT_FILE_DIR, _ = os.path.split(__file__)
-METADATA_CONFIG_FILE = "%s/config.yaml" % (CURRENT_FILE_DIR)
 
 ##########################################################
 # Logging Configuration
@@ -124,7 +124,7 @@ def parse_record(
         record: Union[PymarcField, PymarcRecord],
         loader: Dict[str, Any],
         config: Dict[str, Any],
-        temp_uids: Dict[str, str]
+        foreign_keys: Dict[str, str]
     ) -> Dict[str, Any]:
     parsed_record = {} # type: Dict[str, Optional[str]]
     for k,v in loader.items():
@@ -132,7 +132,7 @@ def parse_record(
             table_name, column = k.split(".")
             if str(v).startswith(config["TABLE_PREFIX"]):
                 table = str(v).replace(config["TABLE_PREFIX"], "").lower()
-                parsed_value = next(v for k,v in temp_uids.items() if k.startswith(table))
+                parsed_value = next(v for k,v in foreign_keys.items() if k.startswith(table))
             elif config["TAG_DELIMITER"] in str(v):
                 parsed_value = get_subfield_from_tag(record, v, tag_delimiter=config["TAG_DELIMITER"])
             else: parsed_value = v
@@ -140,19 +140,24 @@ def parse_record(
     return parsed_record
 
 
+def make_relationship(db_object: DBObject, table_name: str, foreign_keys: Dict[str, str]):
+    if db_object is not None:
+        if hasattr(db_object, "uuid"):
+            foreign_keys[table_name + ".uuid"] = db_object.uuid
+    return foreign_keys
+
+
 def store_record(
         parsed_record: Dict[str, Any],
-        temp_uids: Dict[str, str],
+        foreign_keys: Dict[str, str],
         table_name: str,
         database: Database,
         **kwargs: Any
     ) -> Dict[str, str]:
     with database.manage_db_session(**kwargs) as session:
         db_object = database.merge_record(table_name, parsed_record, **kwargs)
-        if db_object is not None:
-            if hasattr(db_object, "uuid"):
-                temp_uids[table_name + ".uuid"] = db_object.uuid
-    return temp_uids
+        foreign_keys = make_relationship(db_object, table_name, foreign_keys)
+    return foreign_keys
 
 
 def load_record(
@@ -160,41 +165,30 @@ def load_record(
         loader: Dict[str, Any],
         config: Dict[str, Any],
         database: Database,
-        temp_uids: Dict[str, str] = None,
+        foreign_keys: Dict[str, str] = None,
         **kwargs: Any
     ) -> None:
-    if temp_uids is None: temp_uids = {}
+    if foreign_keys is None: foreign_keys = {}
     records = get_data(data, loader, config)
     sub_loaders = get_loaders(loader, config)
     table_name = get_table_name(loader, config)
     for record in records:
         if table_name:
-            parsed_record = parse_record(record, loader, config, temp_uids)
-            temp_uids = store_record(parsed_record, temp_uids, table_name, database, **kwargs)
+            parsed_record = parse_record(record, loader, config, foreign_keys)
+            foreign_keys = store_record(parsed_record, foreign_keys, table_name, database, **kwargs)
         for sub_loader in sub_loaders:
-            load_record(data=record, loader=sub_loader, config=config, database=database, temp_uids=temp_uids)
-
-
-def load_config_file(loader_config_file: FilePath) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    with open_file(loader_config_file) as yaml_file:
-        documents = yaml.safe_load_all(yaml_file)
-        loader_config = next(documents)
-        loader_map = next(documents)
-        return loader_map, loader_config
+            load_record(data=record, loader=sub_loader, config=config, database=database, foreign_keys=foreign_keys)
 
 
 def load_database(
         records: List[PymarcRecord],
-        loader_config_file: FilePath=METADATA_CONFIG_FILE,
+        loader_config_file: FilePath=None,
         **kwargs: Any
     ) -> None:
     database = Database(**kwargs)
-    total = len(records)
-    start_time = time.time()
     loader_map, loader_config = load_config_file(loader_config_file)
-    for i, record in enumerate(records):
+    for record in tqdm(records, desc="Loading Records"):
         load_record(data=record, loader=loader_map, config=loader_config, database=database, **kwargs)
-        log_progress(logger, i+1, total, start_time)
 
 
 ##########################################################

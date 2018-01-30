@@ -43,9 +43,6 @@ TAG_DELIMITER: "$"
       ~location.longitude: TODO
       ~location.confidence: TODO
       ~location.location_type: TODO
-      ^IMAGE_LOCATION:
-        ~image_location.image_uuid: ^IMAGE
-        ~image_location.location_uuid: ^LOCATION
   ^SUBJECT:
     ^MAIN_PERSON:
       subject.subject_name: 100$a

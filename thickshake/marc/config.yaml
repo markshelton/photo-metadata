@@ -1,4 +1,5 @@
 ---
+GENERATED_FIELD_PREFIX: "~"
 TABLE_PREFIX: "$"
 TABLE_DELIMITER: "."
 TAG_DELIMITER: "$"
@@ -29,6 +30,22 @@ $RECORD:
     image.image_url: 856$u
     image.image_note: 856$z
     image.record_uuid: record.uuid
+    ~image.image_date_created: TODO
+    $LOCATION:
+      ~location.building_name: TODO
+      ~location.street_number: TODO
+      ~location.street_name: TODO
+      ~location.street_type: TODO
+      ~location.suburb: TODO
+      ~location.state: TODO
+      ~location.post_code: TODO
+      ~location.latitude: TODO
+      ~location.longitude: TODO
+      ~location.confidence: TODO
+      ~location.location_type: TODO
+      $IMAGE_LOCATION:
+        ~image_location.image_uuid: image.uuid
+        ~image_location.location_uuid: location.uuid
   $SUBJECT:
     $MAIN_PERSON:
       subject.subject_name: 100$a

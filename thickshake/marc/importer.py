@@ -98,7 +98,7 @@ def get_data(
     fields = [] # type: List[str]
     if not isinstance(data, pymarc.Field): 
         for k,v in loader.items():
-            if not k.startswith(config["TABLE_PREFIX"]):
+            if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
                 if config["TAG_DELIMITER"] in str(v):
                     field = str(v).split(config["TAG_DELIMITER"])[0]
                     fields.append(field)
@@ -114,7 +114,7 @@ def get_loaders(loader: Dict[str, Any], config: Dict[str, Any]) -> List[Dict[str
 
 def get_table_name(loader: Dict[str, Any], config: Dict[str, Any]) -> Optional[str]:
     for k,v in loader.items():
-        if not k.startswith(config["TABLE_PREFIX"]):
+        if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
             table_name = k.split(config["TABLE_DELIMITER"])[0]
             return table_name
     return None
@@ -128,7 +128,7 @@ def parse_record(
     ) -> Dict[str, Any]:
     parsed_record = {} # type: Dict[str, Optional[str]]
     for k,v in loader.items():
-        if not k.startswith(config["TABLE_PREFIX"]):
+        if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
             table_name, column = k.split(".")
             if config["TAG_DELIMITER"] in str(v):
                 parsed_value = get_subfield_from_tag(record, v, tag_delimiter=config["TAG_DELIMITER"])

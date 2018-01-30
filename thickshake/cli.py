@@ -104,7 +104,7 @@ def load(input_metadata_file: FilePath, **kwargs: Any) -> None:
 @cli.command(context_settings=context_settings)
 @click.option("-o", "--output-metadata-file", required=True, type=click.Path(exists=True, dir_okay=False))
 @common_params
-def load(input_metadata_file: FilePath, **kwargs: Any) -> None:
+def export(input_metadata_file: FilePath, **kwargs: Any) -> None:
     """Imports metadata into database."""
     marc.export_metadata(output_metadata_file, **kwargs)
 

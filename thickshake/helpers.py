@@ -35,6 +35,17 @@ Time = Any
 logger = logging.getLogger(__name__)
 
 ##########################################################
+# Classes
+
+class FileType:
+    JSON = ".json"
+    MARC = ".marc"
+    XML = ".xml"
+    HDF5 = ".hdf5"
+    CSV = ".csv"
+
+
+##########################################################
 # Functions
 
 
@@ -98,28 +109,16 @@ def maybe_increment_path(
         i += 1
 
 
-def log_progress(logger, i: int, total: int, start_time: Time, interval: int = 1) -> None:
-    if i % interval != 0: return None
-    digits = len(str(total))
-    perc = i / float(total)
-    current_time = time.time()
-    elapsed_time = datetime.timedelta(seconds=int(current_time - start_time))
-    exp_time = datetime.timedelta(seconds=int(elapsed_time.total_seconds() / perc))
-    logger.info("Records:{curr_count:0{width}}/{total_count} | Time:{elapsed_time}/{exp_time} | {perc:>2.2f}%".format(
-            curr_count=i, total_count=total, width=digits, perc=perc*100,
-            elapsed_time=str(elapsed_time), exp_time=str(exp_time), 
-    ))
-
-
 def get_file_type(path: FilePath) -> str:
     return os.path.splitext(path)[1]
 
 
+def convert_file_type(path: FilePath, file_type: str) -> FilePath:
+    return path.replace(get_file_type(path), file_type)
+
 
 def generate_output_path(input_path: FilePath) -> FilePath:
-    output_path = input_path.replace("input", "output")
-    logger.info("Generated output path: {path}".format(path=output_path))
-    return output_path
+    return input_path.replace("input", "output")
 
 
 def sample_items(items: List[Any], sample: int = 0, **kwargs) -> List[Any]:

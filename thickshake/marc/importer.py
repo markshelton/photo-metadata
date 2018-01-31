@@ -5,24 +5,22 @@
 ##########################################################
 # Standard Library Imports
 
+from collections import defaultdict
 import logging
 import os
 
 ##########################################################
 # Third Party Imports
 
-from sqlalchemy.exc import IntegrityError
 import pymarc
 from tqdm import tqdm
-import yaml
 
 ##########################################################
 # Local Imports
 
 from thickshake.marc.reader import read_file
-from thickshake.marc.utils import load_config_file
+from thickshake.marc.utils import load_config_file, get_subfield_from_tag
 from thickshake.storage.database import Database
-from thickshake.helpers import open_file
 
 ##########################################################
 # Typing Configuration
@@ -44,46 +42,6 @@ DBObject = Any
 # Logging Configuration
 
 logger = logging.getLogger(__name__)
-
-##########################################################
-# Helper Functions
-
-
-def get_subfield_from_field(field: PymarcField, subfield_key: str) -> Optional[str]:
-    if subfield_key not in field: return None
-    subfield = field[subfield_key]
-    return subfield
-
-
-def get_subfield_from_record(record: PymarcRecord, field_key: str, subfield_key: str) -> Optional[str]:
-    if field_key not in record: return None
-    field = record[field_key]
-    subfield = get_subfield_from_field(field, subfield_key)
-    return subfield
-
-
-def get_subfield_from_tag(record_or_field: Union[PymarcRecord, PymarcField], tag_key: str, tag_delimiter: str = "$") -> Optional[str]:
-    tag = split_tag_key(tag_key, tag_delimiter)
-    if tag is None: return None
-    field_key = tag["field"]
-    subfield_key = tag["subfield"]
-    if isinstance(record_or_field, pymarc.Record):
-        if field_key is None or subfield_key is None: return None
-        return get_subfield_from_record(record_or_field, field_key, subfield_key)
-    elif isinstance(record_or_field, pymarc.Field):
-        if subfield_key is None: return None
-        return get_subfield_from_field(record_or_field, subfield_key)
-    else: return None
-
-
-def split_tag_key(tag_key: str, tag_delimiter: str = "$") -> Optional[Tag]:
-    """Split tag into a tuple of the field and subfield."""
-    tag_list = tag_key.split(tag_delimiter)
-    if len(tag_list) == 2:
-        return dict(field=tag_list[0], subfield=tag_list[1])
-    elif len(tag_list) == 1:
-        return dict(field=tag_list[0], subfield=None)
-    else: return None
 
 
 ##########################################################
@@ -128,23 +86,20 @@ def parse_record(
     ) -> Dict[str, Any]:
     parsed_record = {} # type: Dict[str, Optional[str]]
     for k,v in loader.items():
-        if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
+        if not k.startswith(config["TABLE_PREFIX"]):
             table_name, column = k.split(".")
-            if str(v).startswith(config["TABLE_PREFIX"]):
+            if k.startswith(config["GENERATED_FIELD_PREFIX"]):
+                parsed_value = None
+            elif str(v).startswith(config["TABLE_PREFIX"]):
                 table = str(v).replace(config["TABLE_PREFIX"], "").lower()
-                parsed_value = next(v for k,v in foreign_keys.items() if k.startswith(table))
+                if foreign_keys[table]:
+                    parsed_value = foreign_keys[table][0]
+                else: parsed_value = None
             elif config["TAG_DELIMITER"] in str(v):
                 parsed_value = get_subfield_from_tag(record, v, tag_delimiter=config["TAG_DELIMITER"])
             else: parsed_value = v
             parsed_record[column] = parsed_value
     return parsed_record
-
-
-def make_relationship(db_object: DBObject, table_name: str, foreign_keys: Dict[str, str]):
-    if db_object is not None:
-        if hasattr(db_object, "uuid"):
-            foreign_keys[table_name + ".uuid"] = db_object.uuid
-    return foreign_keys
 
 
 def store_record(
@@ -155,9 +110,9 @@ def store_record(
         **kwargs: Any
     ) -> Dict[str, str]:
     with database.manage_db_session(**kwargs) as session:
-        db_object = database.merge_record(table_name, parsed_record, **kwargs)
-        foreign_keys = make_relationship(db_object, table_name, foreign_keys)
-    return foreign_keys
+        db_object = database.merge_record(table_name, parsed_record, foreign_keys, **kwargs)
+        if hasattr(db_object, "uuid"):
+            return db_object.uuid
 
 
 def load_record(
@@ -168,16 +123,18 @@ def load_record(
         foreign_keys: Dict[str, str] = None,
         **kwargs: Any
     ) -> None:
-    if foreign_keys is None: foreign_keys = {}
+    if foreign_keys is None: foreign_keys = defaultdict(list)
     records = get_data(data, loader, config)
     sub_loaders = get_loaders(loader, config)
     table_name = get_table_name(loader, config)
     for record in records:
         if table_name:
             parsed_record = parse_record(record, loader, config, foreign_keys)
-            foreign_keys = store_record(parsed_record, foreign_keys, table_name, database, **kwargs)
+            new_primary_key = store_record(parsed_record, foreign_keys, table_name, database, **kwargs)
+            foreign_keys[table_name].append(new_primary_key)
         for sub_loader in sub_loaders:
             load_record(data=record, loader=sub_loader, config=config, database=database, foreign_keys=foreign_keys)
+        if table_name: foreign_keys[table_name].pop()
 
 
 def load_database(

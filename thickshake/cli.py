@@ -66,6 +66,7 @@ logger = logging.getLogger()
 def common_params(func):
     @click.option("-f", "--force", is_flag=True, help="overwrite existing files")
     @click.option("-n", "--dry-run", is_flag=True, help="run without creating files")
+    @click.option("-q", "--quarantine", is_flag=True, help="run without import/export")
     @click.option("-g", "--graphics", is_flag=True, help="display images in GUI")
     @click.option("-s", "--sample", type=int, default=0, help="perform on random sample (default: 0 / None)")
     @click_log.simple_verbosity_option(logger)
@@ -99,12 +100,12 @@ def _process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **k
     if "caption" in func: image.caption_image(input_image_dir, output_image_dir, **kwargs)
 
 
-def _parse(func: str, input_metadata_file: FilePath, output_metadata_file: FilePath, **kwargs: Any) -> None:
+def _parse(func: str,  **kwargs: Any) -> None:
     from thickshake.parser import parser
     if "all" in func: func = ["date", "location", "link"]
-    if "date" in func: parser.parse_dates(input_metadata_file, **kwargs)
-    if "location" in func: parser.parse_locations(input_metadata_file, **kwargs)
-    if "link" in func: parser.parse_links(input_metadata_file, **kwargs)
+    if "date" in func: parser.parse_dates( **kwargs)
+    if "location" in func: parser.parse_locations( **kwargs)
+    if "link" in func: parser.parse_links( **kwargs)
 
 
 ##########################################################
@@ -184,13 +185,13 @@ def export_dump(output_dump_file: FilePath, output_dump_type: str, **kwargs: Any
 @click.option("-mf", "--metadata-func", type=click.Choice(["date", "location", "link", "all", "none"]), default="all", prompt='Metadata Parsing | Options: [date, location, link, all, none] | Default:', help="Metadata parsing function")
 @click.option("-if", "--image-func", type=click.Choice(["face", "caption", "text", "all", "none"]), default="none", prompt='Image Processing | Options: [face, caption, text, all, none] | Default:', help="Image processing function")
 @common_params
-def augment(input_metadata_file: FilePath, output_metadata_file: FilePath, input_image_dir: DirPath, output_image_dir: DirPath, diff: bool, metadata_func: str, image_func: str, **kwargs: Any) -> None:
+def augment(input_metadata_file: FilePath, output_metadata_file: FilePath, input_image_dir: DirPath, output_image_dir: DirPath, quarantine: bool, diff: bool, metadata_func: str, image_func: str, **kwargs: Any) -> None:
     """[TODO] Applies functions to augment metadata."""
     from thickshake.marc import marc
-    marc.import_metadata(input_metadata_file, **kwargs)
-    _parse(metadata_func, input_metadata_file, output_metadata_file, **kwargs)
+    if not quarantine: marc.import_metadata(input_metadata_file, **kwargs)
+    _parse(metadata_func, **kwargs)
     _process(image_func, input_image_dir, output_image_dir, **kwargs)
-    marc.export_metadata(output_metadata_file, input_metadata_file, diff, **kwargs)
+    if not quarantine: marc.export_metadata(output_metadata_file, input_metadata_file, diff, **kwargs)
 
 @cli.command(context_settings=context_settings)
 @click.option("-i", "--input-image-dir", required=True, type=click.Path(exists=True, file_okay=False))
@@ -207,10 +208,10 @@ def process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **kw
 @click.option("-o", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
 @click.option("-mf", "--func", type=click.Choice(["date", "location", "link", "all", "none"]), default="all", prompt='Parsing Functions | Options: [date, location, link, all, none] | Default:', help="Metadata parsing function")
 @click.pass_context
-def parse(func: str, input_metadata_file: FilePath, output_metadata_file: FilePath, **kwargs: Any) -> None:
+def parse(func: str, input_metadata_file: FilePath, output_metadata_file: FilePath, quarantine: bool, **kwargs: Any) -> None:
     """[TODO] Performs parsing on the metadata."""
-    _parse(func, input_metadata_file, output_metadata_file, **kwargs)
-    metadata.export_database(output_metadata_file, **kwargs)
+    _parse(func, **kwargs)
+    if not quarantine: metadata.export_database(output_metadata_file, **kwargs)
 
 
 ##########################################################

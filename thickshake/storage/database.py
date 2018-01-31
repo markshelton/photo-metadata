@@ -5,18 +5,20 @@
 ##########################################################
 # Standard Library Imports
 
-import logging
+from collections import defaultdict
 from contextlib import contextmanager, ExitStack
+import logging
 
 ##########################################################
 # Third Party Imports
 
-import pandas as pd
 from envparse import env
+import pandas as pd
 from sqlalchemy import create_engine, text, func, inspect
 from sqlalchemy.engine import url
 from sqlalchemy.exc import IntegrityError, DataError
 from sqlalchemy.orm import scoped_session, sessionmaker, load_only
+from tqdm import tqdm
 
 ##########################################################
 # Local Imports
@@ -69,17 +71,18 @@ class Database:
     
     def __init__(self, db_config: DBConfig = DB_CONFIG, force: bool=False, **kwargs: Any) -> None:
         if self.engine is None:
-            self.engine = self.make_engine(db_config)
+            self.engine = self.make_engine(db_config, **kwargs)
             self.base = Base
             if force: self.remove_db_tables()
             self.make_db_tables()
             
 
-    def make_engine(self, db_config: DBConfig) -> DBEngine:
+    def make_engine(self, db_config: DBConfig, verbosity: str="INFO", **kwargs: Any) -> DBEngine:
         db_url = url.URL(**db_config)
         if db_config["database"] is None: return None
         maybe_make_directory(db_config["database"])
-        db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True)
+        echo = True if logging.getLogger().getEffectiveLevel() == logging.DEBUG else False
+        db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True, echo=echo)
         return db_engine
 
 
@@ -88,6 +91,7 @@ class Database:
 
 
     def remove_db_tables(self) -> None:
+        self.base.metadata.reflect(self.engine)
         self.base.metadata.drop_all(self.engine)
 
 
@@ -108,22 +112,30 @@ class Database:
             self.session.close()
 
 
-
-    def merge_record(self, table_name: str, parsed_record: Dict[str, Any], **kwargs: Any) -> DBObject:
+    def merge_record(self, table_name: str, parsed_record: Dict[str, Any], foreign_keys: Dict[str, str], **kwargs: Any) -> DBObject:
         model = self.get_class_by_table_name(table_name)
         db_object = model(**parsed_record)
         try: 
-            self.session.add(db_object)
+            if foreign_keys[table_name]:
+                db_object.uuid = foreign_keys[table_name][-1]
+                self.session.merge(db_object)
+            else:
+                self.session.add(db_object)
             self.session.flush()
         except IntegrityError as e:
             self.session.rollback()
-            unique_columns = self.get_unique_columns(table_name)
-            q = self.session.query(model)
-            for col in unique_columns:
-                try: q = q.filter(getattr(model, col).like(getattr(db_object, col)))
-                except: q = q.filter(getattr(model, col) == getattr(db_object, col))
-            matched_obj = q.first()
-            db_object = matched_obj
+            try: 
+                self.session.merge(db_object)
+                self.session.flush()
+            except IntegrityError as e:
+                self.session.rollback()
+                unique_columns = self.get_unique_columns(table_name)
+                q = self.session.query(model)
+                for col in unique_columns:
+                    try: q = q.filter(getattr(model, col).like(getattr(db_object, col)))
+                    except: q = q.filter(getattr(model, col) == getattr(db_object, col))
+                matched_obj = q.first()
+                db_object = matched_obj
         return db_object
 
 
@@ -153,6 +165,11 @@ class Database:
         unique_constraints = insp.get_unique_constraints(table_name)
         return [unique_constraint["column_names"][0] for unique_constraint in unique_constraints]
 
+    def get_relationships(self, table_name: str) -> List[Any]:
+        model = self.get_class_by_table_name(table_name)
+        insp = inspect(model)
+        return insp.relationships
+
     def execute_text_query(self, sql_text: str) -> List[Dict[str, Any]]:
         with self.manage_db_session() as session:
             result = session.execute(text(sql_text)).fetchall()
@@ -178,34 +195,39 @@ class Database:
         return result
 
 
-    def load_column(self, table: str, column: str) -> Series:
+    def load_columns(self, table: str, columns: List[str], **kwargs: Any) -> DataFrame:
         with self.manage_db_session() as session:
             model = self.get_class_by_table_name(table)
             result = session.query(model).all()
             pk = self.get_primary_keys(model=model)
             records = [record.__dict__ for record in result]
             df = pd.DataFrame(data=records)
-            df.set_index(keys=pk, inplace=True)
-            series = df[column]
-            return series
+            df.set_index(keys=pk, inplace=True, drop=False)
+            df = df[columns]
+            return df
 
 
-    #TODO
-    def save_column(self, table: str, column: str, series: Series) -> None:
-        with self.manage_db_session() as session:
-            model = get_class_by_table_name(table)
-            pass #TODO
-
-
-    def save_columns(self, output_map: Dict[str, Tuple[str, str]], data: DataFrame) -> None:
-        for column in data:
-            if column in output_map:
-                pass #TODO
+    def save_columns(self, input_table: str, output_table: str, output_map: Dict[str, str], data: DataFrame, **kwargs: Any) -> None:
+            data.reset_index(drop=False, inplace=True)
+            data.rename(columns=output_map, inplace=True)
+            new_columns = list(output_map.values())
+            data = data[new_columns]
+            data = data.where((pd.notnull(data)), None)
+            records = data.to_dict(orient='records')
+            for record in tqdm(records, desc="Saving Records"):
+                foreign_keys = defaultdict(list)
+                with self.manage_db_session() as session:
+                    db_object = self.merge_record(output_table, record, foreign_keys, **kwargs) #location
+                    if hasattr(db_object, "uuid"): fk = db_object.uuid
+                if input_table != output_table:
+                    with self.manage_db_session() as session:
+                        record = {"uuid": record["image_uuid"], "location_uuid": fk} # FIXME
+                        self.merge_record(input_table, record, foreign_keys, **kwargs)
 
 
     def inspect_database(self) -> None:
         with self.manage_db_session() as session:
-            for table_name in self.engine.table_names():
+            for table_name in self.base.metadata.tables.keys():
                 model = self.get_class_by_table_name(table_name)
                 num_records = session.query(func.count('*')).select_from(model).scalar()
                 logger.info("Table: %s, Records: %s", table_name, num_records)

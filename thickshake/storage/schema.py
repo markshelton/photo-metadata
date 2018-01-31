@@ -57,11 +57,13 @@ class Record(Constructor, Base):
     physical_details = Column(Text)
     # Generated Fields
     date_created_parsed = Column(Date) # FROM [record.date_created, record.date_created_approx]
+    # Foreign Keys
+    location_uuid = Column(Integer, ForeignKey("location.uuid"))
     # ORM Relationships
     images = relationship("Image")
     subjects = relationship("RecordSubject", back_populates="record")
     topics = relationship("RecordTopic", back_populates="record")
-    locations = relationship("RecordLocation", back_populates="record")
+    location = relationship("Location", back_populates="records")
 
 
 class Subject(Constructor, Base):
@@ -95,9 +97,10 @@ class Image(Constructor, Base):
     image_date_created = Column(Date) # FROM [image.image_note, record.date_created, record.date_created_approx]
     # Foreign Keys
     record_uuid = Column(Integer, ForeignKey("record.uuid"))
+    location_uuid = Column(Integer, ForeignKey("location.uuid"))
     # ORM Relationships
     record = relationship("Record", back_populates="images")
-    locations = relationship("ImageLocation", back_populates="image")
+    location = relationship("Location", back_populates="images")
 
 
 class Location(Constructor, Base):
@@ -120,8 +123,8 @@ class Location(Constructor, Base):
     confidence = Column(Numeric) # FROM [image.image_note]
     location_type = Column(Text) # FROM [image.image_note]
     # ORM Relationships
-    images = relationship("ImageLocation", back_populates="location")
-    records = relationship("RecordLocation", back_populates="location")
+    images = relationship("Image")
+    records = relationship("Record")
 
 
 class Topic(Constructor, Base):
@@ -159,26 +162,6 @@ class RecordTopic(Constructor, Base):
     # ORM Relationships
     record = relationship("Record", back_populates="topics")
     topic = relationship("Topic", back_populates="records")
-
-
-class RecordLocation(Constructor, Base):
-    __tablename__ = "record_location"
-    # Primary Keys
-    record_uuid = Column(Integer, ForeignKey("record.uuid"), primary_key=True)
-    location_uuid = Column(Integer, ForeignKey("location.uuid"), primary_key=True)
-    # ORM Relationships
-    record = relationship("Record", back_populates="locations")
-    location = relationship("Location", back_populates="records")
-
-
-class ImageLocation(Constructor, Base):
-    __tablename__ = "image_location"
-    # Primary Keys
-    image_uuid = Column(Integer, ForeignKey("image.uuid"), primary_key=True)
-    location_uuid = Column(Integer, ForeignKey("location.uuid"), primary_key=True)
-    # ORM Relationships
-    image = relationship("Image", back_populates="locations")
-    location = relationship("Location", back_populates="images")
 
 
 ##########################################################

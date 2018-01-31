@@ -7,17 +7,21 @@ import logging
 # Third Party Imports
 
 from envparse import env
+import pandas as pd
+from tqdm import tqdm
 
 ##########################################################
 # Local Imports
 
 from thickshake.parser.geocoder import extract_location
+#from thickshake.parser.dates import extract_date
+#from thickshake.parser.links import extract_links
 from thickshake.storage.database import Database
 
 ##########################################################
 # Typing Configuration
 
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, List
 Parser = Any
 FilePath = str
 DirPath = str
@@ -29,36 +33,88 @@ DirPath = str
 # Initializations
 
 logger = logging.getLogger(__name__)
-database = Database()
 
 ##########################################################
 # Functions
 
 
-def process_field(
-        input_field: Tuple[str, str], # Table, Column
-        output_field: Dict[str, Tuple[str, str]], # Map (df column -> (db table, db column))
+def apply_parser(
+        input_table: str, #Table
+        input_columns: List[str], # Columns
+        output_table: str,
+        output_map: Dict[str, str], # Map (df column -> db column)
         parser: Parser,
+        sample: int,
         **kwargs: Any
     ) -> None:
-    input_series = database.load_column(*input_field)
-    output_dataframe = parser(input_series, **kwargs)
-    database.save_columns(*output_field, data=output_dataframe)
+    database = Database(**kwargs)
+    input_dataframe = database.load_columns(input_table, input_columns, **kwargs)
+    if sample != 0: input_dataframe = input_dataframe.sample(n=sample)
+    output_records = []
+    total = input_dataframe.shape[0] 
+    for _, row in tqdm(input_dataframe.iterrows(), total=total, desc="Parsing Records"):
+        input_values = row[input_columns].values
+        if len(input_values) == 1: input_values = input_values[0]
+        output_values = parser(input_values, **kwargs)
+        output_records.append(output_values)
+    output_dataframe = pd.DataFrame.from_records(output_records, index=input_dataframe.index)
+    database.save_columns(input_table, output_table, output_map, output_dataframe, **kwargs)
 
 
-def augment_metadata(
-        input_metadata_file: FilePath,
-        output_metadata_file: FilePath = None,
-        input_image_dir: DirPath = None,
-        diff: bool = True,
+def parse_locations(**kwargs: Any) -> None:
+    apply_parser(
+        input_table = "image",
+        input_columns = ["image_note"],
+        output_table = "location",
+        output_map = { 
+            "uuid": "image_uuid",
+            "building_name": "building_name",
+            "street_number": "street_number",
+            "street_name": "street_name",
+            "street_type": "street_type",
+            "suburb": "suburb",
+            "state": "state",
+            "post_code": "post_code",
+            "latitude": "latitude",
+            "longitude": "longitude",
+            "confidence": "confidence",
+            "location_type": "location_type"
+        },
+        parser = extract_location,
         **kwargs
-    ) -> None:
-    if output_metadata_file is None:
-        output_metadata_file = generate_output_path(input_metadata_file)
-    import_metadata(input_metadata_file, **kwargs)
-    apply_parsers(**kwargs)
-    export_metadata(output_metadata_file, **kwargs)
-    if diff: generate_diff(input_metadata_file, output_metadata_file)
+    )
+
+
+def parse_links(**kwargs: Any) -> None:
+    apply_parser(
+        input_table = "image",
+        input_columns = ["image_url"],
+        output_table = "image",
+        output_map = { 
+            "uuid": "uuid",
+            "image_label": "image_label",
+            "image_url_raw": "image_url_raw",
+            "image_url_thumb": "image_url_thumb",
+            "image_height": "image_height",
+            "image_width": "image_width"
+        },
+        parser = None, #extract_links,
+        **kwargs
+    )
+
+
+def parse_dates(**kwargs: Any) -> None:
+    apply_parser(
+        input_table = "image",
+        input_columns = ["image_note"],
+        output_table = "image",
+        output_map = { 
+            "uuid": "uuid",
+            "image_date_created": "image_date_created"
+        },
+        parser = None, #extract_date,
+        **kwargs
+    )
 
 
 ##########################################################
@@ -72,6 +128,4 @@ def main():
 
 
 if __name__ == "__main__":
-    setup_logging()
-    setup_warnings()
     main()

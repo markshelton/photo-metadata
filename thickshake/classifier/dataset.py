@@ -33,7 +33,6 @@ from thickshake.storage.store import Store
 # Constants & Initialization
 
 logger = logging.getLogger(__name__)
-database = Database()
 
 ##########################################################
 # Functions

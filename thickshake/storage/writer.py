@@ -107,7 +107,7 @@ def write_flat_file(records: List[Any], output_file: FilePath, force: bool=False
 def export_flat_file(output_file: FilePath, force: bool=False, **kwargs: Any) -> None:
     if not force and os.path.exists(output_file): raise IOError
     from thickshake.storage.database import Database
-    database = Database()
+    database = Database(**kwargs)
     records = database.dump(force=force, **kwargs)
     write_flat_file(records, output_file, force=force, **kwargs)
 
@@ -115,7 +115,7 @@ def export_flat_file(output_file: FilePath, force: bool=False, **kwargs: Any) ->
 def export_to_store(**kwargs: Any) -> None:
     from thickshake.storage.database import Database
     from thickshake.storage.store import Store
-    database = Database()
+    database = Database(**kwargs)
     records = database.dump()
     write_to_store(records, store, **kwargs)
 

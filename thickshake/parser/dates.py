@@ -6,20 +6,21 @@ import logging
 ##########################################################
 # Third Party Imports
 
-from envparse import env
 
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import setup_warnings, setup_logging
-from thickshake.types import *
 
 ##########################################################
-# Environmental Variables
+# Typing Configuration
+
+from typing import List, Optional, 
+##########################################################
+# Constants
 
 
 ##########################################################
-# Logging Configuration
+# Initializations
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def select_date(possible_dates: List[Date], method: str = "first") -> Optional[D
         return None
     
 
-def extract_date_from_text(date_text: str, method: str = "first") -> Optional[Date]:
+def extract_date(date_text: str, method: str = "first") -> Optional[Date]:
     possible_dates = get_possible_dates(date_text)
     selected_date = select_date(possible_dates, method=method)
     return selected_date

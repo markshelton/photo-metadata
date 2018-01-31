@@ -65,6 +65,9 @@ def get_id_from_url(image_file: Optional[FilePath]) -> Optional[str]:
     return image_id
 
 
+def extract_links(text: str, **kwargs) -> None:
+    pass
+
 ##########################################################
 # Main
 

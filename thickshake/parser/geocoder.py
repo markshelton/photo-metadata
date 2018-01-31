@@ -24,7 +24,6 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.storage.database import Database
 from thickshake.helpers import deep_get, consolidate_list
 
 ##########################################################
@@ -51,14 +50,9 @@ MTD_LOC_ADDRESS_STOP_WORDS_FILE ="%s/deps/stop_words.csv" % (CURRENT_FILE_DIR) #
 MTD_LOC_DEFAULT_STATE = "WA" # type: str
 
 ##########################################################
-# Logging Configuration
+# Initializations
 
 logger = logging.getLogger(__name__)
-
-##########################################################
-# Database Configuration
-
-database = Database()
 
 ##########################################################
 # Helpers
@@ -191,24 +185,12 @@ def geocode_address(address: Address, api_url: Url=MAPPIFY_BASE_URL) -> Location
     return location
 
 
-def extract_location(location_text: str) -> Location:
-    """Parse and geocode location from text using OSM Nominatim."""
+def extract_location(location_text: str, **kwargs: Any) -> Location:
+    """Parse and geocode location from text."""
     address = parse_address(location_text)
     if not address: return {}
     location = geocode_address(address)
     return location
-
-
-#TODO: Convert to Async requests
-def extract_locations(series: Series, sample_size: int = 5, **kwargs: Any) -> DataFrame:
-    locations = []
-    if sample_size != 0: series = series.sample(n=sample_size)
-    for text in tqdm(series, desc="Detecting Locations"):
-        location = extract_location(text)
-        locations.append(location)
-    locations = pd.DataFrame.from_records(locations, index=series.index)
-    return locations
-
 
 ##########################################################
 # Main

@@ -23,26 +23,27 @@ TAG_DELIMITER: "$"
   ^LOCATION:
     location.location_division: 650$z
     location.location_name: 651$a
-    ^RECORD_LOCATION:
-      record_location.record_uuid: ^RECORD
-      record_location.location_uuid: ^LOCATION
+    ^RECORD:
+      record.location_uuid: ^LOCATION
   ^IMAGE:
     image.image_url: 856$u
     image.image_note: 856$z
     image.record_uuid: ^RECORD
-    ~image.image_date_created: TODO
+    ~image.image_date_created: 856$0
     ^LOCATION:
-      ~location.building_name: TODO
-      ~location.street_number: TODO
-      ~location.street_name: TODO
-      ~location.street_type: TODO
-      ~location.suburb: TODO
-      ~location.state: TODO
-      ~location.post_code: TODO
-      ~location.latitude: TODO
-      ~location.longitude: TODO
-      ~location.confidence: TODO
-      ~location.location_type: TODO
+      ~location.building_name: 856$1
+      ~location.street_number: 856$2
+      ~location.street_name: 856$3
+      ~location.street_type: 856$4
+      ~location.suburb: 856$5
+      ~location.state: 856$6
+      ~location.post_code: 856$7
+      ~location.latitude: 856$8
+      ~location.longitude: 856$9
+      ~location.confidence: 856$10
+      ~location.location_type: 856$11
+      ^IMAGE:
+        image.location_uuid: ^LOCATION
   ^SUBJECT:
     ^MAIN_PERSON:
       subject.subject_name: 100$a

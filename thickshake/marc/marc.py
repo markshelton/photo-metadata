@@ -66,13 +66,14 @@ def import_metadata(input_metadata_file: FilePath, **kwargs) -> None:
 def export_metadata(output_metadata_file: FilePath, input_metadata_file: FilePath=None, diff: bool=False, force: bool=True, **kwargs) -> None:
     if not force: assert not os.path.exists(output_metadata_file)
     if input_metadata_file is not None:
-        records_new = export_database(force=force, all=False, **kwargs)
+        records_new = export_database(force=False, all=False, **kwargs)
         records_old = read_file(input_metadata_file, force=force, **kwargs)
-        records = combine_records(records_new, records_old, force=force, **kwargs)
+        records = records_new
+        #records = combine_records(records_new, records_old, force=force, **kwargs)
         write_file(records, output_metadata_file, force=force, **kwargs)
         if diff: generate_diff(input_metadata_file, output_metadata_file)
     else:
-        records = export_database(force=force, all=True, **kwargs)
+        records = export_database(force=False, all=True, **kwargs)
         write_file(records, output_metadata_file, force=force, **kwargs)
 
 

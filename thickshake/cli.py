@@ -34,7 +34,8 @@ DirPath = str
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-CONFIG_SETTINGS_FILE = env.str("CONFIG_SETTINGS_FILE", default="%s/settings.ini" % (CURRENT_FILE_DIR))
+CONFIG_DIR_PATH = "%s/_config" % CURRENT_FILE_DIR
+CONFIG_SETTINGS_FILE = env.str("CONFIG_SETTINGS_FILE", default="%s/settings.ini" % (CONFIG_DIR_PATH))
 
 ##########################################################
 # Classes

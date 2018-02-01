@@ -26,7 +26,8 @@ FilePath = str
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-CONFIG_LOGGING_FILE = env.str("CONFIG_LOGGING_FILE", default="%s/logging.yaml" % (CURRENT_FILE_DIR))
+CONFIG_DIR_PATH = "%s/_config" % CURRENT_FILE_DIR
+CONFIG_LOGGING_FILE = env.str("CONFIG_LOGGING_FILE", default="%s/logging.yaml" % (CONFIG_DIR_PATH))
 
 ##########################################################
 

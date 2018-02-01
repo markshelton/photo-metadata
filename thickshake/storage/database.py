@@ -23,7 +23,7 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.storage.schema import Base
+from thickshake._config.schema import Base
 from thickshake.helpers import maybe_make_directory
 
 ##########################################################

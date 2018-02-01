@@ -44,9 +44,10 @@ MAPPIFY_BASE_URL = env.str("MAPPIFY_BASE_URL", default="https://mappify.io/api/r
 MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None) # type: Optional[str]
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-MTD_LOC_STREET_TYPES_FILE = "%s/deps/aus_street_types.csv" % (CURRENT_FILE_DIR) # type: FilePath
-MTD_LOC_SUBURB_NAMES_FILE = "%s/deps/wa_suburb_names.csv" % (CURRENT_FILE_DIR) # type: FilePath
-MTD_LOC_ADDRESS_STOP_WORDS_FILE ="%s/deps/stop_words.csv" % (CURRENT_FILE_DIR) # type: FilePath
+DATA_DIR_PATH = "%s/../_data/parser/locations" % CURRENT_FILE_DIR
+MTD_LOC_STREET_TYPES_FILE = "%s/aus_street_types.csv" % (DATA_DIR_PATH) # type: FilePath
+MTD_LOC_SUBURB_NAMES_FILE = "%s/wa_suburb_names.csv" % (DATA_DIR_PATH) # type: FilePath
+MTD_LOC_ADDRESS_STOP_WORDS_FILE ="%s/stop_words.csv" % (DATA_DIR_PATH) # type: FilePath
 MTD_LOC_DEFAULT_STATE = "WA" # type: str
 
 ##########################################################

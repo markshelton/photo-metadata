@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-METADATA_CONFIG_FILE = "%s/config.yaml" % (CURRENT_FILE_DIR)
+CONFIG_DIR_PATH = "%s/../_config" % CURRENT_FILE_DIR
+METADATA_CONFIG_FILE = "%s/marc.yaml" % (CONFIG_DIR_PATH)
 
 ##########################################################
 # Functions

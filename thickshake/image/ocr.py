@@ -33,10 +33,11 @@ Rect = Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-DICTIONARY_PATH = env.str("DICTIONARY_PATH", default="%s/deps/dictionary.txt" % CURRENT_FILE_DIR)
-CLASSIFIER_NM1_PATH = env.str("CLASSIFIER_NM1_PATH", default="%s/deps/trained_classifierNM1.xml" % CURRENT_FILE_DIR)
-CLASSIFIER_NM2_PATH = env.str("CLASSIFIER_NM2_PATH", default="%s/deps/trained_classifierNM2.xml" % CURRENT_FILE_DIR)
-CLASSIFIER_ER_GROUP_PATH = env.str("CLASSIFIER_ER_GROUP_PATH", default="%s/deps/trained_classifier_erGrouping.xml" % CURRENT_FILE_DIR)
+DATA_DIR_PATH = "%s/../_data/image/ocr" % CURRENT_FILE_DIR
+DICTIONARY_PATH = env.str("DICTIONARY_PATH", default="%s/dictionary.txt" % DATA_DIR_PATH)
+CLASSIFIER_NM1_PATH = env.str("CLASSIFIER_NM1_PATH", default="%s/trained_classifierNM1.xml" % DATA_DIR_PATH)
+CLASSIFIER_NM2_PATH = env.str("CLASSIFIER_NM2_PATH", default="%s/trained_classifierNM2.xml" % DATA_DIR_PATH)
+CLASSIFIER_ER_GROUP_PATH = env.str("CLASSIFIER_ER_GROUP_PATH", default="%s/trained_classifier_erGrouping.xml" % DATA_DIR_PATH)
 
 SEARCH_SPACE = hyperopt.hp.choice('params',[
     {

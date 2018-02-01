@@ -40,9 +40,10 @@ Predictor = Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-IMG_FACE_PREDICTOR_FILE = env.str("IMG_FACE_PREDICTOR_FILE", default="%s/deps/shape_predictor_68_face_landmarks.dat" % CURRENT_FILE_DIR)
-IMG_FACE_RECOGNIZER_FILE = env.str("IMG_FACE_RECOGNIZER_FILE", default="%s/deps/dlib_face_recognition_resnet_model_v1.dat" % CURRENT_FILE_DIR)
-IMG_FACE_TEMPLATE_FILE = env.str("IMG_FACE_TEMPLATE_FILE", default="%s/deps/openface_68_face_template.npy" % CURRENT_FILE_DIR)
+DATA_DIR_PATH = "%s/../_data/image/faces" % CURRENT_FILE_DIR
+IMG_FACE_PREDICTOR_FILE = env.str("IMG_FACE_PREDICTOR_FILE", default="%s/shape_predictor_68_face_landmarks.dat" % DATA_DIR_PATH)
+IMG_FACE_RECOGNIZER_FILE = env.str("IMG_FACE_RECOGNIZER_FILE", default="%s/dlib_face_recognition_resnet_model_v1.dat" % DATA_DIR_PATH)
+IMG_FACE_TEMPLATE_FILE = env.str("IMG_FACE_TEMPLATE_FILE", default="%s/openface_68_face_template.npy" % DATA_DIR_PATH)
 
 ##########################################################
 # Initialization

@@ -7,12 +7,16 @@ import logging
 # Third Party Imports
 
 from envparse import env
+from PIL import ImageFile
+import urllib.request
+import urllib.error
 
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import setup_warnings, setup_logging
-from thickshake.types import *
+from typing import Optional, Dict
+FilePath = str
+Size = Dict[str, str]
 
 ##########################################################
 # Environmental Variables
@@ -28,21 +32,8 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def get_image_url(image_id: str, method: str = None, base_url: Optional[str] = SLWA_BASE_URL) -> Union[str, Dict[str, str]]:
-    image_urls = {
-        "main": base_url + image_id,
-        "raw": base_url + image_id + ".jpg",
-        "thumb": base_url + image_id + ".png",
-    }
-    if method: return image_urls["method"]
-    else: return image_urls
-
-
-def get_image_dimensions(field: PymarcField, tag: str, dimensions_flag: bool = True) -> Optional[Size]:
-    if dimensions_flag is False: return None
-    image_url_raw = get_subfield_from_tag(field, tag)
-    if image_url_raw is None: return None
-    image_url = image_url_raw + ".jpg"
+def get_image_dimensions(image_url: str, **kwargs) -> Optional[Size]:
+    if image_url is None: return {"width": None, "height": None} 
     try:
         with urllib.request.urlopen(image_url) as image_file:
             parser = ImageFile.Parser()
@@ -53,10 +44,10 @@ def get_image_dimensions(field: PymarcField, tag: str, dimensions_flag: bool = T
                 parser.feed(data)
                 if parser.image:
                     width, height = parser.image.size
-                    return Size({"width": width, "height": height})
+                    return {"width": width, "height": height}
     except urllib.error.URLError:
         logger.warning("Image not found. Size could not be determined.")
-    return None
+    return {"width": None, "height": None}
 
 
 def get_id_from_url(image_file: Optional[FilePath]) -> Optional[str]:
@@ -65,8 +56,22 @@ def get_id_from_url(image_file: Optional[FilePath]) -> Optional[str]:
     return image_id
 
 
-def extract_links(text: str, **kwargs) -> None:
-    pass
+def extract_image_links(text: str, **kwargs) -> Dict[str, str]:
+    image_label = get_id_from_url(text)
+    image_url_raw = text + ".jpg"
+    image_url_thumb = text + ".png"
+    return {
+        "image_label": image_label,
+        "image_url_raw": image_url_raw,
+        "image_url_thumb": image_url_thumb,
+    }
+
+def extract_image_dimensions(text: str, **kwargs) -> Dict[str, str]:
+    image_dimensions = get_image_dimensions(text)
+    return {
+        "image_height": image_dimensions.get("height", None),
+        "image_width": image_dimensions.get("width", None)
+    }
 
 ##########################################################
 # Main

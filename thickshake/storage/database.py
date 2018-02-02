@@ -116,14 +116,16 @@ class Database:
         model = self.get_class_by_table_name(table_name)
         db_object = model(**parsed_record)
         try: 
-            if foreign_keys[table_name]:
+            if foreign_keys[table_name] and foreign_keys[table_name][-1] is not None:
                 db_object.uuid = foreign_keys[table_name][-1]
                 self.session.merge(db_object)
             else:
+                if not parsed_record or all(v is None for v in parsed_record.values()): return None
                 self.session.add(db_object)
             self.session.flush()
         except IntegrityError as e:
             self.session.rollback()
+            if not parsed_record or all(v is None for v in parsed_record.values()): return None
             try: 
                 self.session.merge(db_object)
                 self.session.flush()
@@ -181,12 +183,10 @@ class Database:
     def dump(self, sample: int = 0, **kwargs: Any) -> List[Dict[str, Any]]:
         sql_text =  "SELECT *\n"
         sql_text += "FROM image\n"
-        sql_text += "NATURAL LEFT JOIN image_location\n"
         sql_text += "NATURAL LEFT JOIN location\n"
         sql_text += "NATURAL LEFT JOIN record\n"
         sql_text += "NATURAL LEFT JOIN record_subject\n"
         sql_text += "NATURAL LEFT JOIN subject\n"
-        sql_text += "NATURAL LEFT JOIN record_location\n"
         sql_text += "NATURAL LEFT JOIN record_topic\n"
         sql_text += "NATURAL LEFT JOIN topic\n"
         if sample != 0: sql_text += "LIMIT %i\n" % sample
@@ -207,22 +207,32 @@ class Database:
             return df
 
 
-    def save_columns(self, input_table: str, output_table: str, output_map: Dict[str, str], data: DataFrame, **kwargs: Any) -> None:
+    def get_remote_fk_name(self, input_table, output_table):
+        rs = self.get_relationships(output_table)
+        input_model = self.get_class_by_table_name(input_table)
+        for r in rs:
+            if r.mapper.class_ == input_model:
+                return list(r.remote_side)[0].description
+
+
+    def save_record(self, input_table: str, output_table: str, output_map: Dict[str, str], data: DataFrame, **kwargs: Any) -> None:
             data.reset_index(drop=False, inplace=True)
             data.rename(columns=output_map, inplace=True)
             new_columns = list(output_map.values())
-            data = data[new_columns]
             data = data.where((pd.notnull(data)), None)
-            records = data.to_dict(orient='records')
-            for record in tqdm(records, desc="Saving Records"):
-                foreign_keys = defaultdict(list)
+            data = data.astype('object')
+            record = data.squeeze().to_dict()
+            foreign_keys = defaultdict(list)
+            with self.manage_db_session() as session:
+                db_object = self.merge_record(output_table, record, foreign_keys, **kwargs)
+                if hasattr(db_object, "uuid"): 
+                    remote_fk_value = db_object.uuid
+                    remote_fk_name = self.get_remote_fk_name(input_table, output_table)
+            if input_table != output_table:
                 with self.manage_db_session() as session:
-                    db_object = self.merge_record(output_table, record, foreign_keys, **kwargs) #location
-                    if hasattr(db_object, "uuid"): fk = db_object.uuid
-                if input_table != output_table:
-                    with self.manage_db_session() as session:
-                        record = {"uuid": record["image_uuid"], "location_uuid": fk} # FIXME
-                        self.merge_record(input_table, record, foreign_keys, **kwargs)
+                    local_fk_value = record["%s_uuid" % input_table]
+                    record = {"uuid": local_fk_value, remote_fk_name: remote_fk_value}
+                    self.merge_record(input_table, record, foreign_keys, **kwargs)
 
 
     def inspect_database(self) -> None:

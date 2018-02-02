@@ -1,11 +1,12 @@
 ---
+RECORD_KEY_PREFIX: "<"
 GENERATED_FIELD_PREFIX: "~"
 TABLE_PREFIX: "^"
 TABLE_DELIMITER: "."
 TAG_DELIMITER: "$"
 ---
 ^RECORD:
-  record.record_label: 035$a
+  <record.record_label: 035$a
   record.note_title: 245$a
   record.note_general: 500$a
   record.note_summary: 520$a
@@ -29,23 +30,16 @@ TAG_DELIMITER: "$"
     image.image_url: 856$u
     image.image_note: 856$z
     image.record_uuid: ^RECORD
-    ~image.image_date_created: 856$0
+    ~image.image_label: 264$3
+    ~image.image_date_created: 264$c
     ^LOCATION:
-      ~location.building_name: 856$1
-      ~location.street_number: 856$2
-      ~location.street_name: 856$3
-      ~location.street_type: 856$4
-      ~location.suburb: 856$5
-      ~location.state: 856$6
-      ~location.post_code: 856$7
-      ~location.latitude: 856$8
-      ~location.longitude: 856$9
-      ~location.confidence: 856$10
-      ~location.location_type: 856$11
+      ~location.latitude: 034$s
+      ~location.longitude: 034$t
       ^IMAGE:
+        ~image.image_label: 034$3
         image.location_uuid: ^LOCATION
   ^SUBJECT:
-    ^MAIN_PERSON:
+    ^SUBJECT.MAIN_PERSON: # MAIN PERSON
       subject.subject_name: 100$a
       subject.subject_dates: 100$d
       subject.subject_type: Person
@@ -54,7 +48,7 @@ TAG_DELIMITER: "$"
         record_subject.subject_uuid: ^SUBJECT
         record_subject.subject_is_main: True
         record_subject.subject_relation: 100$e
-    ^MAIN_COMPANY:
+    ^SUBJECT.MAIN_COMPANY: # MAIN COMPANY
       subject.subject_name: 110$a
       subject.subject_dates: None
       subject.subject_type: Company
@@ -63,7 +57,7 @@ TAG_DELIMITER: "$"
         record_subject.subject_uuid: ^SUBJECT
         record_subject.subject_is_main: True
         record_subject.subject_relation: 110$e
-    ^OTHER_PERSON:
+    ^SUBJECT.OTHER_PERSON: # OTHER PERSON
       subject.subject_name: 600$a
       subject.subject_dates: 600$d
       subject.subject_type: Person
@@ -72,7 +66,7 @@ TAG_DELIMITER: "$"
         record_subject.subject_uuid: ^SUBJECT
         record_subject.subject_is_main: False
         record_subject.subject_relation: 600$x
-    ^OTHER_COMPANY:
+    ^SUBJECT.OTHER_COMPANY: # OTHER COMPANY
       subject.subject_name: 610$a
       subject.subject_dates: None
       subject.subject_type: Company

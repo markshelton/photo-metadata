@@ -8,6 +8,7 @@
 from collections import defaultdict
 import logging
 import os
+from pprint import pprint
 
 ##########################################################
 # Third Party Imports
@@ -19,7 +20,7 @@ from tqdm import tqdm
 # Local Imports
 
 from thickshake.marc.reader import read_file
-from thickshake.marc.utils import load_config_file, get_subfield_from_tag
+from thickshake.marc.utils import load_config_file, get_subfield_from_tag, get_loaders
 from thickshake.storage.database import Database
 
 ##########################################################
@@ -43,7 +44,6 @@ DBObject = Any
 
 logger = logging.getLogger(__name__)
 
-
 ##########################################################
 # Functions
 
@@ -65,19 +65,6 @@ def get_data(
     return [data]
 
 
-def get_loaders(loader: Dict[str, Any], config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    loaders = [v for k,v in loader.items() if k.startswith(config["TABLE_PREFIX"])]
-    return loaders
-
-
-def get_table_name(loader: Dict[str, Any], config: Dict[str, Any]) -> Optional[str]:
-    for k,v in loader.items():
-        if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
-            table_name = k.split(config["TABLE_DELIMITER"])[0]
-            return table_name
-    return None
-
-
 def parse_record(
         record: Union[PymarcField, PymarcRecord],
         loader: Dict[str, Any],
@@ -93,7 +80,7 @@ def parse_record(
             elif str(v).startswith(config["TABLE_PREFIX"]):
                 table = str(v).replace(config["TABLE_PREFIX"], "").lower()
                 if foreign_keys[table]:
-                    parsed_value = foreign_keys[table][0]
+                    parsed_value = foreign_keys[table][-1]
                 else: parsed_value = None
             elif config["TAG_DELIMITER"] in str(v):
                 parsed_value = get_subfield_from_tag(record, v, tag_delimiter=config["TAG_DELIMITER"])
@@ -111,8 +98,7 @@ def store_record(
     ) -> Dict[str, str]:
     with database.manage_db_session(**kwargs) as session:
         db_object = database.merge_record(table_name, parsed_record, foreign_keys, **kwargs)
-        if hasattr(db_object, "uuid"):
-            return db_object.uuid
+        if hasattr(db_object, "uuid"): return db_object.uuid
 
 
 def load_record(
@@ -120,21 +106,21 @@ def load_record(
         loader: Dict[str, Any],
         config: Dict[str, Any],
         database: Database,
+        table_name: str = "record",
         foreign_keys: Dict[str, str] = None,
         **kwargs: Any
     ) -> None:
     if foreign_keys is None: foreign_keys = defaultdict(list)
     records = get_data(data, loader, config)
     sub_loaders = get_loaders(loader, config)
-    table_name = get_table_name(loader, config)
     for record in records:
-        if table_name:
-            parsed_record = parse_record(record, loader, config, foreign_keys)
-            new_primary_key = store_record(parsed_record, foreign_keys, table_name, database, **kwargs)
-            foreign_keys[table_name].append(new_primary_key)
-        for sub_loader in sub_loaders:
-            load_record(data=record, loader=sub_loader, config=config, database=database, foreign_keys=foreign_keys)
-        if table_name: foreign_keys[table_name].pop()
+        parsed_record = parse_record(record, loader, config, foreign_keys)
+        new_primary_key = store_record(parsed_record, foreign_keys, table_name, database, **kwargs) if parsed_record else None
+        foreign_keys[table_name].append(new_primary_key)
+        for sub_table, sub_loader in sub_loaders.items():
+            for sub_loader_i in sub_loader:
+                load_record(data=record, table_name=sub_table, loader=sub_loader_i, config=config, database=database, foreign_keys=foreign_keys)
+        foreign_keys[table_name].pop()
 
 
 def load_database(

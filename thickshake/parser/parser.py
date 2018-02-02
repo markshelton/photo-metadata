@@ -13,10 +13,6 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.parser.geocoder import extract_location
-#from thickshake.parser.dates import extract_date
-#from thickshake.parser.links import extract_links
-from thickshake.storage.database import Database
 
 ##########################################################
 # Typing Configuration
@@ -44,30 +40,31 @@ def apply_parser(
         output_table: str,
         output_map: Dict[str, str], # Map (df column -> db column)
         parser: Parser,
-        sample: int,
+        sample: int = 0,
         **kwargs: Any
     ) -> None:
-    database = Database(**kwargs)
+    from thickshake.storage.database import Database
+    database = Database(**dict(kwargs, force=False))
     input_dataframe = database.load_columns(input_table, input_columns, **kwargs)
     if sample != 0: input_dataframe = input_dataframe.sample(n=sample)
-    output_records = []
     total = input_dataframe.shape[0] 
-    for _, row in tqdm(input_dataframe.iterrows(), total=total, desc="Parsing Records"):
+    for i, row in tqdm(input_dataframe.iterrows(), total=total, desc="Parsing Records (%s)" % (parser.__name__)):
         input_values = row[input_columns].values
         if len(input_values) == 1: input_values = input_values[0]
         output_values = parser(input_values, **kwargs)
-        output_records.append(output_values)
-    output_dataframe = pd.DataFrame.from_records(output_records, index=input_dataframe.index)
-    database.save_columns(input_table, output_table, output_map, output_dataframe, **kwargs)
+        if output_values:
+            output_series = pd.DataFrame(output_values, index=[i])
+            database.save_record(input_table, output_table, output_map, output_series, **kwargs)
 
 
 def parse_locations(**kwargs: Any) -> None:
+    from thickshake.parser.geocoder import extract_location
     apply_parser(
         input_table = "image",
         input_columns = ["image_note"],
         output_table = "location",
         output_map = { 
-            "uuid": "image_uuid",
+            "index": "image_uuid",
             "building_name": "building_name",
             "street_number": "street_number",
             "street_name": "street_name",
@@ -86,33 +83,72 @@ def parse_locations(**kwargs: Any) -> None:
 
 
 def parse_links(**kwargs: Any) -> None:
+    from thickshake.parser.links import extract_image_links
     apply_parser(
         input_table = "image",
         input_columns = ["image_url"],
         output_table = "image",
         output_map = { 
-            "uuid": "uuid",
+            "index": "uuid",
             "image_label": "image_label",
             "image_url_raw": "image_url_raw",
             "image_url_thumb": "image_url_thumb",
+        },
+        parser = extract_image_links,
+        **kwargs
+    )
+
+
+def parse_sizes(**kwargs: Any) -> None:
+    from thickshake.parser.links import extract_image_dimensions
+    apply_parser(
+        input_table = "image",
+        input_columns = ["image_url_raw"],
+        output_table = "image",
+        output_map = { 
+            "index": "uuid",
             "image_height": "image_height",
             "image_width": "image_width"
         },
-        parser = None, #extract_links,
+        parser = extract_image_dimensions,
         **kwargs
     )
 
 
 def parse_dates(**kwargs: Any) -> None:
+    from thickshake.parser.dates import extract_date_from_title, combine_dates, split_dates
     apply_parser(
         input_table = "image",
         input_columns = ["image_note"],
         output_table = "image",
         output_map = { 
-            "uuid": "uuid",
-            "image_date_created": "image_date_created"
+            "index": "uuid",
+            "date": "image_date_created"
         },
-        parser = None, #extract_date,
+        parser = extract_date_from_title,
+        **kwargs
+    )
+    apply_parser(
+        input_table = "record",
+        input_columns = ["date_created", "date_created_approx"],
+        output_table = "record",
+        output_map = { 
+            "index": "uuid",
+            "date": "date_created_parsed"
+        },
+        parser = combine_dates,
+        **kwargs
+    )
+    apply_parser(
+        input_table = "subject",
+        input_columns = ["subject_dates"],
+        output_table = "subject",
+        output_map = { 
+            "index": "uuid",
+            "start_date": "subject_start_date",
+            "end_date": "subject_end_date"
+        },
+        parser = split_dates,
         **kwargs
     )
 

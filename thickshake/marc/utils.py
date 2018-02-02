@@ -5,6 +5,7 @@
 ##########################################################
 # Standard Library Imports
 
+from collections import defaultdict
 import logging
 import os
 
@@ -57,6 +58,15 @@ def load_config_file(loader_config_file):
     if loader_config_file is not None:
         return _load_config_file(loader_config_file)
     else: return _load_config_file()
+
+
+def get_loaders(loader: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+    loaders = defaultdict(list)
+    for k,v in loader.items():
+        if k.startswith(config["TABLE_PREFIX"]):
+            table_name = k.replace(config["TABLE_PREFIX"], "").lower().split(".")[0]
+            loaders[table_name].append(v)
+    return loaders
 
 
 def get_subfield_from_field(field: PymarcField, subfield_key: str) -> Optional[str]:

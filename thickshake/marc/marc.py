@@ -11,7 +11,6 @@ import os
 ##########################################################
 # Third Party Imports
 
-import jsondiff
 
 ##########################################################
 # Local Imports
@@ -38,19 +37,6 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def generate_diff(input_path: FilePath, output_path: FilePath) -> None:
-    initial_json_file = convert_metadata(input_path, file_type=FileType.JSON)
-    final_json_file = convert_metadata(output_path, file_type=FileType.JSON)
-    with open_file(initial_json_file, 'r', encoding='utf-8') as initial_file:
-        initial = json.load(initial_file)
-    with open_file(final_json_file, 'r', encoding='utf-8') as final_file:
-        final = json.load(final_file)
-    diff_result = jsondiff.diff(initial, final, syntax='explicit')
-    output_diff_path = output_path + ".diff"
-    with open_file(output_diff_path, 'w+', encoding='utf-8') as outfile:
-        json.dump(diff_result, outfile, indent=2, default=json_serial)
-
-
 def combine_records(records_new: List[PymarcRecord], records_out: List[PymarcRecord], **kwargs) -> List[PymarcRecord]:
     pass
 
@@ -63,18 +49,14 @@ def import_metadata(input_metadata_file: FilePath, **kwargs) -> None:
 
 
 # Export metadata records from RDBMS to any format
-def export_metadata(output_metadata_file: FilePath, input_metadata_file: FilePath=None, diff: bool=False, force: bool=True, **kwargs) -> None:
+def export_metadata(output_metadata_file: FilePath, input_metadata_file: FilePath=None, partial: bool=True, force: bool=True, **kwargs) -> None:
     if not force: assert not os.path.exists(output_metadata_file)
-    if input_metadata_file is not None:
-        records_new = export_database(force=False, all=False, **kwargs)
+    if not partial: assert input_metadata_file is not None
+    records = export_database(force=False, **kwargs)
+    if not partial:
         records_old = read_file(input_metadata_file, force=force, **kwargs)
-        records = records_new
-        #records = combine_records(records_new, records_old, force=force, **kwargs)
-        write_file(records, output_metadata_file, force=force, **kwargs)
-        if diff: generate_diff(input_metadata_file, output_metadata_file)
-    else:
-        records = export_database(force=False, all=True, **kwargs)
-        write_file(records, output_metadata_file, force=force, **kwargs)
+        records = combine_records(records, records_old, force=force, **kwargs)
+    write_file(records, output_metadata_file, force=force, **kwargs)
 
 
 # Convert metadata files from one format to another

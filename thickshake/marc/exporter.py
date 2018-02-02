@@ -20,7 +20,7 @@ import yaml
 # Local Imports
 
 from thickshake.storage.database import Database
-from thickshake.marc.utils import load_config_file, split_tag_key
+from thickshake.marc.utils import load_config_file, split_tag_key, get_loaders
 
 ##########################################################
 # Typing Configuration
@@ -42,11 +42,6 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def get_loaders(loader: Dict[str, Any], config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    loaders = {k:v for k,v in loader.items() if k.startswith(config["TABLE_PREFIX"])}
-    return loaders
-
-
 def get_generated_fields(loader: Dict[str, Any], config: Dict[str, Any]) -> Optional[str]:
     generated_fields = {}
     for k,v in loader.items():
@@ -56,13 +51,13 @@ def get_generated_fields(loader: Dict[str, Any], config: Dict[str, Any]) -> Opti
             if tag_dict is not None:
                 tag, code = tag_dict["field"], tag_dict["subfield"]
             generated_fields[tag] = {}
-            if code is not None: generated_fields[tag][code] = field
+            if code is not None:
+                generated_fields[tag][code] = field
     return generated_fields
 
 
 def store_record(db_object, pymarc_record, generated_fields):
     for tag, code_dict in generated_fields.items():
-        #print(tag, code_dict)
         pymarc_field = pymarc.Field(tag, indicators=["0", "1"])
         for code, ref in code_dict.items():
             column = ref.split(".")[1]
@@ -75,18 +70,18 @@ def store_record(db_object, pymarc_record, generated_fields):
 
 def export_record(parent, database, loader, config, pymarc_record: Any = None, **kwargs):
     if pymarc_record is None: pymarc_record = pymarc.Record()
-    #input(pymarc_record)
     generated_fields = get_generated_fields(loader, config)
     if generated_fields: pymarc_record = store_record(parent, pymarc_record, generated_fields)
     sub_loaders = get_loaders(loader, config)
     for child_table, sub_loader in sub_loaders.items():
-        child_table = child_table[1:].lower()
-        try: children = [getattr(parent, child_table)]
-        except: 
-            try: children = getattr(parent, child_table + "s")
-            except: continue
-        for child in children:
-            export_record(child, database, sub_loader, config, pymarc_record)
+        for sub_loader_i in sub_loader:
+            child_table = child_table[1:].lower()
+            try: children = [getattr(parent, child_table)]
+            except: 
+                try: children = getattr(parent, child_table + "s")
+                except: continue
+            for child in children:
+                export_record(child, database, sub_loader_i, config, pymarc_record)
     return pymarc_record
 
 
@@ -98,8 +93,9 @@ def export_database(loader_config_file: FilePath=None, **kwargs) -> List[PymarcR
         pymarc_records = []
         for record in tqdm(records, desc="Exporting Records"):
             pymarc_record = export_record(record, database, loader_map, loader_config, **kwargs)
+            from pprint import pprint
+            input(pprint(pymarc_record.as_dict()))
             pymarc_records.append(pymarc_record)
-    input(pymarc_records)
     return pymarc_records
 
 ##########################################################

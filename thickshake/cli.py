@@ -96,17 +96,18 @@ def cli(**kwargs):
 def _process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
     from thickshake.image import image
     if "all" in func: func = ["face", "caption", "text"]
-    if "face" in func: image.extract_faces(input_image_dir, output_image_dir, **kwargs)
+    if "faces" in func: image.extract_faces(input_image_dir, output_image_dir, **kwargs)
     if "text" in func: image.read_text(input_image_dir, output_image_dir, **kwargs)
-    if "caption" in func: image.caption_image(input_image_dir, output_image_dir, **kwargs)
+    if "captions" in func: image.caption_image(input_image_dir, output_image_dir, **kwargs)
 
 
 def _parse(func: str,  **kwargs: Any) -> None:
     from thickshake.parser import parser
-    if "all" in func: func = ["date", "location", "link"]
-    if "date" in func: parser.parse_dates( **kwargs)
-    if "location" in func: parser.parse_locations( **kwargs)
-    if "link" in func: parser.parse_links( **kwargs)
+    if "all" in func: func = ["dates", "locations", "links", "sizes"]
+    if "dates" in func: parser.parse_dates( **kwargs)
+    if "locations" in func: parser.parse_locations( **kwargs)
+    if "links" in func: parser.parse_links( **kwargs)
+    if "sizes" in func: parser.parse_sizes( **kwargs)
 
 
 ##########################################################
@@ -153,15 +154,15 @@ def export(**kwargs: Any) -> None:
 @click.option("-o", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
 @click.option("-t","--output-metadata-type", required=False, type=click.Choice([".json", ".xml", ".marc"]), default=".marc", prompt='Output Types | Options: [.json, .xml, .marc] | Default:')
 @click.option("-i", "--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
-@click.option("-d", "--diff", required=False, is_flag=True, help="generate log of changes to metadata file")
+@click.option("-p", "--partial", required=False, is_flag=True, help="output minimal fields to merge into catalogue")
 @common_params
-def export_marc(output_metadata_file: FilePath, output_metadata_type: str, input_metadata_file: FilePath, diff: bool, **kwargs: Any) -> None:
+def export_marc(output_metadata_file: FilePath, output_metadata_type: str, input_metadata_file: FilePath, partial: bool, **kwargs: Any) -> None:
     """[TODO] Exports a marc file (for catalogues)."""
     assert output_metadata_file is not None or output_metadata_type is not None
     from thickshake.marc import marc
     if output_metadata_type is not None:
         output_metadata_file = convert_file_type(output_metadata_file, output_metadata_type)
-    marc.export_metadata(output_metadata_file, input_metadata_file, diff, **kwargs)
+    marc.export_metadata(output_metadata_file, input_metadata_file, partial=partial, **kwargs)
 
 
 @export.command(name="dump", context_settings=context_settings)
@@ -182,22 +183,22 @@ def export_dump(output_dump_file: FilePath, output_dump_type: str, **kwargs: Any
 @click.option("-om", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
-@click.option("-d", "--diff", required=False, is_flag=True, help="generate log of changes to metadata file")
-@click.option("-mf", "--metadata-func", type=click.Choice(["date", "location", "link", "all", "none"]), default="all", prompt='Metadata Parsing | Options: [date, location, link, all, none] | Default:', help="Metadata parsing function")
-@click.option("-if", "--image-func", type=click.Choice(["face", "caption", "text", "all", "none"]), default="none", prompt='Image Processing | Options: [face, caption, text, all, none] | Default:', help="Image processing function")
+@click.option("-p", "--partial", required=False, is_flag=True, help="output minimal fields to merge into catalogue")
+@click.option("-mf", "--metadata-func", type=click.Choice(["dates", "locations", "links", "sizes", "all", "none"]), default="all", prompt='Parsing Functions | Options: [dates, locations, links, sizes, all, none] | Default:', help="Metadata parsing function")
+@click.option("-if", "--image-func", type=click.Choice(["faces", "captions", "text", "all", "none"]), default="none", prompt='Image Functions | Options: [faces, captions, text, all, none] | Default:', help="Image processing function")
 @common_params
-def augment(input_metadata_file: FilePath, output_metadata_file: FilePath, input_image_dir: DirPath, output_image_dir: DirPath, quarantine: bool, diff: bool, metadata_func: str, image_func: str, **kwargs: Any) -> None:
+def augment(input_metadata_file: FilePath, output_metadata_file: FilePath, input_image_dir: DirPath, output_image_dir: DirPath, quarantine: bool, partial: bool, sample: int, metadata_func: str, image_func: str, **kwargs: Any) -> None:
     """[TODO] Applies functions to augment metadata."""
     from thickshake.marc import marc
-    if not quarantine: marc.import_metadata(input_metadata_file, **kwargs)
+    if not quarantine: marc.import_metadata(input_metadata_file, sample=sample, **kwargs)
     _parse(metadata_func, **kwargs)
     _process(image_func, input_image_dir, output_image_dir, **kwargs)
-    if not quarantine: marc.export_metadata(output_metadata_file, input_metadata_file, diff, **kwargs)
+    if not quarantine: marc.export_metadata(output_metadata_file, input_metadata_file, partial=partial, **kwargs)
 
 @cli.command(context_settings=context_settings)
 @click.option("-i", "--input-image-dir", required=True, type=click.Path(exists=True, file_okay=False))
 @click.option("-o", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
-@click.option("-if", "--func", type=click.Choice(["face", "caption", "text", "all", "none"]), default="none", prompt='Image Functions | Options: [face, caption, text, all, none] | Default:', help="Image processing function")
+@click.option("-if", "--func", type=click.Choice(["faces", "captions", "text", "all", "none"]), default="none", prompt='Image Functions | Options: [faces, captions, text, all, none] | Default:', help="Image processing function")
 @common_params
 def process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
     """[TODO] Performs processing on the images."""
@@ -207,7 +208,7 @@ def process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **kw
 @cli.command(context_settings=context_settings)
 @click.option("-i", "--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
 @click.option("-o", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
-@click.option("-mf", "--func", type=click.Choice(["date", "location", "link", "all", "none"]), default="all", prompt='Parsing Functions | Options: [date, location, link, all, none] | Default:', help="Metadata parsing function")
+@click.option("-mf", "--func", type=click.Choice(["dates", "locations", "links", "sizes", "all", "none"]), default="all", prompt='Parsing Functions | Options: [dates, locations, links, sizes, all, none] | Default:', help="Metadata parsing function")
 @click.pass_context
 def parse(func: str, input_metadata_file: FilePath, output_metadata_file: FilePath, quarantine: bool, **kwargs: Any) -> None:
     """[TODO] Performs parsing on the metadata."""

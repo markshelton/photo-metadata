@@ -203,10 +203,10 @@ class ImageSubject(Base):
     image_uuid = Column(Integer, ForeignKey("image.uuid"), primary_key=True)
     subject_uuid = Column(Integer, ForeignKey("subject.uuid"), primary_key=True)
     # Generated Fields
-    face_bounding_box_left = Column(Integer) # FROM Face Parser
-    face_bounding_box_right = Column(Integer) # FROM Face Parser
-    face_bounding_box_top = Column(Integer) # FROM Face Parser
-    face_bounding_box_bottom = Column(Integer) # FROM Face Parser
+    face_bb_left = Column(Integer) # FROM Face Parser
+    face_bb_right = Column(Integer) # FROM Face Parser
+    face_bb_top = Column(Integer) # FROM Face Parser
+    face_bb_bottom = Column(Integer) # FROM Face Parser
     # ORM Relationships
     image = relationship("Image", lazy="joined")
     subject = relationship("Subject", lazy="joined")

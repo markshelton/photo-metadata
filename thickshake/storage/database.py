@@ -185,6 +185,7 @@ class Database:
         sql_text += "FROM image\n"
         sql_text += "NATURAL LEFT JOIN location\n"
         sql_text += "NATURAL LEFT JOIN record\n"
+        sql_text += "NATURAL LEFT JOIN image_subject\n"
         sql_text += "NATURAL LEFT JOIN record_subject\n"
         sql_text += "NATURAL LEFT JOIN subject\n"
         sql_text += "NATURAL LEFT JOIN record_topic\n"
@@ -223,14 +224,14 @@ class Database:
             data = data.astype('object')
             record = data.squeeze().to_dict()
             foreign_keys = defaultdict(list)
+            remote_fk_value = None
             with self.manage_db_session() as session:
                 db_object = self.merge_record(output_table, record, foreign_keys, **kwargs)
-                if hasattr(db_object, "uuid"): 
-                    remote_fk_value = db_object.uuid
-                    remote_fk_name = self.get_remote_fk_name(input_table, output_table)
-            if input_table != output_table:
+                if hasattr(db_object, "uuid"): remote_fk_value = db_object.uuid
+            if input_table != output_table and remote_fk_value is not None:
                 with self.manage_db_session() as session:
                     local_fk_value = record["%s_uuid" % input_table]
+                    remote_fk_name = self.get_remote_fk_name(input_table, output_table)
                     record = {"uuid": local_fk_value, remote_fk_name: remote_fk_value}
                     self.merge_record(input_table, record, foreign_keys, **kwargs)
 

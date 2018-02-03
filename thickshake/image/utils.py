@@ -84,22 +84,6 @@ def save_image(
     return output_file
 
 
-def process_images(
-        input_image_dir: Optional[DirPath] = None,
-        output_image_dir: Optional[DirPath] = None,
-        dry_run: bool = False,
-        **kwargs
-    ) -> None:
-    image_files = get_files_in_directory(input_image_dir, **kwargs)
-    for image_file in image_files:
-        if dry_run: output_file = None
-        elif output_image_dir is None: output_file = None
-        else: output_file = generate_output_path(image_file, output_image_dir)
-        extract_faces_from_image(image_file, output_file, **kwargs)
-        extract_text_from_image(image_file, output_file, **kwargs)
-        caption_image(image_file, output_file, **kwargs)
-
-
 ##########################################################
 
 

@@ -18,8 +18,8 @@ import pyocr
 ##########################################################
 # Local Imports
 
-from thickshake.image.image import crop
-from thickshake.storage.store import Store
+from thickshake.augment.image.utils import crop
+from thickshake.storage import Store
 
 ##########################################################
 # Typing Configuration
@@ -33,7 +33,7 @@ Rect = Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-DATA_DIR_PATH = "%s/../_data/image/ocr" % CURRENT_FILE_DIR
+DATA_DIR_PATH = "%s/../../_data/image/ocr" % CURRENT_FILE_DIR
 DICTIONARY_PATH = env.str("DICTIONARY_PATH", default="%s/dictionary.txt" % DATA_DIR_PATH)
 CLASSIFIER_NM1_PATH = env.str("CLASSIFIER_NM1_PATH", default="%s/trained_classifierNM1.xml" % DATA_DIR_PATH)
 CLASSIFIER_NM2_PATH = env.str("CLASSIFIER_NM2_PATH", default="%s/trained_classifierNM2.xml" % DATA_DIR_PATH)

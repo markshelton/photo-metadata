@@ -18,7 +18,11 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.storage.store import Store
+from thickshake.augment.image.utils import (
+    enhance_image, save_image, show_image,
+    rect_to_bb, crop, 
+)
+from thickshake.storage import Store
 from thickshake.helpers import (
     clear_directory, maybe_increment_path,
     get_files_in_directory, maybe_make_directory,
@@ -40,7 +44,7 @@ Predictor = Any
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-DATA_DIR_PATH = "%s/../_data/image/faces" % CURRENT_FILE_DIR
+DATA_DIR_PATH = "%s/../../_data/image/faces" % CURRENT_FILE_DIR
 IMG_FACE_PREDICTOR_FILE = env.str("IMG_FACE_PREDICTOR_FILE", default="%s/shape_predictor_68_face_landmarks.dat" % DATA_DIR_PATH)
 IMG_FACE_RECOGNIZER_FILE = env.str("IMG_FACE_RECOGNIZER_FILE", default="%s/dlib_face_recognition_resnet_model_v1.dat" % DATA_DIR_PATH)
 IMG_FACE_TEMPLATE_FILE = env.str("IMG_FACE_TEMPLATE_FILE", default="%s/openface_68_face_template.npy" % DATA_DIR_PATH)
@@ -134,8 +138,9 @@ def extract_faces_from_image(
 
 
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
-def extract_faces(
+def extract_faces_from_images(
         input_images_dir: DirPath,
+        storage_path: str="/",
         predictor_path: FilePath=IMG_FACE_PREDICTOR_FILE,
         recognizer_path: FilePath=IMG_FACE_RECOGNIZER_FILE,
         template_path: FilePath=IMG_FACE_TEMPLATE_FILE,

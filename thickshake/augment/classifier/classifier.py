@@ -15,7 +15,7 @@ from sklearn.svm import SVC
 ##########################################################
 # Local Imports
 
-from thickshake.classifier.dataset import load_dataset, split_dataset, decompose
+from thickshake.augment.classifier.dataset import load_dataset, split_dataset, decompose
 
 ##########################################################
 # Constants

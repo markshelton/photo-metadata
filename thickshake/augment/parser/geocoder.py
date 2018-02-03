@@ -44,7 +44,7 @@ MAPPIFY_BASE_URL = env.str("MAPPIFY_BASE_URL", default="https://mappify.io/api/r
 MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None) # type: Optional[str]
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-DATA_DIR_PATH = "%s/../_data/parser/locations" % CURRENT_FILE_DIR
+DATA_DIR_PATH = "%s/../../_data/parser/locations" % CURRENT_FILE_DIR
 MTD_LOC_STREET_TYPES_FILE = "%s/aus_street_types.csv" % (DATA_DIR_PATH) # type: FilePath
 MTD_LOC_SUBURB_NAMES_FILE = "%s/wa_suburb_names.csv" % (DATA_DIR_PATH) # type: FilePath
 MTD_LOC_ADDRESS_STOP_WORDS_FILE ="%s/stop_words.csv" % (DATA_DIR_PATH) # type: FilePath
@@ -120,7 +120,8 @@ def parse_address(
         r'(?P<street_type>\b(?:{0})\b)?,*\s*'.format(street_types) +
         r'(?P<suburb_name>\b(?:{0})\b)'.format(suburb_names), re.IGNORECASE
     )
-    addresses = get_matches_from_regex(re_main, location_text)
+    try: addresses = get_matches_from_regex(re_main, location_text)
+    except: return None
     if not addresses: return None
     address = addresses[0]
     return address

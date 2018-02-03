@@ -23,7 +23,7 @@ from sklearn.model_selection import train_test_split
 ##########################################################
 # Local Imports
 
-from thickshake.storage.store import Store
+from thickshake.storage import Store
 
 ##########################################################
 # Typing Configuration

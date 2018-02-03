@@ -9,7 +9,7 @@ import logging
 ##########################################################
 # Local Imports
 
-from thickshake.storage.store import Store
+from thickshake.storage import Store
 
 ##########################################################
 # Typing Configuration

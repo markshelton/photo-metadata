@@ -19,8 +19,8 @@ import yaml
 ##########################################################
 # Local Imports
 
-from thickshake.storage.database import Database
 from thickshake.marc.utils import load_config_file, split_tag_key, get_loaders
+from thickshake.storage import Database
 
 ##########################################################
 # Typing Configuration
@@ -58,7 +58,7 @@ def get_generated_fields(loader: Dict[str, Any], config: Dict[str, Any]) -> Opti
 
 def store_record(db_object, pymarc_record, generated_fields):
     for tag, code_dict in generated_fields.items():
-        pymarc_field = pymarc.Field(tag, indicators=["0", "1"])
+        pymarc_field = pymarc.Field(tag, indicators=["#", "#"])
         for code, ref in code_dict.items():
             column = ref.split(".")[1]
             if hasattr(db_object, column):

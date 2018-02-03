@@ -83,8 +83,9 @@ def common_params(func):
     help_options_color='green',
     context_settings=context_settings,
 )
+@click.pass_context
 @common_params
-def cli(**kwargs):
+def cli(ctx, **kwargs):
     """Functions for improving library catalogues."""
     pass
 
@@ -93,25 +94,16 @@ def cli(**kwargs):
 # Functions
 
 
-def _process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
-    from thickshake.image import image
-    if "all" in func: func = ["face", "caption", "text"]
-    if "faces" in func: image.extract_faces(input_image_dir, output_image_dir, **kwargs)
-    if "text" in func: image.read_text(input_image_dir, output_image_dir, **kwargs)
-    if "captions" in func: image.caption_image(input_image_dir, output_image_dir, **kwargs)
-
-
-def _parse(func: str,  **kwargs: Any) -> None:
-    from thickshake.parser import parser
-    if "all" in func: func = ["dates", "locations", "links", "sizes"]
-    if "dates" in func: parser.parse_dates( **kwargs)
-    if "locations" in func: parser.parse_locations( **kwargs)
-    if "links" in func: parser.parse_links( **kwargs)
-    if "sizes" in func: parser.parse_sizes( **kwargs)
-
-
 ##########################################################
 # Commands
+
+
+@cli.command(context_settings=context_settings)
+def inspect() -> None:
+    """Inspects state of database."""
+    from thickshake.storage import Database
+    database = Database()
+    database.inspect_database()
 
 
 @cli.command(context_settings=context_settings)
@@ -136,18 +128,14 @@ def load(input_metadata_file: FilePath, **kwargs: Any) -> None:
     marc.import_metadata(input_metadata_file, **kwargs)
 
 
-@cli.command(context_settings=context_settings)
-def inspect() -> None:
-    """Inspects state of database."""
-    from thickshake.storage.database import Database
-    database = Database()
-    database.inspect_database()
+##########################################################
+# Export
 
 
 @cli.group(context_settings=context_settings)
 @common_params
 def export(**kwargs: Any) -> None:
-    """[WIP] Exports metadata from database."""
+    """Exports metadata from database."""
 
 
 @export.command(name="marc", context_settings=context_settings)
@@ -157,7 +145,7 @@ def export(**kwargs: Any) -> None:
 @click.option("-p", "--partial", required=False, is_flag=True, help="output minimal fields to merge into catalogue")
 @common_params
 def export_marc(output_metadata_file: FilePath, output_metadata_type: str, input_metadata_file: FilePath, partial: bool, **kwargs: Any) -> None:
-    """[TODO] Exports a marc file (for catalogues)."""
+    """[WIP] Exports a marc file (for catalogues)."""
     assert output_metadata_file is not None or output_metadata_type is not None
     from thickshake.marc import marc
     if output_metadata_type is not None:
@@ -178,42 +166,110 @@ def export_dump(output_dump_file: FilePath, output_dump_type: str, **kwargs: Any
     writer.export_flat_file(output_dump_file, **kwargs)
 
 
-@cli.command(context_settings=context_settings)
-@click.option("-im", "--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
-@click.option("-om", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
+##########################################################
+# Augment
+
+
+@cli.group(context_settings=context_settings)
+@click.option("-i", "--input-metadata-file", required=True, type=click.Path(exists=True, dir_okay=False))
+@common_params
+@click.pass_context
+def augment(ctx, quarantine: bool, **kwargs: Any) -> None:
+    """Applies functions to augment metadata."""
+    if not quarantine: ctx.forward(load)
+
+
+@augment.command(name="run_parsers", context_settings=context_settings)
+@common_params
+def augment_parsers(**kwargs: Any) -> None:
+    """Runs all metadata parsing functions."""
+    from thickshake.augment import augment
+    augment.parse_locations(**kwargs)
+    augment.parse_dates(**kwargs)
+    augment.parse_links(**kwargs)
+    augment.parse_sizes(**kwargs)
+
+
+@augment.command(name="run_processors", context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
-@click.option("-p", "--partial", required=False, is_flag=True, help="output minimal fields to merge into catalogue")
-@click.option("-mf", "--metadata-func", type=click.Choice(["dates", "locations", "links", "sizes", "all", "none"]), default="all", prompt='Parsing Functions | Options: [dates, locations, links, sizes, all, none] | Default:', help="Metadata parsing function")
-@click.option("-if", "--image-func", type=click.Choice(["faces", "captions", "text", "all", "none"]), default="none", prompt='Image Functions | Options: [faces, captions, text, all, none] | Default:', help="Image processing function")
 @common_params
-def augment(input_metadata_file: FilePath, output_metadata_file: FilePath, input_image_dir: DirPath, output_image_dir: DirPath, quarantine: bool, partial: bool, sample: int, metadata_func: str, image_func: str, **kwargs: Any) -> None:
-    """[TODO] Applies functions to augment metadata."""
-    from thickshake.marc import marc
-    if not quarantine: marc.import_metadata(input_metadata_file, sample=sample, **kwargs)
-    _parse(metadata_func, **kwargs)
-    _process(image_func, input_image_dir, output_image_dir, **kwargs)
-    if not quarantine: marc.export_metadata(output_metadata_file, input_metadata_file, partial=partial, **kwargs)
+def augment_processors(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
+    """Runs all image processing functions."""
+    from thickshake.augment import augment
+    augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
-@cli.command(context_settings=context_settings)
-@click.option("-i", "--input-image-dir", required=True, type=click.Path(exists=True, file_okay=False))
-@click.option("-o", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
-@click.option("-if", "--func", type=click.Choice(["faces", "captions", "text", "all", "none"]), default="none", prompt='Image Functions | Options: [faces, captions, text, all, none] | Default:', help="Image processing function")
+
+@augment.command(name="run_all", context_settings=context_settings)
+@click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
+@click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
-def process(func: str, input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
-    """[TODO] Performs processing on the images."""
-    _process(func, input_image_dir, output_image_dir, **kwargs)
+def augment_all(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
+    """Runs all augment functions."""
+    from thickshake.augment import augment
+    augment.parse_locations(**kwargs)
+    augment.parse_dates(**kwargs)
+    augment.parse_links(**kwargs)
+    augment.parse_sizes(**kwargs)
+    augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@cli.command(context_settings=context_settings)
-@click.option("-i", "--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
-@click.option("-o", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
-@click.option("-mf", "--func", type=click.Choice(["dates", "locations", "links", "sizes", "all", "none"]), default="all", prompt='Parsing Functions | Options: [dates, locations, links, sizes, all, none] | Default:', help="Metadata parsing function")
-@click.pass_context
-def parse(func: str, input_metadata_file: FilePath, output_metadata_file: FilePath, quarantine: bool, **kwargs: Any) -> None:
-    """[TODO] Performs parsing on the metadata."""
-    _parse(func, **kwargs)
-    if not quarantine: metadata.export_database(output_metadata_file, **kwargs)
+@augment.command(context_settings=context_settings)
+@click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
+@click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
+@common_params
+def detect_faces(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
+    """[WIP] Detects faces in images."""
+    from thickshake.augment import augment
+    augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+
+
+@augment.command(context_settings=context_settings)
+@click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
+@click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
+@common_params
+def identify_faces(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
+    """[WIP] Identifies faces in images."""
+    from thickshake.augment import augment
+    augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+
+
+#TODO - Read Text
+#TODO - Caption Images
+
+
+@augment.command(context_settings=context_settings)
+@common_params
+def parse_locations(**kwargs: Any) -> None:
+    """Parses locations from text fields."""
+    from thickshake.augment import augment
+    augment.parse_locations(**kwargs)
+
+
+@augment.command(context_settings=context_settings)
+@common_params
+def parse_dates(**kwargs: Any) -> None:
+    """Parses dates from text fields."""
+    from thickshake.augment import augment
+    augment.parse_dates(**kwargs)
+
+
+@augment.command(context_settings=context_settings)
+@common_params
+def parse_links(**kwargs: Any) -> None:
+    """Parses links from text fields."""
+    from thickshake.augment import augment
+    augment.parse_links(**kwargs)
+
+
+@augment.command(context_settings=context_settings)
+@common_params
+def parse_sizes(**kwargs: Any) -> None:
+    """Parses image sizes from urls."""
+    from thickshake.augment import augment
+    augment.parse_sizes(**kwargs)
 
 
 ##########################################################

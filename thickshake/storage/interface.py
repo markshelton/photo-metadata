@@ -7,6 +7,7 @@
 
 import logging
 from collections import OrderedDict
+from functools import partial
 
 ##########################################################
 # Third Party Imports
@@ -54,11 +55,11 @@ def process_wrapper(
             store.export_to_database(record, output_map)
 
 
-def detect_faces(**kwargs: Any) -> None:
+def detect_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
     from thickshake.image.faces import extract_faces_from_images
     process_wrapper(
         main_path = "faces/bounding_boxes",
-        main_function = extract_faces_from_images,
+        main_function = partial(extract_faces_from_images(input_image_dir, **kwargs)),
         output_map = {
             "image_subject.image_uuid": "image_uuid",
             "image_subject.face_bb_left": "face_bb_left",
@@ -69,16 +70,16 @@ def detect_faces(**kwargs: Any) -> None:
     )
 
 
-def identify_faces(**kwargs: Any) -> None:
+def identify_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
     from thickshake.storage.writer import export_database_to_store
     from thickshake.image.faces import extract_faces_from_images
     from thickshake.classifier.classifier import run_face_classifier
     process_wrapper(
         main_path = "faces/identities",
-        main_function = run_face_classifier,
+        main_function = partial(run_face_classifier(**kwargs)),
         dependency_map = OrderedDict(
-            "dump": export_database_to_store,
-            "faces/bounding_boxes": extract_faces_from_images,
+            "dump": partial(export_database_to_store(**kwargs)),
+            "faces/bounding_boxes": partial(extract_faces_from_images(input_image_dir, **kwargs)),
         )
         output_map = {
             "image_subject.subject_uuid": "subject_uuid",

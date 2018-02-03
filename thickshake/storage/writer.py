@@ -20,7 +20,7 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.storage.store import Store
+from thickshake.storage import Store, Database
 from thickshake.helpers import open_file, json_serial, get_file_type, FileType
 
 ##########################################################
@@ -106,15 +106,12 @@ def write_flat_file(records: List[Any], output_file: FilePath, force: bool=False
 
 def export_flat_file(output_file: FilePath, force: bool=False, **kwargs: Any) -> None:
     if not force and os.path.exists(output_file): raise IOError
-    from thickshake.storage.database import Database
     database = Database(**kwargs)
     records = database.dump(force=force, **kwargs)
     write_flat_file(records, output_file, force=force, **kwargs)
 
 
 def export_to_store(**kwargs: Any) -> None:
-    from thickshake.storage.database import Database
-    from thickshake.storage.store import Store
     database = Database(**kwargs)
     records = database.dump()
     write_to_store(records, store, **kwargs)

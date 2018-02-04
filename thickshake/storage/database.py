@@ -24,7 +24,7 @@ from tqdm import tqdm
 # Local Imports
 
 from thickshake._config.schema import Base
-from thickshake.helpers import maybe_make_directory
+from thickshake.utils import maybe_make_directory, Borg
 
 ##########################################################
 # Typing Configuration
@@ -64,12 +64,14 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Functions
 
-class Database:
+
+class Database(Borg):
     engine = None
     session = None
     base = None
-    
+
     def __init__(self, db_config: DBConfig = DB_CONFIG, force: bool=False, **kwargs: Any) -> None:
+        Borg.__init__(self)
         if self.engine is None:
             self.engine = self.make_engine(db_config, **kwargs)
             self.base = Base
@@ -242,6 +244,19 @@ class Database:
                 model = self.get_class_by_table_name(table_name)
                 num_records = session.query(func.count('*')).select_from(model).scalar()
                 logger.info("Table: %s, Records: %s", table_name, num_records)
+
+
+    def check_history(self, function_name, **kwargs) -> bool:
+        with self.manage_db_session() as session:
+            model = self.get_class_by_table_name("augment_history")
+            return session.query(model).filter(model.function_name == function_name.__name__).scalar()
+    
+
+    def add_to_history(self, function_name, **kwargs) -> None:
+        with self.manage_db_session() as session:
+            model = self.get_class_by_table_name("augment_history")
+            db_object = model(function_name=function_name.__name__)
+            session.add(db_object)
 
 
 ##########################################################

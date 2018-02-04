@@ -21,7 +21,7 @@ from sqlalchemy_utils import aggregated, generic_repr
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import consolidate_list
+from thickshake.utils import consolidate_list
 
 ##########################################################
 # Typing Configuration
@@ -219,6 +219,15 @@ class RecordTopic(Base):
     topic_uuid = Column(Integer, ForeignKey("topic.uuid"), primary_key=True)
     # ORM Relationships
     topic = relationship("Topic", lazy="joined")
+
+
+##########################################################
+
+
+class AugmentHistory(Base):
+    __tablename__ = "augment_history"
+    # Primary Keys
+    function_name = Column(Text)
 
 
 ##########################################################

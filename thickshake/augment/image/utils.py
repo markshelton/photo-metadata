@@ -12,7 +12,7 @@ import cv2
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import maybe_increment_path, maybe_make_directory
+from thickshake.utils import maybe_increment_path, maybe_make_directory
 
 ##########################################################
 # Typing Configuration
@@ -70,18 +70,31 @@ def enhance_image(image: ImageType) -> ImageType:
 
 def save_image(
         image_rgb: ImageType,
+        sub_folder: str = None,
         output_file: Optional[FilePath] = None,
         input_file: Optional[FilePath] = None,
-        output_dir: Optional[DirPath] = None,
+        output_image_dir: Optional[DirPath] = None,
         **kwargs: Any
     ) -> FilePath:
-    if output_file is None and (input_file is not None and output_dir is not None):
-        output_file = generate_output_path(input_file, output_dir)    
+    if output_file is None and (input_file is not None and output_image_dir is not None):
+        output_file = generate_output_path(input_file, output_dir=output_image_dir, sub_folder=sub_folder)  
     output_file = maybe_increment_path(output_file, **kwargs)
     maybe_make_directory(output_file)
     image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
     cv2.imwrite(output_file, image_bgr)
     return output_file
+
+
+def handle_image(image, input_file, graphics, dry_run, **kwargs) -> None:
+    if graphics: show_image(image)
+    if not dry_run: save_image(image, input_file=input_file, **kwargs)
+
+
+def get_image(image_file):
+    image_bgr = cv2.imread(image_file)
+    image_bgr = enhance_image(image_bgr)
+    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+    return image_rgb
 
 
 ##########################################################

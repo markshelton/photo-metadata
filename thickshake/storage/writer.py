@@ -21,7 +21,7 @@ from tqdm import tqdm
 # Local Imports
 
 from thickshake.storage import Store, Database
-from thickshake.helpers import open_file, json_serial, get_file_type, FileType
+from thickshake.utils import open_file, json_serial, get_file_type, FileType
 
 ##########################################################
 # Typing Configuration

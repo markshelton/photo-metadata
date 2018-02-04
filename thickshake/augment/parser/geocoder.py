@@ -24,7 +24,7 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import deep_get, consolidate_list
+from thickshake.utils import deep_get, consolidate_list
 
 ##########################################################
 # Typing Configuration

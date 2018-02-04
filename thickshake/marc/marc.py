@@ -19,7 +19,7 @@ from thickshake.marc.reader import read_file
 from thickshake.marc.importer import load_database
 from thickshake.marc.exporter import export_database
 from thickshake.marc.writer import write_file
-from thickshake.helpers import convert_file_type, generate_output_path, FileType
+from thickshake.utils import convert_file_type, generate_output_path, FileType
 
 ##########################################################
 # Typing Configuration

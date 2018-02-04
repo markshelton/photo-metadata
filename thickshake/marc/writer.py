@@ -18,7 +18,7 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import open_file, get_file_type, sample_items, FileType
+from thickshake.utils import open_file, get_file_type, sample_items, FileType
 
 ##########################################################
 # Typing Configuration

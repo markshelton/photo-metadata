@@ -21,7 +21,7 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.helpers import convert_file_type
+from thickshake.utils import convert_file_type
 
 ##########################################################
 # Typing Configuration
@@ -66,8 +66,10 @@ logger = logging.getLogger()
 
 def common_params(func):
     @click.option("-f", "--force", is_flag=True, help="overwrite existing files")
-    @click.option("-n", "--dry-run", is_flag=True, help="run without creating files")
-    @click.option("-q", "--quarantine", is_flag=True, help="run without import/export")
+    @click.option("-d", "--dry-run", is_flag=True, help="run without writing files")
+    @click.option("-nm", "--no-import-metadata", is_flag=True, help="run without importing metadata")
+    @click.option("-ni", "--no-import-images", is_flag=True, help="run without importing images")
+    @click.option("-ne", "--no-export", is_flag=True, help="run without exporting")
     @click.option("-g", "--graphics", is_flag=True, help="display images in GUI")
     @click.option("-s", "--sample", type=int, default=0, help="perform on random sample (default: 0 / None)")
     @click_log.simple_verbosity_option(logger)
@@ -83,9 +85,7 @@ def common_params(func):
     help_options_color='green',
     context_settings=context_settings,
 )
-@click.pass_context
-@common_params
-def cli(ctx, **kwargs):
+def cli(**kwargs):
     """Functions for improving library catalogues."""
     pass
 
@@ -99,7 +99,8 @@ def cli(ctx, **kwargs):
 
 
 @cli.command(context_settings=context_settings)
-def inspect() -> None:
+@common_params
+def inspect(**kwargs) -> None:
     """Inspects state of database."""
     from thickshake.storage import Database
     database = Database()
@@ -133,7 +134,6 @@ def load(input_metadata_file: FilePath, **kwargs: Any) -> None:
 
 
 @cli.group(context_settings=context_settings)
-@common_params
 def export(**kwargs: Any) -> None:
     """Exports metadata from database."""
 
@@ -171,12 +171,8 @@ def export_dump(output_dump_file: FilePath, output_dump_type: str, **kwargs: Any
 
 
 @cli.group(context_settings=context_settings)
-@click.option("-i", "--input-metadata-file", required=True, type=click.Path(exists=True, dir_okay=False))
-@common_params
-@click.pass_context
-def augment(ctx, quarantine: bool, **kwargs: Any) -> None:
+def augment(**kwargs: Any) -> None:
     """Applies functions to augment metadata."""
-    if not quarantine: ctx.forward(load)
 
 
 @augment.command(name="run_parsers", context_settings=context_settings)
@@ -199,6 +195,8 @@ def augment_processors(input_image_dir: DirPath, output_image_dir: DirPath, **kw
     from thickshake.augment import augment
     augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
     augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    augment.read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    augment.caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(name="run_all", context_settings=context_settings)
@@ -214,6 +212,8 @@ def augment_all(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: A
     augment.parse_sizes(**kwargs)
     augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
     augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    augment.read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    augment.caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -236,8 +236,24 @@ def identify_faces(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs
     augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-#TODO - Read Text
-#TODO - Caption Images
+@augment.command(context_settings=context_settings)
+@click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
+@click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
+@common_params
+def read_text(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
+    """[TODO] Reads text embedded in images."""
+    from thickshake.augment import augment
+    augment.read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+
+
+@augment.command(context_settings=context_settings)
+@click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
+@click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
+@common_params
+def caption_images(input_image_dir: DirPath, output_image_dir: DirPath, **kwargs: Any) -> None:
+    """[TODO] Automatically captions images."""
+    from thickshake.augment import augment
+    augment.caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(context_settings=context_settings)

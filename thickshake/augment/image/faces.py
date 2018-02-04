@@ -3,7 +3,6 @@
 
 import logging
 import os
-import time
 
 ##########################################################
 # Third Party Imports
@@ -12,21 +11,15 @@ import cv2
 import dlib
 from envparse import env
 import numpy as np
-from matplotlib import pyplot as plt
+import pandas as pd
 from tqdm import tqdm
 
 ##########################################################
 # Local Imports
 
-from thickshake.augment.image.utils import (
-    enhance_image, save_image, show_image,
-    rect_to_bb, crop, 
-)
 from thickshake.storage import Store
-from thickshake.helpers import (
-    clear_directory, maybe_increment_path,
-    get_files_in_directory, maybe_make_directory,
-)
+from thickshake.augment.image.utils import get_image, handle_image, rect_to_bb
+from thickshake.utils import get_files_in_directory, check_output_directory
 
 ##########################################################
 #Typing Configuration
@@ -48,12 +41,13 @@ DATA_DIR_PATH = "%s/../../_data/image/faces" % CURRENT_FILE_DIR
 IMG_FACE_PREDICTOR_FILE = env.str("IMG_FACE_PREDICTOR_FILE", default="%s/shape_predictor_68_face_landmarks.dat" % DATA_DIR_PATH)
 IMG_FACE_RECOGNIZER_FILE = env.str("IMG_FACE_RECOGNIZER_FILE", default="%s/dlib_face_recognition_resnet_model_v1.dat" % DATA_DIR_PATH)
 IMG_FACE_TEMPLATE_FILE = env.str("IMG_FACE_TEMPLATE_FILE", default="%s/openface_68_face_template.npy" % DATA_DIR_PATH)
+KEY_INDICES = env.list("KEY_INDICES", default=[39, 42, 57], subcast=int) # INNER_EYES_AND_BOTTOM_LIP
+FACE_SIZE = env.int("FACE_SIZE", default=200)
 
 ##########################################################
 # Initialization
 
 logger = logging.getLogger(__name__)
-store = Store()
 
 ##########################################################
 # Functions
@@ -72,106 +66,130 @@ def find_faces_in_image(image: ImageType) -> List[Rectangle]:
     return faces
 
 
-def extract_face_landmarks(image: ImageType, face: Rectangle, predictor: Predictor) -> List[float]:
-    points = predictor(image, face)
+def split_face_id(face_id: str):
+    face_id_parts = face_id.split("_")
+    image_id = "_".join(face_id_parts[0:2])
+    box_number = face_id_parts[2]
+    return image_id, box_number
+
+
+def make_dataframe(array, value_name, index_names, face_id):
+    index = pd.MultiIndex.from_product([range(s)for s in array.shape], names=index_names)
+    df = pd.Series(array.flatten(), index=index, name=value_name)
+    df = df.reset_index()
+    image_id, box_number = split_face_id(face_id)
+    df["image_id"] = image_id
+    df["box_number"] = box_number
+    return df
+
+
+def save_face_dataset(face_id, array, storage_path=None, index_names=None, **kwargs):
+    if storage_path is None: return None
+    from thickshake.storage import Store
+    store = Store(**kwargs)
+    df = make_dataframe(array, value_name="value", index_names=index_names, face_id=face_id)
+    store.save(storage_path, df, index=["image_id", "box_number"], **kwargs)
+
+
+def extract_face_landmarks(image: ImageType, face_box: Rectangle, face_id: str, predictor: Predictor=None, storage_map=None, **kwargs) -> List[float]:
+    points = predictor(image, face_box)
     landmarks = list(map(lambda p: (p.x, p.y), points.parts()))
     landmarks_np = np.float32(landmarks)
+    save_face_dataset(face_id, landmarks_np, storage_path=storage_map["landmarks"], index_names=['point', 'component'], **kwargs)
     return landmarks_np
 
 
-def extract_face_embeddings(image: ImageType, face: Rectangle, predictor: Predictor, recognizer: Recognizer) -> List[float]:
-    points = predictor(image, face)
+def extract_face_embeddings(image: ImageType, face_box: Rectangle, face_id: str, predictor: Predictor=None, recognizer: Recognizer=None, storage_map=None, **kwargs) -> List[float]:
+    points = predictor(image, face_box)
     embeddings = recognizer.compute_face_descriptor(image, points)
     embeddings_np = np.float32(embeddings)[np.newaxis, :]
+    save_face_dataset(face_id, embeddings_np, storage_path=storage_map["embeddings"], index_names=['point', 'component'], **kwargs)
     return embeddings_np
 
 
-def normalize_face(image: ImageType, landmarks: List[float], template: List[float], key_indices: List[int], face_size: int = 200, **kwargs: Any) -> ImageType:
+def normalize_face(image: ImageType, landmarks: List[float], face_id: str, image_file: FilePath, template: List[float]=None, key_indices: List[int]=KEY_INDICES, face_size: int =FACE_SIZE, **kwargs: Any) -> ImageType:
     key_indices_np = np.array(key_indices)
     H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * template[key_indices_np])
-    face_normalized = cv2.warpAffine(image, H, (face_size, face_size))
-    return face_normalized
+    image_face = cv2.warpAffine(image, H, (face_size, face_size))
+    handle_image(image_face, input_file=image_file, output_folder="faces", **kwargs)
+    return image_face
 
 
-def annotate_image(image_rgb: ImageType, face: Rectangle, i: int, landmarks: List[float]) -> ImageType:
-    (x, y, w, h) = rect_to_bb(face)
-    cv2.rectangle(image_rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
-    cv2.putText(image_rgb, "Face #{}".format(i + 1), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+def annotate_image(image: ImageType, face_box: Rectangle, face_id: str, landmarks: List[float], **kwargs) -> ImageType:
+    (x, y, w, h) = rect_to_bb(face_box)
+    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    cv2.putText(image, "Face #{}".format(face_id), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     for (x, y) in landmarks:
-        cv2.circle(image_rgb, (x, y), 1, (0, 0, 255), -1)
-    return image_rgb
+        cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
+    return image
 
 
-def extract_faces_from_image(
-        image_file: FilePath,
-        predictor: Optional[Any] = None,
-        recognizer: Optional[Any] = None,
-        template: Optional[Any] = None,
-        predictor_path: Optional[FilePath] = None,
-        recognizer_path: Optional[FilePath] = None,
-        template_path: Optional[FilePath] = None,
-        output_face_info_file: Optional[FilePath] = None,
-        show_faces_flag: bool = False,
-        save_faces_flag: bool = False,
-        **kwargs: Any
-    ) -> ImageType:
-    image_bgr = cv2.imread(image_file)
-    image_bgr = enhance_image(image_bgr)
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    faces = find_faces_in_image(image_rgb)
-    if template is None: template = prepare_template(template_path)
-    if predictor is None: predictor = dlib.shape_predictor(predictor_path)
-    if recognizer is None: recognizer = dlib.face_recognition_model_v1(recognizer_path)
-    image_annot = image_rgb.copy()
-    for i, face in enumerate(faces):
-        landmarks = extract_face_landmarks(image_rgb, face, predictor)
-        embeddings = extract_face_embeddings(image_rgb, face, predictor, recognizer)
-        face_norm = normalize_face(image_rgb, landmarks, template, **kwargs)
-        if show_faces_flag:
-            show_image(face_norm)
-        if save_faces_flag: 
-            output_file = save_image(face_norm, image_file, **kwargs)
-            save_object(landmarks, "landmarks", output_file, output_face_info_file, **kwargs)
-            save_object(embeddings, "embeddings", output_file, output_face_info_file, **kwargs)
-        image_annot = annotate_image(image_annot, face, i, landmarks)        
-    return image_annot
+def get_template(template=None, template_path: FilePath=IMG_FACE_TEMPLATE_FILE, **kwargs):
+    return prepare_template(template_path) if template is None else template
+
+
+def get_predictor(predictor=None, predictor_path: FilePath=IMG_FACE_PREDICTOR_FILE, **kwargs):
+    return dlib.shape_predictor(predictor_path) if predictor is None else predictor
+
+
+def get_recognizer(recognizer=None, recognizer_path: FilePath=IMG_FACE_RECOGNIZER_FILE, **kwargs):
+    return dlib.face_recognition_model_v1(recognizer_path) if recognizer is None else recognizer
+
+
+def get_dependencies(**kwargs):
+    template = get_template(**kwargs)
+    predictor = get_predictor(**kwargs)
+    recognizer = get_recognizer(**kwargs)
+    return template, predictor, recognizer
+
+
+def generate_face_id(image_file, face_number, **kwargs):
+    base = os.path.basename(image_file)
+    image_id_parts = base.split("_")
+    face_id_parts = [image_id_parts[1], image_id_parts[2], face_number]
+    face_id = "_".join(str(part) for part in face_id_parts)
+    return face_id
+
+
+def save_face_box(face_id, face_box, storage_map=None, **kwargs):
+    face_box = np.array(rect_to_bb(face_box))
+    save_face_dataset(face_id, face_box, storage_path=storage_map["bounding_boxes"], index_names=['component'], **kwargs)
+
+
+def extract_faces_from_image(image_file: FilePath, **kwargs: Any) -> ImageType:
+    image = get_image(image_file)
+    image_annotated = image.copy()
+    faces = find_faces_in_image(image)
+    for face_number, face_box in enumerate(faces):
+        face_id = generate_face_id(image_file, face_number, **kwargs)
+        landmarks = extract_face_landmarks(image, face_box, face_id, **kwargs)
+        image_face = normalize_face(image, landmarks, face_id, image_file, **kwargs)
+        embeddings = extract_face_embeddings(image, face_box, face_id, **kwargs)
+        save_face_box(face_id, face_box, **kwargs)
+        image_annotated = annotate_image(image_annotated, face_box, face_id, landmarks, **kwargs) 
+    handle_image(image_annotated, input_file=image_file, sub_folder="faces_annotated", **kwargs)
+    return image_annotated
 
 
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
 def extract_faces_from_images(
-        input_images_dir: DirPath,
-        storage_path: str="/",
-        predictor_path: FilePath=IMG_FACE_PREDICTOR_FILE,
-        recognizer_path: FilePath=IMG_FACE_RECOGNIZER_FILE,
-        template_path: FilePath=IMG_FACE_TEMPLATE_FILE,
-        output_faces_dir: Optional[DirPath]=None,
-        output_images_dir: Optional[DirPath]=None,
-        dry_run: bool=False,
-        force: bool=False,
-        graphics: bool=False,
-        sample: Optional[int]=None,
+        input_image_dir: DirPath=None,
+        output_image_dir: Optional[DirPath]=None,
         **kwargs: Any
     ) -> List[ImageType]:
-    image_files = get_files_in_directory(input_images_dir, **kwargs)
-    if not force and output_images_dir is not None:
-        if len(get_files_in_directory(output_images_dir)) > 0: raise IOError
-    else: clear_directory(output_images_dir) 
-    predictor = dlib.shape_predictor(predictor_path)
-    recognizer = dlib.face_recognition_model_v1(recognizer_path)
-    template = prepare_template(template_path)
+    image_files = get_files_in_directory(input_image_dir, **kwargs)
+    check_output_directory(output_image_dir, **kwargs)
+    template, predictor, recognizer = get_dependencies(**kwargs)
     for image_file in tqdm(image_files, desc="Extracting Faces"):
         image_annotated = extract_faces_from_image(
-            image_file=image_file,
-            input_images_dir=input_images_dir,
-            output_images_dir=output_faces_dir,
+            image_file,
+            input_image_dir=input_image_dir,
+            output_image_dir=output_image_dir,
+            template=template,
             predictor=predictor,
             recognizer=recognizer,
-            template=template,
             **kwargs
         )
-        if graphics: show_image(image_annotated)
-        if not dry_run: save_image(image_annotated, image_file, input_images_dir, output_images_dir, **kwargs)
-
 
 ##########################################################
 # Main

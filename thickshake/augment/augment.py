@@ -7,7 +7,6 @@
 
 import logging
 from collections import OrderedDict
-from functools import partial
 
 ##########################################################
 # Third Party Imports
@@ -42,26 +41,31 @@ logger = logging.getLogger(__name__)
 
 
 def process_wrapper(
-        main_path: str,
         main_function: Callable,
-        output_map: Dict[str, str],
-        dependency_map: List[Dict[str, Any]] = None,
+        main_path: str,
+        storage_map: Dict[str, str],
+        output_map: Dict[str, str] = None,
+        dependencies: List[Callable] = None,
+        force: bool = False,
         **kwargs: Any
     ) -> None:
-    store = Store(**kwargs)
-    if not store.contains(main_path):
-        for dependency in dependency_map:
-            dependency_path = dependency["path"]
-            dependency_function = dependency["func"]
-            if not store.contains(dependency_path):
-                dependency_function(storage_path=dependency_path, **kwargs)
-    main_function(storage_path=main_path, **kwargs)
-    try: database = Database(**kwargs)
-    except: logger.warning("Database not available.")
-    else:
-        records = store.get_records(main_path)
-        for record in tqdm(records, desc="Transferring Records"):
-            store.export_to_database(record, output_map)
+    store = Store(force=force, **kwargs)
+    if dependencies is None: dependencies = []
+    if force or not store.contains(main_path):
+        if any(not store.contains(path) for _, path in storage_map.items()):
+            for dependency_function in dependencies:
+                dependency_function(force=force, **kwargs)
+        main_function(storage_map=storage_map, force=force, **kwargs)
+    if output_map is None: return None
+    try: 
+        database = Database(force=force, **kwargs)
+        if not force and database.check_history(main_function, **kwargs): return None
+        df = store.get_dataframe(main_path)
+        for i, row in tqdm(df.iterrows(), total=df.shape[0], desc="Transferring Records"):
+            store.export_to_database(row, output_map)
+        database.add_to_history(main_function, **kwargs)
+    except Exception as e: 
+        logger.warning("Database not available.", exc_info=True)
 
 
 def apply_parser(
@@ -90,40 +94,53 @@ def apply_parser(
 # Image Processing
 
 
+def dump_database(**kwargs: Any) -> None:
+    from thickshake.storage.writer import export_database_to_store
+    process_wrapper(
+        main_function = partial(export_database_to_store(**kwargs)),
+        main_path = "/dump",
+        storage_map = {"dump": "/dump"},
+        **kwargs
+    )
+
+
 def detect_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
     from thickshake.augment.image.faces import extract_faces_from_images
     process_wrapper(
-        main_path = "faces/bounding_boxes",
-        main_function = partial(extract_faces_from_images(input_image_dir, **kwargs)),
+        main_function = extract_faces_from_images,
+        main_path = "/faces/bounding_boxes",
+        storage_map = {
+            "bounding_boxes": "/faces/bounding_boxes",
+            "landmarks": "/faces/landmarks",
+            "embeddings": "/faces/embeddings",
+        },
         output_map = {
             "image_subject.image_uuid": "image_uuid",
-            "image_subject.face_bb_left": "face_bb_left",
-            "image_subject.face_bb_right": "face_bb_right",
-            "image_subject.face_bb_top": "face_bb_top",
-            "image_subject.face_bb_bottom": "face_bb_bottom"
-        }
+            "image_subject.face_box_x": "face_box_x",
+            "image_subject.face_box_y": "face_box_y",
+            "image_subject.face_box_w": "face_box_w",
+            "image_subject.face_box_h": "face_box_h",
+        },
+        input_image_dir=input_image_dir, **kwargs
     )
 
 
 def identify_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
-    from thickshake.storage.writer import export_database_to_store
-    from thickshake.augment.image.faces import extract_faces_from_images
     from thickshake.augment.classifier.classifier import run_face_classifier
     process_wrapper(
-        main_path = "faces/identities",
-        main_function = partial(run_face_classifier(**kwargs)),
-        dependency_map = [
-            dict(path=dump, func=partial(export_database_to_store(**kwargs))),
-            dict(path=faces/bounding_boxes, func=partial(extract_faces_from_images(input_image_dir, **kwargs))),
-        ],
+        main_function = run_face_classifier,
+        main_path = "/faces/identities",
+        dependencies = [dump_database, detect_faces],
+        storage_map = {"identities": "/faces/identities"},
         output_map = {
             "image_subject.subject_uuid": "subject_uuid",
             "image_subject.image_uuid": "image_uuid",
-            "image_subject.face_bb_left": "face_bb_left",
-            "image_subject.face_bb_right": "face_bb_right",
-            "image_subject.face_bb_top": "face_bb_top",
-            "image_subject.face_bb_bottom": "face_bb_bottom"
-        }
+            "image_subject.face_box_x": "face_box_x",
+            "image_subject.face_box_y": "face_box_y",
+            "image_subject.face_box_w": "face_box_w",
+            "image_subject.face_box_h": "face_box_h",
+        },
+        input_image_dir=input_image_dir, **kwargs
     )
 
 

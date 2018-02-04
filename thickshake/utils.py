@@ -45,6 +45,12 @@ class FileType:
     CSV = ".csv"
 
 
+class Borg:
+    _shared_state = {}
+    def __init__(self):
+        self.__dict__ = self._shared_state
+
+
 ##########################################################
 # Functions
 
@@ -90,6 +96,7 @@ def get_files_in_directory(
     ) -> List[FilePath]:
     files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
     if ext: files = [f for f in files if f.endswith(ext)]
+    files = sample_items(files, **kwargs)
     return files
 
 
@@ -117,13 +124,25 @@ def convert_file_type(path: FilePath, file_type: str) -> FilePath:
     return path.replace(get_file_type(path), file_type)
 
 
-def generate_output_path(input_path: FilePath) -> FilePath:
+def generate_output_path(input_path: FilePath, output_dir: DirPath=None, sub_folder: str=None) -> FilePath:
+    if output_dir is not None:
+        base = os.path.basename(input_path)
+        if sub_folder is not None:
+            return output_dir + "/" + sub_folder + "/" + base
+        return output_dir + "/" + base
     return input_path.replace("input", "output")
 
 
 def sample_items(items: List[Any], sample: int = 0, **kwargs) -> List[Any]:
     if sample == 0: return items
     else: return random.sample(items, sample)
+
+
+def check_output_directory(output_dir: DirPath=None, force: bool=True, **kwargs) -> None:
+    if not force and output_dir is not None:
+        if len(get_files_in_directory(output_dir)) > 0:
+            raise IOError
+    clear_directory(output_dir) 
 
 
 ##########################################################

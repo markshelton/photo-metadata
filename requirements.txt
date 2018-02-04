@@ -35,6 +35,7 @@ mypy-extensions==0.3.0
 nbconvert==5.3.1
 nbformat==4.4.0
 notebook==5.2.2
+numexpr==2.6.4
 numpy==1.14.0
 olefile==0.44
 pandas==0.21.0
@@ -68,6 +69,8 @@ simplegeneric==0.8.1
 six==1.11.0
 sklearn==0.0
 SQLAlchemy==1.2.0
+SQLAlchemy-Utils==0.32.21
+tables==3.4.2
 tensorflow==1.4.0
 tensorflow-tensorboard==0.4.0rc2
 terminado==0.8.1

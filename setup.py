@@ -30,6 +30,9 @@ setup(
         [console_scripts]
         thickshake=thickshake.cli:cli
     """,
-    install_requires=["Click"],
+    install_requires=[
+        "click", "click_help_colors", "click_log", "envparse",
+        "pyyaml", "pandas", "numpy", "tables", "tqdm"
+    ],
     zip_safe=False
 )

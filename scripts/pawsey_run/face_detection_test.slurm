@@ -6,13 +6,22 @@
 #SBATCH --export=NONE
 #SBATCH --output=face_detection_test.out
 
-module use /group/interns2017/software/sles12sp2/modulefiles
-module load broadwell cuda gcc/5.4.0
+module load broadwell cuda
+
 module load python/3.6.1
+
+module load opencv-gpu
 module load dlib-gpu
 module load tensorflow
-module load opencv-gpu
-module load keras
 module load hdf5
+module load cython
 
-STORE="store.h5" && python augment detect_faces -q -s 100 -d -f 
+module load pandas
+module load numpy
+module load pip
+
+unset PYTHONPATH
+if cd thickshake; then git pull; else git clone https://github.com/markshelton/thickshake && cd thickshake; fi
+pip install virtualenv && virtualenv venv && source venv/bin/activate
+python setup.py develop
+STORE="store.h5" && python3 thickshake augment detect_faces -q -s 100 -d -f 

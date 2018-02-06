@@ -3,6 +3,15 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import zip, range
+from future import standard_library
+
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import json
@@ -29,7 +38,7 @@ from thickshake.storage import Store
 ##########################################################
 # Typing Configuration
 
-from typing import List, Tuple, Dict, Any
+from typing import Text, List, Tuple, Dict, Any, AnyStr
 Features = Any
 Label = Any
 Dataset = Any
@@ -59,7 +68,7 @@ def compose(features, labels):
 
 def filter_dataset(dataset, min_images_per_label=10):
     # type: (Dataset, int) -> Dataset
-    counts = {} # type: Dict[str, int]
+    counts = {} # type: Dict[AnyStr, int]
     for record in dataset:
         label = record["label"]
         if label in counts: counts[label] = 0
@@ -82,7 +91,7 @@ def split_dataset(dataset, split_ratio=0.8, **kwargs):
 
 
 def get_image_ids(image_data_file, sample_size=0, **kwargs):
-    # type: (FilePath, int, **Any) -> List[str]
+    # type: (FilePath, int, **Any) -> List[AnyStr]
     with h5py.File(image_data_file, "r") as f:
         face_ids = list(f["embeddings"].keys())
         if sample_size != 0:
@@ -93,7 +102,7 @@ def get_image_ids(image_data_file, sample_size=0, **kwargs):
 
 #FIXME
 def get_face_columns(image_data_file):
-    # type: (FilePath) -> List[str]
+    # type: (FilePath) -> List[AnyStr]
     with h5py.File(image_data_file, "r") as f:
         embedding_size = 128 # f["embeddings"].attrs["size"]
         face_columns = ["facial_feature_%s" % val for val in range(embedding_size)]
@@ -101,14 +110,14 @@ def get_face_columns(image_data_file):
 
 #FIXME
 def get_metadata_columns(metadata_file):
-    # type: (FilePath) -> List[str]
+    # type: (FilePath) -> List[AnyStr]
     with h5py.File(metadata_file, "r") as f:
         metadata_columns = list(f.attrs["columns"])
         return metadata_columns
 
 
 def get_face_embedddings(image_id, image_data_file, **kwargs):
-    # type: (str, FilePath, **Any) -> DataFrame
+    # type: (AnyStr, FilePath, **Any) -> DataFrame
     with h5py.File(image_data_file, "r") as f:
         embedding_keys = f["embeddings"].keys()
         embedding_keys_subset = [key for key in embedding_keys if key.startswith(image_id)]
@@ -123,7 +132,7 @@ def get_face_embedddings(image_id, image_data_file, **kwargs):
 
 
 def get_metadata(image_id, metadata_file, **kwargs):
-    # type: (str, FilePath, **Any) -> DataFrame
+    # type: (AnyStr, FilePath, **Any) -> DataFrame
     with h5py.File(metadata_file, "r") as f:
         records = f.get(image_id, None)
         metadata_columns = get_metadata_columns(metadata_file)
@@ -141,7 +150,7 @@ def merge_datasets(a, b):
 
 #FIXME:
 def get_records(image_id, metadata_file, image_data_file, **kwargs):
-    # type: (str, DBConfig, FilePath, **Any) -> DataFrame
+    # type: (AnyStr, DBConfig, FilePath, **Any) -> DataFrame
     faces = get_face_embedddings(image_id, image_data_file, **kwargs)
     metadata = get_metadata(image_id, metadata_file, **kwargs)
     dataset = merge_datasets(faces, metadata)

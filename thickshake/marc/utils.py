@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import dict, open, next
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 from collections import defaultdict
@@ -21,12 +29,11 @@ import yaml
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Dict, Tuple, Optional, Union
-FilePath = str
-Tag = Dict[str, Optional[str]]
+from typing import Text, Any, Dict, Tuple, Optional, Union, AnyStr
+FilePath = Text
+Tag = Dict[AnyStr, Optional[AnyStr]]
 PymarcField = Any
 PymarcRecord = Any
-
 
 ##########################################################
 # Initializations
@@ -45,7 +52,7 @@ METADATA_CONFIG_FILE = "%s/marc.yaml" % (CONFIG_DIR_PATH)
 
 
 def _load_config_file(loader_config_file=METADATA_CONFIG_FILE):
-    # type: (FilePath) -> Tuple[Dict[str, Any], Dict[str, Any]]
+    # type: (FilePath) -> Tuple[Dict[AnyStr, Any], Dict[AnyStr, Any]]
     with open(loader_config_file) as yaml_file:
         documents = yaml.safe_load_all(yaml_file)
         loader_config = next(documents)
@@ -56,15 +63,15 @@ def _load_config_file(loader_config_file=METADATA_CONFIG_FILE):
 
 
 def load_config_file(loader_config_file):
-    # type: (FilePath) -> Tuple[Dict[str, Any], Dict[str, Any]]
+    # type: (FilePath) -> Tuple[Dict[AnyStr, Any], Dict[AnyStr, Any]]
     if loader_config_file is not None:
         return _load_config_file(loader_config_file)
     else: return _load_config_file()
 
 
 def get_loaders(loader, config):
-    # type: (Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
-    loaders = defaultdict(list) # type: Dict[str, Any]
+    # type: (Dict[AnyStr, Any], Dict[AnyStr, Any]) -> Dict[AnyStr, Any]
+    loaders = defaultdict(list) # type: Dict[AnyStr, Any]
     for k,v in loader.items():
         if k.startswith(config["TABLE_PREFIX"]):
             table_name = k.replace(config["TABLE_PREFIX"], "").lower().split(".")[0]
@@ -73,14 +80,14 @@ def get_loaders(loader, config):
 
 
 def get_subfield_from_field(field, subfield_key):
-    # type: (PymarcField, str) -> Optional[str]
+    # type: (PymarcField, AnyStr) -> Optional[AnyStr]
     if subfield_key not in field: return None
     subfield = field[subfield_key]
     return subfield
 
 
 def get_subfield_from_record(record, field_key, subfield_key):
-    # type: (PymarcRecord, str, str) -> Optional[str]
+    # type: (PymarcRecord, AnyStr, AnyStr) -> Optional[AnyStr]
     if field_key not in record: return None
     field = record[field_key]
     subfield = get_subfield_from_field(field, subfield_key)
@@ -88,7 +95,7 @@ def get_subfield_from_record(record, field_key, subfield_key):
 
 
 def get_subfield_from_tag(record_or_field, tag_key, tag_delimiter="$"):
-    # type: (Union[PymarcRecord, PymarcField], str, str) -> Optional[str]
+    # type: (Union[PymarcRecord, PymarcField], AnyStr, AnyStr) -> Optional[AnyStr]
     tag = split_tag_key(tag_key, tag_delimiter)
     if tag is None: return None
     field_key = tag["field"]
@@ -103,7 +110,7 @@ def get_subfield_from_tag(record_or_field, tag_key, tag_delimiter="$"):
 
 
 def split_tag_key(tag_key, tag_delimiter="$"):
-    # type: (str, str) -> Optional[Dict[str, Any]]
+    # type: (AnyStr, AnyStr) -> Optional[Dict[AnyStr, Any]]
     """Split tag into a tuple of the field and subfield."""
     tag_list = tag_key.split(tag_delimiter)
     if len(tag_list) == 2:

@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -14,8 +25,8 @@ from thickshake.storage import Store
 ##########################################################
 # Typing Configuration
 
-from typing import Any
-FilePath = str
+from typing import Text, Any, AnyStr
+FilePath = Text
 
 ##########################################################
 # Constants

@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import csv
@@ -26,10 +34,10 @@ from thickshake.utils import open_file, json_serial, get_file_type, FileType
 ##########################################################
 # Typing Configuration
 
-from typing import List, Any, Union, Dict
+from typing import Text, List, Any, Union, Dict, AnyStr
 
-FilePath = str
-JSONType = Union[Dict[str, Any], List[Any]]
+FilePath = Text
+JSONType = Union[Dict[AnyStr, Any], List[Any]]
 
 
 ##########################################################
@@ -78,7 +86,7 @@ def write_hdf5(records, output_file, **kwargs):
             key = str(record["uuid"])
             grp = f.require_group(key)
             index = str(len(grp.keys()) + 1)
-            dt = h5py.special_dtype(vlen=str)
+            dt = h5py.special_dtype(vlen=AnyStr)
             f.attrs.create("columns", list(record.keys()),dtype=dt)
             record_serial = json.dumps(record, default=json_serial)
             grp.require_dataset(index, data=record_serial, shape=(1,), dtype=dt)

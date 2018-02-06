@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import dict
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import logging
@@ -23,10 +31,10 @@ from thickshake.storage import Store, Database
 ##########################################################
 # Typing Configuration
 
-from typing import List, Any, Union, Dict, Callable
+from typing import Text, List, Any, Union, Dict, Callable, AnyStr
 Parser = Any
-FilePath = str
-DirPath = str
+FilePath = Text
+DirPath = Text
 DataFrame = Any
 Series = Any
 
@@ -43,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 
 def process_wrapper(main_function, main_path, storage_map, output_map=None, dependencies=None, force=False, **kwargs):
-    # type: (Callable, str, Dict[str, str], Dict[str, str], List[Callable], bool, **Any) -> None
+    # type: (Callable, AnyStr, Dict[AnyStr, AnyStr], Dict[AnyStr, AnyStr], List[Callable], bool, **Any) -> None
     store = Store(force=force, **kwargs)
     if dependencies is None: dependencies = []
     if force or not store.contains(main_path):
@@ -64,7 +72,7 @@ def process_wrapper(main_function, main_path, storage_map, output_map=None, depe
 
 
 def apply_parser(input_table, input_columns, output_table, output_map, parser, sample=0, **kwargs):
-    # type: (str, List[str], str, Dict[str, str], Parser, int, **Any) -> None
+    # type: (AnyStr, List[AnyStr], AnyStr, Dict[AnyStr, AnyStr], Parser, int, **Any) -> None
     database = Database(**dict(kwargs, force=False))
     input_dataframe = database.load_columns(input_table, input_columns, **kwargs)
     if sample != 0: input_dataframe = input_dataframe.sample(n=sample)

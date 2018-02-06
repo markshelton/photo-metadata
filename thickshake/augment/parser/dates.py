@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import int
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -16,9 +28,9 @@ import datefinder
 ##########################################################
 # Typing Configuration
 
-from typing import List, Optional, Any, Dict
+from typing import Text, List, Optional, Any, Dict, AnyStr
 Date = Any
-Dates = Dict[str, Date]
+Dates = Dict[AnyStr, Date]
 
 ##########################################################
 # Constants
@@ -33,7 +45,7 @@ logger = logging.getLogger(__name__)
 # Functions
 
 def get_possible_dates(date_string):
-    # type: (str) -> List[Date]
+    # type: (AnyStr) -> List[Date]
     years = re.findall(".*([1-2][0-9]{3})", date_string)
     dates = [datetime.date(year=int(year), month=1, day=1) for year in years]
     if not dates:
@@ -42,7 +54,7 @@ def get_possible_dates(date_string):
 
 
 def select_date(possible_dates, method="first"):
-    # type: (List[Date], str) -> Optional[Date]
+    # type: (List[Date], AnyStr) -> Optional[Date]
     if len(possible_dates) == 0: return None
     if method == "first": return possible_dates[0]
     elif method == "last": return possible_dates[-1]
@@ -50,21 +62,21 @@ def select_date(possible_dates, method="first"):
     
 
 def extract_date(date_text, method="first", **kwargs):
-    # type: (str, str, **Any) -> Optional[Date]
+    # type: (AnyStr, AnyStr, **Any) -> Optional[Date]
     possible_dates = get_possible_dates(date_text)
     selected_date = select_date(possible_dates, method=method)
     return {"date": selected_date}
 
 
 def extract_date_from_title(date_text, **kwargs):
-    # type: (str, **Any) -> Optional[Date]
+    # type: (AnyStr, **Any) -> Optional[Date]
     try: date_text = " ".join(date_text.split(" ")[1:])
     except: pass
     extracted_date = extract_date(date_text, **kwargs).get("date", None)
     return {"date": extracted_date}
 
 def combine_dates(fields, **kwargs):
-    # type: (List[str], **Any) -> Optional[Date]
+    # type: (List[AnyStr], **Any) -> Optional[Date]
     date_created_raw = fields[0]
     date_created_approx_raw = fields[1]
     if date_created_raw: date_created = extract_date(date_created_raw).get("date", None)
@@ -74,7 +86,7 @@ def combine_dates(fields, **kwargs):
 
 
 def split_dates(text, **kwargs):
-    # type: (str, **Any) -> Dates
+    # type: (AnyStr, **Any) -> Dates
     if text is None: return {"start_date": None, "end_date": None}
     dates_num = len(text.split("-"))
     if dates_num >= 2:

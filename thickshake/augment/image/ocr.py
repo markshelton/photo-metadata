@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import range, open, map
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -24,8 +36,8 @@ from thickshake.storage import Store
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Set, List, Dict
-FilePath = str
+from typing import Text, Any, Set, List, Dict, AnyStr
+FilePath = Text
 ImageType = Any
 Rectangle = Any
 
@@ -56,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 #TODO: Load from most common words stored in database
 def load_dictionary(dictionary_file=DICTIONARY_PATH):
-    # type: (FilePath) -> Set[str]
+    # type: (FilePath) -> Set[AnyStr]
     with open(dictionary_file) as f:
         dictionary = set()
         dictionary.update([word.strip().lower() for word in f])
@@ -84,7 +96,7 @@ def get_text_boxes(image):
     
 
 def calc_accuracy(text, dictionary):
-    # type: (str, Set[str]) -> float
+    # type: (AnyStr, Set[AnyStr]) -> float
     text = text.strip().lower()
     length = len(text.replace(" ", ""))
     if length == 0:return 0
@@ -97,7 +109,7 @@ def calc_accuracy(text, dictionary):
 
 
 def image_to_string(image):
-    # type: (ImageType) -> str
+    # type: (ImageType) -> AnyStr
     tools = pyocr.get_available_tools()
     tool = tools[0]
     text = tool.image_to_string(image)
@@ -105,7 +117,7 @@ def image_to_string(image):
 
 
 def extract_text(params, image, box):
-    # type: (Dict[str, Any], ImageType, Rectangle) -> str
+    # type: (Dict[AnyStr, Any], ImageType, Rectangle) -> AnyStr
     image_crop = crop(image, box, params["bleed"])
     image_binary = image_crop.point(lambda x: 0 if x < params["binary"] else 255)
     text = image_to_string(image_binary)
@@ -113,19 +125,19 @@ def extract_text(params, image, box):
 
 
 def _objective(params, image, box, dictionary):
-    # type: (Dict[str, Any], ImageType, Rectangle, Set[str]) -> float
+    # type: (Dict[AnyStr, Any], ImageType, Rectangle, Set[AnyStr]) -> float
     text = extract_text(params, image, box)
     score = calc_accuracy(text, dictionary)
     return score * -1
 
 
 def read_text(image_file, **kwargs):
-    # type: (FilePath, **Any) -> List[str]
+    # type: (FilePath, **Any) -> List[AnyStr]
     dictionary = load_dictionary()
     image = cv2.imread(image_file)
     boxes = get_text_boxes(image)
     image = Image.open(image_file)
-    text_image = [] # type: List[str]
+    text_image = [] # type: List[AnyStr]
     boxes = set(map(tuple, boxes))
     for box in boxes:
         objective = partial(_objective, image=image, box=box, dictionary=dictionary)

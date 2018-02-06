@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -17,11 +28,11 @@ from thickshake.utils import maybe_increment_path, maybe_make_directory, generat
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Optional, List
+from typing import Text, Any, Optional, List, AnyStr
 ImageType = Any
 Rectangle = Any
-FilePath = str 
-DirPath = str
+FilePath = Text 
+DirPath = Text
 
 ##########################################################
 # Constants
@@ -73,7 +84,7 @@ def enhance_image(image):
 
 
 def save_image(image_rgb, sub_folder=None, output_file=None, input_file=None, output_image_dir=None, **kwargs):
-    # type: (ImageType, str, FilePath, FilePath, DirPath, **Any) -> FilePath
+    # type: (ImageType, AnyStr, FilePath, FilePath, DirPath, **Any) -> FilePath
     if output_file is None and (input_file is not None and output_image_dir is not None):
         output_file = generate_output_path(input_file, output_dir=output_image_dir, sub_folder=sub_folder)  
     output_file = maybe_increment_path(output_file, **kwargs)

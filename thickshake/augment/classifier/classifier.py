@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import open, range
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -21,7 +33,7 @@ from thickshake.augment.classifier.dataset import load_dataset, split_dataset, d
 ##########################################################
 # Typing Configuration
 
-from typing import List, Tuple, Dict, Any
+from typing import Text, List, Tuple, Dict, Any, AnyStr
 Features = Any
 Label = Any
 Dataset = Any
@@ -42,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 
 def train_classifier(dataset, class_names, classifier_file):
-    # type: (Dataset, List[str], FilePath) -> None
+    # type: (Dataset, List[AnyStr], FilePath) -> None
     features, labels = decompose(dataset)
     logger.info('Training classifier on {} images'.format(len(labels)))
     model = SVC(kernel='linear', probability=True, verbose=False)
@@ -70,17 +82,17 @@ def test_classifier(dataset, classifier_file):
 
 
 def apply_constraints(df, label_key):
-    # type: (DataFrame, str) -> DataFrame
+    # type: (DataFrame, AnyStr) -> DataFrame
     if label_key == "subject_name": 
         df = df[df["subject_type"] != "Company"] # remove companies
-        df = df[~df['subject_relation'].str.contains("photo", na=False)] # remove photographers
-        df = df[~df['subject_name'].str.contains("photo", na=False)] # remove photographers
+        df = df[~df['subject_relation'].AnyStr.contains("photo", na=False)] # remove photographers
+        df = df[~df['subject_name'].AnyStr.contains("photo", na=False)] # remove photographers
     return df
 
 
 #TODO:
 def run_classifier(label_key, classifier_file, is_train=True, is_test=True, **kwargs):
-    # type: (str, FilePath, bool, bool, **Any) -> None
+    # type: (AnyStr, FilePath, bool, bool, **Any) -> None
     df = load_dataset(**kwargs)
     df = apply_constraints(df, label_key)
     X, y = df[df.columns.drop(label_key)], df[label_key]

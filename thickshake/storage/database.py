@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import dict
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 from collections import defaultdict
@@ -32,12 +40,12 @@ from thickshake.utils import maybe_make_directory, Borg
 from mypy_extensions import TypedDict
 from typing import (
     Optional, Union, List, Dict,
-    Any, Tuple, Iterator, Iterable,
+    Any, Tuple, Iterator, Iterable, AnyStr, Text
 )
 
 DBConfig = TypedDict("DBConfig", {
-    'database': str, 'drivername': str, 'host': Optional[str],
-    'username': Optional[str], 'password': Optional[str],
+    'database': Text, 'drivername': Text, 'host': Optional[Text],
+    'username': Optional[Text], 'password': Optional[Text],
     }, total=False
 )
 DBEngine = Any
@@ -81,7 +89,7 @@ class Database(Borg):
             
 
     def make_engine(self, db_config, verbosity="INFO", **kwargs):
-        # type: (DBConfig, str, **Any) -> DBEngine
+        # type: (DBConfig, AnyStr, **Any) -> DBEngine
         db_url = url.URL(**db_config)
         if db_config["database"] is None: return None
         maybe_make_directory(db_config["database"])
@@ -120,7 +128,7 @@ class Database(Borg):
 
 
     def merge_record(self, table_name, parsed_record, foreign_keys, **kwargs):
-        # type: (str, Dict[str, Any], Dict[str, str], **Any) -> DBObject
+        # type: (AnyStr, Dict[AnyStr, Any], Dict[AnyStr, AnyStr], **Any) -> DBObject
         model = self.get_class_by_table_name(table_name)
         db_object = model(**parsed_record)
         try: 
@@ -150,7 +158,7 @@ class Database(Borg):
 
 
     def get_records(self, table_name="record", **kwargs):
-        # type: (str, **Any) -> List[DBObject]
+        # type: (AnyStr, **Any) -> List[DBObject]
         model = self.get_class_by_table_name(table_name)
         q = self.session.query(model)
         db_objects = q.all()
@@ -158,14 +166,14 @@ class Database(Borg):
 
 
     def get_class_by_table_name(self, table_name):
-        # type: (str) -> Any
+        # type: (AnyStr) -> Any
         for c in self.base._decl_class_registry.values():
             if hasattr(c, '__tablename__') and c.__tablename__ == table_name:
                 return c
 
 
     def get_primary_keys(self, table_name=None, model=None):
-        # type: (str, Any) -> List[str]
+        # type: (AnyStr, Any) -> List[AnyStr]
         assert model is not None or table_name is not None
         if model is None and table_name is not None: 
             model = self.get_class_by_table_name(table_name)
@@ -174,19 +182,19 @@ class Database(Borg):
 
 
     def get_unique_columns(self, table_name):
-        # type: (str) -> List[str]
+        # type: (AnyStr) -> List[AnyStr]
         insp = inspect(self.engine)
         unique_constraints = insp.get_unique_constraints(table_name)
         return [unique_constraint["column_names"][0] for unique_constraint in unique_constraints]
 
     def get_relationships(self, table_name):
-        # type: (str) -> List[Any]
+        # type: (AnyStr) -> List[Any]
         model = self.get_class_by_table_name(table_name)
         insp = inspect(model)
         return insp.relationships
 
     def execute_text_query(self, sql_text):
-        # type: (str) -> List[Dict[str, Any]]
+        # type: (AnyStr) -> List[Dict[AnyStr, Any]]
         with self.manage_db_session() as session:
             result = session.execute(text(sql_text)).fetchall()
             result = [dict(record) for record in result]
@@ -195,7 +203,7 @@ class Database(Borg):
 
     #Convert to sqlalchemy ORM
     def dump(self, sample=0, **kwargs):
-        # type: (int, **Any) -> List[Dict[str, Any]]
+        # type: (int, **Any) -> List[Dict[AnyStr, Any]]
         sql_text =  "SELECT *\n"
         sql_text += "FROM image\n"
         sql_text += "NATURAL LEFT JOIN location\n"
@@ -212,7 +220,7 @@ class Database(Borg):
 
 
     def load_columns(self, table, columns, **kwargs):
-        # type: (str, List[str], **Any) -> DataFrame
+        # type: (AnyStr, List[AnyStr], **Any) -> DataFrame
         with self.manage_db_session() as session:
             model = self.get_class_by_table_name(table)
             result = session.query(model).all()
@@ -225,7 +233,7 @@ class Database(Borg):
 
 
     def get_remote_fk_name(self, input_table, output_table):
-        # type: (str, str) -> str
+        # type: (AnyStr, AnyStr) -> AnyStr
         rs = self.get_relationships(output_table)
         input_model = self.get_class_by_table_name(input_table)
         for r in rs:
@@ -235,14 +243,14 @@ class Database(Borg):
 
 
     def save_record(self, input_table, output_table, output_map, data, **kwargs):
-        # type: (str, str, Dict[str, str], DataFrame, **Any) -> None
+        # type: (AnyStr, AnyStr, Dict[AnyStr, AnyStr], DataFrame, **Any) -> None
         data.reset_index(drop=False, inplace=True)
         data.rename(columns=output_map, inplace=True)
         new_columns = list(output_map.values())
         data = data.where((pd.notnull(data)), None)
         data = data.astype('object')
         record = data.squeeze().to_dict()
-        foreign_keys = defaultdict(list) # type: Dict[str, Any]
+        foreign_keys = defaultdict(list) # type: Dict[AnyStr, Any]
         remote_fk_value = None
         with self.manage_db_session() as session:
             db_object = self.merge_record(output_table, record, foreign_keys, **kwargs)
@@ -265,14 +273,14 @@ class Database(Borg):
 
 
     def check_history(self, function_name, **kwargs):
-        # type: (str, **Any) -> bool
+        # type: (AnyStr, **Any) -> bool
         with self.manage_db_session() as session:
             model = self.get_class_by_table_name("augment_history")
             return session.query(model).filter(model.function_name == function_name).scalar()
     
 
     def add_to_history(self, function_name, **kwargs):
-        # type: (str, **Any) -> None
+        # type: (AnyStr, **Any) -> None
         with self.manage_db_session() as session:
             model = self.get_class_by_table_name("augment_history")
             db_object = model(function_name=function_name)

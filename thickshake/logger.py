@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import open
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import logging.config
@@ -20,7 +28,8 @@ import yaml
 ##########################################################
 # Typing Configuration
 
-FilePath = str
+from typing import AnyStr, Text
+FilePath = Text
 
 ##########################################################
 # Constants

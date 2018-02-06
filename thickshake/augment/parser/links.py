@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -13,9 +24,9 @@ import requests
 ##########################################################
 # Local Imports
 
-from typing import Optional, Dict, Any
-FilePath = str
-Size = Dict[str, str]
+from typing import Text, Optional, Dict, Any, AnyStr
+FilePath = Text
+Size = Dict[AnyStr, AnyStr]
 
 ##########################################################
 # Environmental Variables
@@ -32,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_image_dimensions(image_url, **kwargs):
-    # type: (str, **Any) -> Optional[Size]
+    # type: (AnyStr, **Any) -> Optional[Size]
     if image_url is None: return {"width": None, "height": None} 
     try:
         with requests.get(image_url) as image_file:
@@ -50,14 +61,14 @@ def get_image_dimensions(image_url, **kwargs):
 
 
 def get_id_from_url(image_file):
-    # type: (Optional[FilePath]) -> Optional[str]
+    # type: (Optional[FilePath]) -> Optional[AnyStr]
     if image_file is None: return None
-    image_id = image_file.split("/")[-1].split(".")[0] # type: Optional[str]
+    image_id = image_file.split("/")[-1].split(".")[0] # type: Optional[AnyStr]
     return image_id
 
 
 def extract_image_links(text, **kwargs):
-    # type: (str, **Any) -> Dict[str, str]
+    # type: (AnyStr, **Any) -> Dict[AnyStr, AnyStr]
     image_label = get_id_from_url(text)
     image_url_raw = text + ".jpg"
     image_url_thumb = text + ".png"
@@ -69,7 +80,7 @@ def extract_image_links(text, **kwargs):
 
 
 def extract_image_dimensions(text, **kwargs):
-    # type: (str, **Any) -> Dict[str, str]
+    # type: (AnyStr, **Any) -> Dict[AnyStr, AnyStr]
     image_dimensions = get_image_dimensions(text)
     return {
         "image_height": image_dimensions.get("height", None),

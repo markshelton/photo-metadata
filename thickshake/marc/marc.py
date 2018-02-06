@@ -3,6 +3,13 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import logging
@@ -24,8 +31,8 @@ from thickshake.utils import convert_file_type, generate_output_path, FileType
 ##########################################################
 # Typing Configuration
 
-from typing import Any, List
-FilePath = str
+from typing import Text, Any, List, AnyStr
+FilePath = Text
 PymarcRecord = Any
 
 ##########################################################
@@ -65,7 +72,7 @@ def export_metadata(output_metadata_file, input_metadata_file=None, partial=True
 # Convert metadata files from one format to another
 # e.g. MARCXML -> SQL Dump, MARC21 -> HDF5
 def convert_metadata(input_metadata_file, output_metadata_file=None, output_metadata_type=None, **kwargs):
-    # type: (FilePath, FilePath, str, **Any) -> FilePath
+    # type: (FilePath, FilePath, AnyStr, **Any) -> FilePath
     records = read_file(input_metadata_file, **kwargs)
     if output_metadata_file is None:
         output_metadata_file = generate_output_path(input_metadata_file)

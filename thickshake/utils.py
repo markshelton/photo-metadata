@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import open, next, object
+from future import standard_library
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -19,10 +31,10 @@ import time
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Dict, List, Optional, Callable
+from typing import Text, Any, Dict, List, Optional, Callable, AnyStr
 
-FilePath = str
-DirPath = str
+FilePath = Text
+DirPath = Text
 File = Any
 Time = Any
 
@@ -34,7 +46,7 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Classes
 
-class FileType:
+class FileType(object):
     JSON = ".json"
     MARC = ".marc"
     XML = ".xml"
@@ -42,7 +54,7 @@ class FileType:
     CSV = ".csv"
 
 
-class Borg:
+class Borg(object):
     _shared_state = {} # type: Dict[Any, Any]
     def __init__(self):
         # type: () -> None
@@ -66,7 +78,7 @@ def open_file(path, *args, **kwargs):
 
 
 def deep_get(dictionary, *keys):
-    # type: (Dict[str, Any], *str) -> Optional[Any]
+    # type: (Dict[AnyStr, Any], *AnyStr) -> Optional[Any]
     return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
 
 
@@ -78,7 +90,7 @@ def consolidate_list(full_list):
 
 
 def json_serial(obj):
-    # type: (Any) -> str
+    # type: (Any) -> AnyStr
     if isinstance(obj, (datetime.datetime, datetime.date)): return obj.isoformat()
     else: raise TypeError("Type %s not serializable" % type(obj))
 
@@ -93,7 +105,7 @@ def clear_directory(dir_path):
 
 
 def get_files_in_directory(dir_path, ext="jpg", **kwargs):
-    # type: (DirPath, Optional[str], **Any) -> List[FilePath]
+    # type: (DirPath, Optional[AnyStr], **Any) -> List[FilePath]
     files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
     if ext: files = [f for f in files if f.endswith(ext)]
     files = sample_items(files, **kwargs)
@@ -101,7 +113,7 @@ def get_files_in_directory(dir_path, ext="jpg", **kwargs):
 
 
 def maybe_increment_path(file_path, sep="_", overwrite=False, **kwargs):
-    # type: (FilePath, str, bool, **Any) -> Optional[FilePath]
+    # type: (FilePath, AnyStr, bool, **Any) -> Optional[FilePath]
     file_path_base, file_ext = os.path.splitext(file_path)
     directory_path = os.path.dirname(file_path)
     i = 1
@@ -113,17 +125,17 @@ def maybe_increment_path(file_path, sep="_", overwrite=False, **kwargs):
 
 
 def get_file_type(path):
-    # type: (FilePath) -> str
+    # type: (FilePath) -> AnyStr
     return os.path.splitext(path)[1]
 
 
 def convert_file_type(path, file_type):
-    # type: (FilePath, str) -> FilePath
+    # type: (FilePath, AnyStr) -> FilePath
     return path.replace(get_file_type(path), file_type)
 
 
 def generate_output_path(input_path, output_dir=None, sub_folder=None):
-    # type: (FilePath, DirPath, str) -> FilePath
+    # type: (FilePath, DirPath, AnyStr) -> FilePath
     if output_dir is not None:
         base = os.path.basename(input_path)
         if sub_folder is not None:

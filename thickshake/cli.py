@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import dict
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import configparser
@@ -26,9 +34,9 @@ from thickshake.utils import convert_file_type
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Callable, Dict
-FilePath = str 
-DirPath = str
+from typing import Text, Any, Callable, Dict, AnyStr, Text
+FilePath = Text 
+DirPath = Text
 
 ##########################################################
 # Constants
@@ -43,9 +51,9 @@ CONFIG_SETTINGS_FILE = env.str("CONFIG_SETTINGS_FILE", default="%s/settings.ini"
 
 class MyParser(configparser.ConfigParser):
     def as_dict(self):
-        # type: () -> Dict[str, Any]
+        # type: () -> Dict[AnyStr, Any]
         d = dict(self._sections)
-        x = {} # type: Dict[str, Any]
+        x = {} # type: Dict[AnyStr, Any]
         for k in d:
             d[k] = dict(self._defaults, **d[k])
             d[k].pop('__name__', None)
@@ -118,7 +126,7 @@ def inspect(**kwargs):
 @click.option("-t","--output-metadata-type", required=False, type=click.Choice([".json", ".xml", ".marc"]), default=".marc", prompt='Output Types | Options: [.json, .xml, .marc] | Default:')
 @common_params
 def convert(input_metadata_file, output_metadata_file=None, output_metadata_type=None, **kwargs):
-    # type: (FilePath, FilePath, str, **Any) -> None
+    # type: (FilePath, FilePath, AnyStr, **Any) -> None
     """Converts metadata between file formats."""
     from thickshake.marc import marc
     if output_metadata_type is not None:
@@ -153,7 +161,7 @@ def export(**kwargs):
 @click.option("-p", "--partial", required=False, is_flag=True, help="output minimal fields to merge into catalogue")
 @common_params
 def export_marc(output_metadata_file, output_metadata_type, input_metadata_file, partial, **kwargs):
-    # type: (FilePath, str, FilePath, bool, **Any) -> None
+    # type: (FilePath, AnyStr, FilePath, bool, **Any) -> None
     """[WIP] Exports a marc file (for catalogues)."""
     assert output_metadata_file is not None or output_metadata_type is not None
     from thickshake.marc import marc
@@ -167,7 +175,7 @@ def export_marc(output_metadata_file, output_metadata_type, input_metadata_file,
 @click.option("-t","--output-dump-type", required=False, type=click.Choice([".csv", ".json", ".hdf5"]), default=".csv", prompt='Output Types | Options: [.csv, .json, .hdf5] | Default:')
 @common_params
 def export_dump(output_dump_file, output_dump_type, **kwargs):
-    # type: (FilePath, str, **Any) -> None
+    # type: (FilePath, AnyStr, **Any) -> None
     """Exports a flat file (for other systems)."""
     assert output_dump_type is not None or output_dump_file is not None
     from thickshake.storage import writer

@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 from collections import defaultdict
@@ -26,12 +34,12 @@ from thickshake.storage import Database
 ##########################################################
 # Typing Configuration
 
-from typing import Optional, Union, List, Dict, Any, Tuple
+from typing import Text, Optional, Union, List, Dict, Any, Tuple, AnyStr
 
-Tag = Dict[str, Optional[str]]
+Tag = Dict[AnyStr, Optional[AnyStr]]
 PymarcField = Any
 PymarcRecord = Any
-FilePath = str
+FilePath = Text
 DBSession = Any
 DBObject = Any
 
@@ -49,8 +57,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_data(data, loader, config):
-    # type: (Union[PymarcField, PymarcRecord], Dict[str, Any], Dict[str, Any]) -> List[Union[PymarcField, PymarcRecord]]
-    fields = [] # type: List[str]
+    # type: (Union[PymarcField, PymarcRecord], Dict[AnyStr, Any], Dict[AnyStr, Any]) -> List[Union[PymarcField, PymarcRecord]]
+    fields = [] # type: List[AnyStr]
     if not isinstance(data, pymarc.Field): 
         for k,v in loader.items():
             if not k.startswith(config["GENERATED_FIELD_PREFIX"]) and not k.startswith(config["TABLE_PREFIX"]):
@@ -63,8 +71,8 @@ def get_data(data, loader, config):
 
 
 def parse_record(record, loader, config, foreign_keys):
-    # type: (Union[PymarcField, PymarcRecord], Dict[str, Any], Dict[str, Any], Dict[str, str]) -> Dict[str, Any]
-    parsed_record = {} # type: Dict[str, Optional[str]]
+    # type: (Union[PymarcField, PymarcRecord], Dict[AnyStr, Any], Dict[AnyStr, Any], Dict[AnyStr, AnyStr]) -> Dict[AnyStr, Any]
+    parsed_record = {} # type: Dict[AnyStr, Optional[AnyStr]]
     for k,v in loader.items():
         if not k.startswith(config["TABLE_PREFIX"]):
             table_name, column = k.split(".")
@@ -83,7 +91,7 @@ def parse_record(record, loader, config, foreign_keys):
 
 
 def store_record(parsed_record, foreign_keys, table_name, database, **kwargs):
-    # type: (Dict[str, Any], Dict[str, str], str, Database, **Any) -> Dict[str, str]
+    # type: (Dict[AnyStr, Any], Dict[AnyStr, AnyStr], AnyStr, Database, **Any) -> Dict[AnyStr, AnyStr]
     with database.manage_db_session(**kwargs) as session:
         db_object = database.merge_record(table_name, parsed_record, foreign_keys, **kwargs)
         if hasattr(db_object, "uuid"): return db_object.uuid
@@ -91,7 +99,7 @@ def store_record(parsed_record, foreign_keys, table_name, database, **kwargs):
 
 
 def load_record(data, loader, config, database, table_name="record", foreign_keys=None, **kwargs):
-    # type: (Union[PymarcField, PymarcRecord], Dict[str, Any], Dict[str, Any], Database, str, Dict[str, Any], **Any) -> None
+    # type: (Union[PymarcField, PymarcRecord], Dict[AnyStr, Any], Dict[AnyStr, Any], Database, AnyStr, Dict[AnyStr, Any], **Any) -> None
     if foreign_keys is None: foreign_keys = defaultdict(list)
     records = get_data(data, loader, config)
     sub_loaders = get_loaders(loader, config)

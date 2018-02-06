@@ -3,6 +3,13 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import logging
@@ -22,8 +29,8 @@ from thickshake.utils import Borg
 ##########################################################
 # Typing Configuration
 
-from typing import Any, Iterable, Dict, List
-FilePath = str
+from typing import Text, Any, Iterable, Dict, List, AnyStr
+FilePath = Text
 Series = Any
 DataFrame = Any
 
@@ -56,19 +63,19 @@ class Store(Borg):
 
 
     def save(self, dataset_path, df, index, **kwargs):
-        # type: (str, DataFrame, List[str], **Any) -> None
+        # type: (AnyStr, DataFrame, List[AnyStr], **Any) -> None
         with pd.HDFStore(self.store_path, "a") as store:
             store.append(dataset_path, df, index=index)
 
 
     def contains(self, dataset_path):
-        # type: (str) -> bool
+        # type: (AnyStr) -> bool
         with pd.HDFStore(self.store_path, 'r') as store:
             return dataset_path in store and not store[dataset_path].shape is None
 
 
     def get_dataframe(self, dataset_path):
-        # type: (str) -> DataFrame
+        # type: (AnyStr) -> DataFrame
         with pd.HDFStore(self.store_path, 'r') as store:
             return store.get(dataset_path)
 

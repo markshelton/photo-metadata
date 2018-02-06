@@ -3,6 +3,14 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import open, dict, str, zip
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import csv
@@ -29,26 +37,26 @@ from thickshake.utils import deep_get, consolidate_list
 ##########################################################
 # Typing Configuration
 
-from typing import Any, List, Dict, Optional, Pattern, Match, Iterable
-Address = Dict[str, Optional[str]]
-Location = Dict[str, Optional[str]]
+from typing import Text, Any, List, Dict, Optional, Pattern, Match, Iterable, AnyStr
+Address = Dict[AnyStr, Optional[AnyStr]]
+Location = Dict[AnyStr, Optional[AnyStr]]
 Series = Iterable[Any]
-DataFrame = Dict[str, Series]
-FilePath = str
-Url = str
+DataFrame = Dict[AnyStr, Series]
+FilePath = Text
+Url = AnyStr
 
 ##########################################################
 # Constants
 
 MAPPIFY_BASE_URL = env.str("MAPPIFY_BASE_URL", default="https://mappify.io/api/rpc/address/geocode/") # type: Url
-MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None) # type: Optional[str]
+MAPPIFY_API_KEY = env.str("MAPPIFY_API_KEY", default=None) # type: Optional[AnyStr]
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
 DATA_DIR_PATH = "%s/../../_data/parser/locations" % CURRENT_FILE_DIR
 MTD_LOC_STREET_TYPES_FILE = "%s/aus_street_types.csv" % (DATA_DIR_PATH) # type: FilePath
 MTD_LOC_SUBURB_NAMES_FILE = "%s/wa_suburb_names.csv" % (DATA_DIR_PATH) # type: FilePath
 MTD_LOC_ADDRESS_STOP_WORDS_FILE ="%s/stop_words.csv" % (DATA_DIR_PATH) # type: FilePath
-MTD_LOC_DEFAULT_STATE = "WA" # type: str
+MTD_LOC_DEFAULT_STATE = "WA" # type: AnyStr
 
 ##########################################################
 # Initializations
@@ -60,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 
 def read_csv_to_dict(csv_file):
-    # type: (FilePath) -> Dict[str, List[str]]
+    # type: (FilePath) -> Dict[AnyStr, List[AnyStr]]
     """Read CSV file into a dictionary"""
     with open(csv_file) as csvfile:
         reader = csv.DictReader(csvfile)
@@ -71,7 +79,7 @@ def read_csv_to_dict(csv_file):
 
 
 def prepare_search_string(input_file):
-    # type: (FilePath) -> str
+    # type: (FilePath) -> AnyStr
     """Read search terms from CSV files and concatentate into string for Regex."""
     search_dict = read_csv_to_dict(input_file)
     search_list = ["|".join(search_dict[key]) for key in search_dict.keys()]
@@ -80,14 +88,14 @@ def prepare_search_string(input_file):
 
 
 def get_matches_from_regex(compiled_regex, target_text):
-    # type: (Pattern[str], str) -> List[Match]
+    # type: (Pattern[AnyStr], AnyStr) -> List[Match]
     """Return a dictionary of all named groups for a Regex pattern."""
     matches = [match.groupdict() for match in compiled_regex.finditer(target_text)]
     return [{k:v for k,v in match.items() if v is not None} for match in matches]
 
 
 def get_street_number(response):
-    # type: (Dict[str, Optional[str]]) -> str
+    # type: (Dict[AnyStr, Optional[AnyStr]]) -> AnyStr
     if response["numberFirst"] and response["numberLast"]:
         return str(response["numberFirst"]) + "-" + str(response["numberLast"])
     elif response["numberFirst"]:
@@ -98,12 +106,12 @@ def get_street_number(response):
 
 
 def choose_best_location(results):
-    # type: (List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]
+    # type: (List[Dict[AnyStr, Optional[AnyStr]]]) -> Dict[AnyStr, Optional[AnyStr]]
     return max(results, key=lambda x: x.get('confidence'))
 
 
 def title_case(text):
-    # type: (Optional[str]) -> Optional[str]
+    # type: (Optional[AnyStr]) -> Optional[AnyStr]
     if text is None: return None
     return text.title()
 
@@ -113,7 +121,7 @@ def title_case(text):
 
 
 def parse_address(location_text, street_types_file=MTD_LOC_STREET_TYPES_FILE, suburb_names_file=MTD_LOC_SUBURB_NAMES_FILE):
-    # type: (str, FilePath, FilePath) -> Optional[Address]
+    # type: (AnyStr, FilePath, FilePath) -> Optional[Address]
     street_types = prepare_search_string(street_types_file)
     suburb_names = prepare_search_string(suburb_names_file)
     re_main = re.compile(
@@ -131,7 +139,7 @@ def parse_address(location_text, street_types_file=MTD_LOC_STREET_TYPES_FILE, su
 
 
 def generate_params(address, api_key=MAPPIFY_API_KEY, default_state=MTD_LOC_DEFAULT_STATE):
-    # type: (Address, str, str) -> Dict[str, str]
+    # type: (Address, AnyStr, AnyStr) -> Dict[AnyStr, AnyStr]
     params_dict = {}
     address_parts = [address.get("street_number"), address.get("street_name"), address.get("street_type") ]
     address_parts = [part for part in address_parts if part is not None and part is not ""]
@@ -144,7 +152,7 @@ def generate_params(address, api_key=MAPPIFY_API_KEY, default_state=MTD_LOC_DEFA
 
 
 def geocode_address(address, api_url=MAPPIFY_BASE_URL):
-    # type: (Address, str) -> Location
+    # type: (Address, AnyStr) -> Location
     params = generate_params(address)
     if params["streetAddress"] != "":
         res = requests.post(api_url, json=params)
@@ -189,7 +197,7 @@ def geocode_address(address, api_url=MAPPIFY_BASE_URL):
 
 
 def extract_location(location_text, **kwargs):
-    # type: (str, **Any) -> Location
+    # type: (AnyStr, **Any) -> Location
     """Parse and geocode location from text."""
     address = parse_address(location_text)
     if not address: return {}

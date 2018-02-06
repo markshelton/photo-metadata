@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+"""
+"""
+##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from builtins import map, str, range
+from future import standard_library
+
+standard_library.install_aliases()
+
 ##########################################################
 # Standard Library Imports
 
@@ -24,10 +37,10 @@ from thickshake.utils import get_files_in_directory, check_output_directory
 ##########################################################
 #Typing Configuration
 
-from typing import List, Any, Optional, Tuple, Iterable, Dict
+from typing import Text, List, Any, Optional, Tuple, Iterable, Dict, AnyStr
 
-FilePath = str 
-DirPath = str 
+FilePath = Text 
+DirPath = Text 
 ImageType = Any
 Rectangle = Any
 Recognizer = Any
@@ -71,7 +84,7 @@ def find_faces_in_image(image):
 
 
 def split_face_id(face_id):
-    # type: (str) -> Tuple[str, str]
+    # type: (AnyStr) -> Tuple[AnyStr, AnyStr]
     face_id_parts = face_id.split("_")
     image_id = "_".join(face_id_parts[0:2])
     box_number = face_id_parts[2]
@@ -79,7 +92,7 @@ def split_face_id(face_id):
 
 
 def make_dataframe(array, value_name, index_names, face_id):
-    # type: (NPArray, str, List[str], str) -> DataFrame
+    # type: (NPArray, AnyStr, List[AnyStr], AnyStr) -> DataFrame
     index = pd.MultiIndex.from_product([range(s)for s in array.shape], names=index_names)
     df = pd.Series(array.flatten(), index=index, name=value_name)
     df = df.reset_index()
@@ -90,7 +103,7 @@ def make_dataframe(array, value_name, index_names, face_id):
 
 
 def save_face_dataset(face_id, array, storage_path=None, index_names=None, **kwargs):
-    # type: (str, NPArray, str, Optional[List[str]], **Any) -> None
+    # type: (AnyStr, NPArray, AnyStr, Optional[List[AnyStr]], **Any) -> None
     if storage_path is None: return None
     from thickshake.storage import Store
     store = Store(**kwargs)
@@ -99,7 +112,7 @@ def save_face_dataset(face_id, array, storage_path=None, index_names=None, **kwa
 
 
 def extract_face_landmarks(image, face_box, face_id, predictor=None, storage_map=None, **kwargs):
-    # type: (ImageType, Rectangle, str, Predictor, Dict[str, str], **Any) -> List[Any]
+    # type: (ImageType, Rectangle, AnyStr, Predictor, Dict[AnyStr, AnyStr], **Any) -> List[Any]
     points = predictor(image, face_box)
     landmarks = list(map(lambda p: (p.x, p.y), points.parts()))
     landmarks_np = np.float32(landmarks)
@@ -108,7 +121,7 @@ def extract_face_landmarks(image, face_box, face_id, predictor=None, storage_map
 
 
 def extract_face_embeddings(image, face_box, face_id, predictor=None, recognizer=None, storage_map=None, **kwargs):
-    # type: (ImageType, Rectangle, str, Predictor, Recognizer, Dict[str, str], **Any) -> List[float]
+    # type: (ImageType, Rectangle, AnyStr, Predictor, Recognizer, Dict[AnyStr, AnyStr], **Any) -> List[float]
     points = predictor(image, face_box)
     embeddings = recognizer.compute_face_descriptor(image, points)
     embeddings_np = np.float32(embeddings)[np.newaxis, :]
@@ -117,7 +130,7 @@ def extract_face_embeddings(image, face_box, face_id, predictor=None, recognizer
 
 
 def normalize_face(image, landmarks, face_id, image_file, template=None, key_indices=KEY_INDICES, face_size=FACE_SIZE, **kwargs):
-    # type: (ImageType, List[Any], str, FilePath, List[float], List[int], int, **Any) -> ImageType
+    # type: (ImageType, List[Any], AnyStr, FilePath, List[float], List[int], int, **Any) -> ImageType
     key_indices_np = np.array(key_indices)
     H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * template[key_indices_np])
     image_face = cv2.warpAffine(image, H, (face_size, face_size))
@@ -126,7 +139,7 @@ def normalize_face(image, landmarks, face_id, image_file, template=None, key_ind
 
 
 def annotate_image(image, face_box, face_id, landmarks, **kwargs):
-    # type: (ImageType, Rectangle, str, List[Any], **Any) -> ImageType
+    # type: (ImageType, Rectangle, AnyStr, List[Any], **Any) -> ImageType
     (x, y, w, h) = rect_to_bb(face_box)
     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
     cv2.putText(image, "Face #{}".format(face_id), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -159,7 +172,7 @@ def get_dependencies(**kwargs):
 
 
 def generate_face_id(image_file, face_number, **kwargs):
-    # type: (FilePath, int, **Any) -> str
+    # type: (FilePath, int, **Any) -> AnyStr
     base = os.path.basename(image_file)
     image_id_parts = base.split("_")
     face_id_parts = [image_id_parts[1], image_id_parts[2], face_number]
@@ -168,7 +181,7 @@ def generate_face_id(image_file, face_number, **kwargs):
 
 
 def save_face_box(face_id, face_box, storage_map=None, **kwargs):
-    # type: (str, int, Optional[Dict[str, str]], **Any) -> None
+    # type: (AnyStr, int, Optional[Dict[AnyStr, AnyStr]], **Any) -> None
     face_box = np.array(rect_to_bb(face_box))
     save_face_dataset(face_id, face_box, storage_path=storage_map["bounding_boxes"], index_names=['component'], **kwargs)
 

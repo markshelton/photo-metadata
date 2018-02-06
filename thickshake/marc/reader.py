@@ -3,6 +3,13 @@
 """
 """
 ##########################################################
+# Python Compatibility
+
+from __future__ import print_function, division, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+
+##########################################################
 # Standard Library Imports
 
 import logging
@@ -22,9 +29,9 @@ from thickshake.utils import open_file, get_file_type, sample_items, FileType
 ##########################################################
 # Typing Configuration
 
-from typing import List, Any, Union, Dict, Callable, Optional
+from typing import Text, List, Any, Union, Dict, Callable, Optional, AnyStr
 
-FilePath = str
+FilePath = Text
 File = Any
 PymarcRecord = Any
 

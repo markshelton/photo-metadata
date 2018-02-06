@@ -41,23 +41,17 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def _write_file(
-        records: List[PymarcRecord],
-        output_file: FilePath,
-        writer: Any,
-        force: bool=False,
-        dry_run: bool=False,
-        sample: Optional[int]=None,
-        **kwargs: Any
-    ) -> None:
+def _write_file(records, output_file, writer, force=False, dry_run=False, sample=0, **kwargs):
+    # type: (List[PymarcRecord], FilePath, Any, bool, bool, int, **Any) -> None
     if not force and os.path.exists(output_file): raise IOError
-    if sample is not None: records = sample_items(records, sample)
+    records = sample_items(records, sample)
     for record in tqdm(records, desc="Writing Records"):
         if not dry_run: writer.write(record)
     writer.close()
 
 
-def write_file(records: List[PymarcRecord], output_file: FilePath, **kwargs: Any) -> None:
+def write_file(records, output_file, **kwargs):
+    # type: (List[PymarcRecord], FilePath, **Any) -> None
     file_type = get_file_type(output_file)
     if file_type == FileType.MARC: writer = MARCWriter(open_file(output_file, "wb+"))
     elif file_type == FileType.XML: writer = XMLWriter(open_file(output_file, "wb+"))

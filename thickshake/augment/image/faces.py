@@ -24,7 +24,7 @@ from thickshake.utils import get_files_in_directory, check_output_directory
 ##########################################################
 #Typing Configuration
 
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Tuple, Iterable, Dict
 
 FilePath = str 
 DirPath = str 
@@ -32,6 +32,8 @@ ImageType = Any
 Rectangle = Any
 Recognizer = Any
 Predictor = Any
+DataFrame = Any
+NPArray = Any
 
 ##########################################################
 # Constants
@@ -53,20 +55,23 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def prepare_template(face_template_file: FilePath) -> List[float]:
+def prepare_template(face_template_file):
+    # type: (FilePath) -> List[int]
     face_template = np.load(face_template_file)
     tpl_min, tpl_max = np.min(face_template, axis=0), np.max(face_template, axis=0)
     minmax_template = (face_template - tpl_min) / (tpl_max - tpl_min)
     return minmax_template
 
 
-def find_faces_in_image(image: ImageType) -> List[Rectangle]:
+def find_faces_in_image(image):
+    # type: (ImageType) -> List[Rectangle]
     detector = dlib.get_frontal_face_detector()
     faces = detector(image, 1)
     return faces
 
 
-def split_face_id(face_id: str):
+def split_face_id(face_id):
+    # type: (str) -> Tuple[str, str]
     face_id_parts = face_id.split("_")
     image_id = "_".join(face_id_parts[0:2])
     box_number = face_id_parts[2]
@@ -74,6 +79,7 @@ def split_face_id(face_id: str):
 
 
 def make_dataframe(array, value_name, index_names, face_id):
+    # type: (NPArray, str, List[str], str) -> DataFrame
     index = pd.MultiIndex.from_product([range(s)for s in array.shape], names=index_names)
     df = pd.Series(array.flatten(), index=index, name=value_name)
     df = df.reset_index()
@@ -84,6 +90,7 @@ def make_dataframe(array, value_name, index_names, face_id):
 
 
 def save_face_dataset(face_id, array, storage_path=None, index_names=None, **kwargs):
+    # type: (str, NPArray, str, Optional[List[str]], **Any) -> None
     if storage_path is None: return None
     from thickshake.storage import Store
     store = Store(**kwargs)
@@ -91,7 +98,8 @@ def save_face_dataset(face_id, array, storage_path=None, index_names=None, **kwa
     store.save(storage_path, df, index=["image_id", "box_number"], **kwargs)
 
 
-def extract_face_landmarks(image: ImageType, face_box: Rectangle, face_id: str, predictor: Predictor=None, storage_map=None, **kwargs) -> List[float]:
+def extract_face_landmarks(image, face_box, face_id, predictor=None, storage_map=None, **kwargs):
+    # type: (ImageType, Rectangle, str, Predictor, Dict[str, str], **Any) -> List[Any]
     points = predictor(image, face_box)
     landmarks = list(map(lambda p: (p.x, p.y), points.parts()))
     landmarks_np = np.float32(landmarks)
@@ -99,7 +107,8 @@ def extract_face_landmarks(image: ImageType, face_box: Rectangle, face_id: str, 
     return landmarks_np
 
 
-def extract_face_embeddings(image: ImageType, face_box: Rectangle, face_id: str, predictor: Predictor=None, recognizer: Recognizer=None, storage_map=None, **kwargs) -> List[float]:
+def extract_face_embeddings(image, face_box, face_id, predictor=None, recognizer=None, storage_map=None, **kwargs):
+    # type: (ImageType, Rectangle, str, Predictor, Recognizer, Dict[str, str], **Any) -> List[float]
     points = predictor(image, face_box)
     embeddings = recognizer.compute_face_descriptor(image, points)
     embeddings_np = np.float32(embeddings)[np.newaxis, :]
@@ -107,7 +116,8 @@ def extract_face_embeddings(image: ImageType, face_box: Rectangle, face_id: str,
     return embeddings_np
 
 
-def normalize_face(image: ImageType, landmarks: List[float], face_id: str, image_file: FilePath, template: List[float]=None, key_indices: List[int]=KEY_INDICES, face_size: int =FACE_SIZE, **kwargs: Any) -> ImageType:
+def normalize_face(image, landmarks, face_id, image_file, template=None, key_indices=KEY_INDICES, face_size=FACE_SIZE, **kwargs):
+    # type: (ImageType, List[Any], str, FilePath, List[float], List[int], int, **Any) -> ImageType
     key_indices_np = np.array(key_indices)
     H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * template[key_indices_np])
     image_face = cv2.warpAffine(image, H, (face_size, face_size))
@@ -115,7 +125,8 @@ def normalize_face(image: ImageType, landmarks: List[float], face_id: str, image
     return image_face
 
 
-def annotate_image(image: ImageType, face_box: Rectangle, face_id: str, landmarks: List[float], **kwargs) -> ImageType:
+def annotate_image(image, face_box, face_id, landmarks, **kwargs):
+    # type: (ImageType, Rectangle, str, List[Any], **Any) -> ImageType
     (x, y, w, h) = rect_to_bb(face_box)
     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
     cv2.putText(image, "Face #{}".format(face_id), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -124,19 +135,23 @@ def annotate_image(image: ImageType, face_box: Rectangle, face_id: str, landmark
     return image
 
 
-def get_template(template=None, template_path: FilePath=IMG_FACE_TEMPLATE_FILE, **kwargs):
+def get_template(template=None, template_path=IMG_FACE_TEMPLATE_FILE, **kwargs):
+    # type: (Optional[List[int]], FilePath, **Any) -> List[int]
     return prepare_template(template_path) if template is None else template
 
 
-def get_predictor(predictor=None, predictor_path: FilePath=IMG_FACE_PREDICTOR_FILE, **kwargs):
+def get_predictor(predictor=None, predictor_path=IMG_FACE_PREDICTOR_FILE, **kwargs):
+    # type: (Optional[Predictor], FilePath, **Any) -> Predictor
     return dlib.shape_predictor(predictor_path) if predictor is None else predictor
 
 
-def get_recognizer(recognizer=None, recognizer_path: FilePath=IMG_FACE_RECOGNIZER_FILE, **kwargs):
+def get_recognizer(recognizer=None, recognizer_path=IMG_FACE_RECOGNIZER_FILE, **kwargs):
+    # type: (Optional[Recognizer], FilePath, **Any) -> Recognizer
     return dlib.face_recognition_model_v1(recognizer_path) if recognizer is None else recognizer
 
 
 def get_dependencies(**kwargs):
+    # type: (**Any) -> Tuple[List[int], Predictor, Recognizer]
     template = get_template(**kwargs)
     predictor = get_predictor(**kwargs)
     recognizer = get_recognizer(**kwargs)
@@ -144,6 +159,7 @@ def get_dependencies(**kwargs):
 
 
 def generate_face_id(image_file, face_number, **kwargs):
+    # type: (FilePath, int, **Any) -> str
     base = os.path.basename(image_file)
     image_id_parts = base.split("_")
     face_id_parts = [image_id_parts[1], image_id_parts[2], face_number]
@@ -152,11 +168,13 @@ def generate_face_id(image_file, face_number, **kwargs):
 
 
 def save_face_box(face_id, face_box, storage_map=None, **kwargs):
+    # type: (str, int, Optional[Dict[str, str]], **Any) -> None
     face_box = np.array(rect_to_bb(face_box))
     save_face_dataset(face_id, face_box, storage_path=storage_map["bounding_boxes"], index_names=['component'], **kwargs)
 
 
-def extract_faces_from_image(image_file: FilePath, **kwargs: Any) -> ImageType:
+def extract_faces_from_image(image_file, **kwargs):
+    # type: (FilePath, **Any) -> ImageType
     image = get_image(image_file)
     image_annotated = image.copy()
     faces = find_faces_in_image(image)
@@ -172,11 +190,8 @@ def extract_faces_from_image(image_file: FilePath, **kwargs: Any) -> ImageType:
 
 
 #TODO: Make asynchronous, see https://hackernoon.com/building-a-facial-recognition-pipeline-with-deep-learning-in-tensorflow-66e7645015b8
-def extract_faces_from_images(
-        input_image_dir: DirPath=None,
-        output_image_dir: Optional[DirPath]=None,
-        **kwargs: Any
-    ) -> List[ImageType]:
+def extract_faces_from_images(input_image_dir=None, output_image_dir=None, **kwargs):
+    # type: (DirPath, DirPath, **Any) -> None
     image_files = get_files_in_directory(input_image_dir, **kwargs)
     check_output_directory(output_image_dir, **kwargs)
     template, predictor, recognizer = get_dependencies(**kwargs)

@@ -43,8 +43,9 @@ class FileType:
 
 
 class Borg:
-    _shared_state = {}
+    _shared_state = {} # type: Dict[Any, Any]
     def __init__(self):
+        # type: () -> None
         self.__dict__ = self._shared_state
 
 
@@ -52,57 +53,55 @@ class Borg:
 # Functions
 
 
-def maybe_make_directory(path: FilePath) -> None:
+def maybe_make_directory(path):
+    # type: (FilePath) -> None
     path_dir = os.path.dirname(path)
     pathlib.Path(path_dir).mkdir(parents=True, exist_ok=True)
 
 
-def open_file(path: FilePath, *args: Any, **kwargs: Any) -> File:
+def open_file(path, *args, **kwargs):
+    # type: (FilePath, *Any, **Any) -> File
     maybe_make_directory(path)
     return open(path, *args, **kwargs)
 
 
-def deep_get(dictionary: Dict[str, Any], *keys: str) -> Optional[Any]:
+def deep_get(dictionary, *keys):
+    # type: (Dict[str, Any], *str) -> Optional[Any]
     return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
 
 
-def consolidate_list(full_list: List[Any]) -> List[Any]:
+def consolidate_list(full_list):
+    # type: (List[Any]) -> List[Any]
     """Remove null entries from list and return sub-list."""
     consolidated_list = [x for x in full_list if x is not None]
     return consolidated_list
 
 
-def json_serial(obj: Any) -> str:
+def json_serial(obj):
+    # type: (Any) -> str
     if isinstance(obj, (datetime.datetime, datetime.date)): return obj.isoformat()
     else: raise TypeError("Type %s not serializable" % type(obj))
 
 
-def clear_directory(dir_path: Optional[DirPath]) -> None:
+def clear_directory(dir_path):
+    # type: (DirPath) -> None
     if dir_path is None: return None
-    try:
-        shutil.rmtree(dir_path)
-    except FileNotFoundError:
-        logger.info("Output directory already empty.")
-    os.makedirs(dir_path, exist_ok=True)
+    try: shutil.rmtree(dir_path)
+    except EnvironmentError: logger.info("Output directory already empty.")
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
 
 
-def get_files_in_directory(
-        dir_path: DirPath,
-        ext: Optional[str]="jpg",
-        **kwargs: Any
-    ) -> List[FilePath]:
+def get_files_in_directory(dir_path, ext="jpg", **kwargs):
+    # type: (DirPath, Optional[str], **Any) -> List[FilePath]
     files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
     if ext: files = [f for f in files if f.endswith(ext)]
     files = sample_items(files, **kwargs)
     return files
 
 
-def maybe_increment_path(
-        file_path: FilePath,
-        sep: str = "_",
-        overwrite: bool = False,
-        **kwargs: Any
-    ) -> Optional[FilePath]:
+def maybe_increment_path(file_path, sep="_", overwrite=False, **kwargs):
+    # type: (FilePath, str, bool, **Any) -> Optional[FilePath]
     file_path_base, file_ext = os.path.splitext(file_path)
     directory_path = os.path.dirname(file_path)
     i = 1
@@ -113,15 +112,18 @@ def maybe_increment_path(
         i += 1
 
 
-def get_file_type(path: FilePath) -> str:
+def get_file_type(path):
+    # type: (FilePath) -> str
     return os.path.splitext(path)[1]
 
 
-def convert_file_type(path: FilePath, file_type: str) -> FilePath:
+def convert_file_type(path, file_type):
+    # type: (FilePath, str) -> FilePath
     return path.replace(get_file_type(path), file_type)
 
 
-def generate_output_path(input_path: FilePath, output_dir: DirPath=None, sub_folder: str=None) -> FilePath:
+def generate_output_path(input_path, output_dir=None, sub_folder=None):
+    # type: (FilePath, DirPath, str) -> FilePath
     if output_dir is not None:
         base = os.path.basename(input_path)
         if sub_folder is not None:
@@ -130,12 +132,14 @@ def generate_output_path(input_path: FilePath, output_dir: DirPath=None, sub_fol
     return input_path.replace("input", "output")
 
 
-def sample_items(items: List[Any], sample: int = 0, **kwargs) -> List[Any]:
+def sample_items(items, sample=0, **kwargs):
+    # type: (List[Any], int, **Any) -> List[Any]
     if sample == 0: return items
     else: return random.sample(items, sample)
 
 
-def check_output_directory(output_dir: DirPath=None, force: bool=True, **kwargs) -> None:
+def check_output_directory(output_dir=None, force=True, **kwargs):
+    # type: (DirPath, bool, **Any) -> None
     if not force and output_dir is not None:
         if len(get_files_in_directory(output_dir)) > 0:
             raise IOError

@@ -24,13 +24,14 @@ FilePath = str
 ##########################################################
 # Initialization
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 ##########################################################
 # Functions
 
 
-def caption_images(image_file: FilePath, **kwargs: Any) -> None:
+def caption_images(image_file, **kwargs):
+    # type: (FilePath, **Any) -> None
     pass
 
 
@@ -39,7 +40,7 @@ def caption_images(image_file: FilePath, **kwargs: Any) -> None:
 # Main
 
 
-def main() -> None:
+def main():
     pass
 
 

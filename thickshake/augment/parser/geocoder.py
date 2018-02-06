@@ -59,7 +59,8 @@ logger = logging.getLogger(__name__)
 # Helpers
 
 
-def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
+def read_csv_to_dict(csv_file):
+    # type: (FilePath) -> Dict[str, List[str]]
     """Read CSV file into a dictionary"""
     with open(csv_file) as csvfile:
         reader = csv.DictReader(csvfile)
@@ -69,7 +70,8 @@ def read_csv_to_dict(csv_file: FilePath) -> Dict[str, List[str]]:
         return outdict
 
 
-def prepare_search_string(input_file: FilePath) -> str:
+def prepare_search_string(input_file):
+    # type: (FilePath) -> str
     """Read search terms from CSV files and concatentate into string for Regex."""
     search_dict = read_csv_to_dict(input_file)
     search_list = ["|".join(search_dict[key]) for key in search_dict.keys()]
@@ -77,13 +79,15 @@ def prepare_search_string(input_file: FilePath) -> str:
     return search_string
 
 
-def get_matches_from_regex(compiled_regex: Pattern[str], target_text: str) -> List[Match]:
+def get_matches_from_regex(compiled_regex, target_text):
+    # type: (Pattern[str], str) -> List[Match]
     """Return a dictionary of all named groups for a Regex pattern."""
     matches = [match.groupdict() for match in compiled_regex.finditer(target_text)]
     return [{k:v for k,v in match.items() if v is not None} for match in matches]
 
 
-def get_street_number(response: Dict[str, Optional[str]]) -> str:
+def get_street_number(response):
+    # type: (Dict[str, Optional[str]]) -> str
     if response["numberFirst"] and response["numberLast"]:
         return str(response["numberFirst"]) + "-" + str(response["numberLast"])
     elif response["numberFirst"]:
@@ -93,11 +97,13 @@ def get_street_number(response: Dict[str, Optional[str]]) -> str:
     else: return ""
 
 
-def choose_best_location(results: List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]:
+def choose_best_location(results):
+    # type: (List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]
     return max(results, key=lambda x: x.get('confidence'))
 
 
-def title_case(text: Optional[str]):
+def title_case(text):
+    # type: (Optional[str]) -> Optional[str]
     if text is None: return None
     return text.title()
 
@@ -106,11 +112,8 @@ def title_case(text: Optional[str]):
 # Functions
 
 
-def parse_address(
-        location_text: str,
-        street_types_file: FilePath=MTD_LOC_STREET_TYPES_FILE,
-        suburb_names_file: FilePath=MTD_LOC_SUBURB_NAMES_FILE
-    ) -> Optional[Address]:
+def parse_address(location_text, street_types_file=MTD_LOC_STREET_TYPES_FILE, suburb_names_file=MTD_LOC_SUBURB_NAMES_FILE):
+    # type: (str, FilePath, FilePath) -> Optional[Address]
     street_types = prepare_search_string(street_types_file)
     suburb_names = prepare_search_string(suburb_names_file)
     re_main = re.compile(
@@ -127,11 +130,8 @@ def parse_address(
     return address
 
 
-def generate_params(
-        address: Address,
-        api_key: str=MAPPIFY_API_KEY,
-        default_state: str=MTD_LOC_DEFAULT_STATE
-    ) -> str:
+def generate_params(address, api_key=MAPPIFY_API_KEY, default_state=MTD_LOC_DEFAULT_STATE):
+    # type: (Address, str, str) -> Dict[str, str]
     params_dict = {}
     address_parts = [address.get("street_number"), address.get("street_name"), address.get("street_type") ]
     address_parts = [part for part in address_parts if part is not None and part is not ""]
@@ -143,7 +143,8 @@ def generate_params(
     return params_dict
 
 
-def geocode_address(address: Address, api_url: Url=MAPPIFY_BASE_URL) -> Location:
+def geocode_address(address, api_url=MAPPIFY_BASE_URL):
+    # type: (Address, str) -> Location
     params = generate_params(address)
     if params["streetAddress"] != "":
         res = requests.post(api_url, json=params)
@@ -187,7 +188,8 @@ def geocode_address(address: Address, api_url: Url=MAPPIFY_BASE_URL) -> Location
     return location
 
 
-def extract_location(location_text: str, **kwargs: Any) -> Location:
+def extract_location(location_text, **kwargs):
+    # type: (str, **Any) -> Location
     """Parse and geocode location from text."""
     address = parse_address(location_text)
     if not address: return {}
@@ -203,8 +205,6 @@ def main():
     
 
 if __name__ == "__main__":
-    setup_logging()
-    setup_warnings()
     main()
 
 

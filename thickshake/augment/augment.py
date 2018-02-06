@@ -27,6 +27,8 @@ from typing import List, Any, Union, Dict, Callable
 Parser = Any
 FilePath = str
 DirPath = str
+DataFrame = Any
+Series = Any
 
 ##########################################################
 # Constants
@@ -40,15 +42,8 @@ logger = logging.getLogger(__name__)
 # Wrappers
 
 
-def process_wrapper(
-        main_function: Callable,
-        main_path: str,
-        storage_map: Dict[str, str],
-        output_map: Dict[str, str] = None,
-        dependencies: List[Callable] = None,
-        force: bool = False,
-        **kwargs: Any
-    ) -> None:
+def process_wrapper(main_function, main_path, storage_map, output_map=None, dependencies=None, force=False, **kwargs):
+    # type: (Callable, str, Dict[str, str], Dict[str, str], List[Callable], bool, **Any) -> None
     store = Store(force=force, **kwargs)
     if dependencies is None: dependencies = []
     if force or not store.contains(main_path):
@@ -59,24 +54,17 @@ def process_wrapper(
     if output_map is None: return None
     try: 
         database = Database(force=force, **kwargs)
-        if not force and database.check_history(main_function, **kwargs): return None
+        if not force and database.check_history(main_function.__name__, **kwargs): return None
         df = store.get_dataframe(main_path)
         for i, row in tqdm(df.iterrows(), total=df.shape[0], desc="Transferring Records"):
             store.export_to_database(row, output_map)
-        database.add_to_history(main_function, **kwargs)
+        database.add_to_history(main_function.__name__, **kwargs)
     except Exception as e: 
         logger.warning("Database not available.", exc_info=True)
 
 
-def apply_parser(
-        input_table: str, #Table
-        input_columns: List[str], # Columns
-        output_table: str,
-        output_map: Dict[str, str], # Map (df column -> db column)
-        parser: Parser,
-        sample: int = 0,
-        **kwargs: Any
-    ) -> None:
+def apply_parser(input_table, input_columns, output_table, output_map, parser, sample=0, **kwargs):
+    # type: (str, List[str], str, Dict[str, str], Parser, int, **Any) -> None
     database = Database(**dict(kwargs, force=False))
     input_dataframe = database.load_columns(input_table, input_columns, **kwargs)
     if sample != 0: input_dataframe = input_dataframe.sample(n=sample)
@@ -94,17 +82,19 @@ def apply_parser(
 # Image Processing
 
 
-def dump_database(**kwargs: Any) -> None:
+def dump_database(**kwargs):
+    # type: (**Any) -> None
     from thickshake.storage.writer import export_database_to_store
     process_wrapper(
-        main_function = partial(export_database_to_store(**kwargs)),
+        main_function = export_database_to_store,
         main_path = "/dump",
         storage_map = {"dump": "/dump"},
         **kwargs
     )
 
 
-def detect_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
+def detect_faces(input_image_dir=None, **kwargs):
+    # type: (DirPath, **Any) -> None
     from thickshake.augment.image.faces import extract_faces_from_images
     process_wrapper(
         main_function = extract_faces_from_images,
@@ -125,7 +115,8 @@ def detect_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
     )
 
 
-def identify_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
+def identify_faces(input_image_dir=None, **kwargs):
+    # type: (DirPath, **Any) -> None
     from thickshake.augment.classifier.classifier import run_face_classifier
     process_wrapper(
         main_function = run_face_classifier,
@@ -148,7 +139,8 @@ def identify_faces(input_image_dir: DirPath = None, **kwargs: Any) -> None:
 # Metadata Parsing
 
 
-def parse_locations(**kwargs: Any) -> None:
+def parse_locations(**kwargs):
+    # type: (**Any) -> None
     from thickshake.augment.parser.geocoder import extract_location
     apply_parser(
         input_table = "image",
@@ -173,7 +165,8 @@ def parse_locations(**kwargs: Any) -> None:
     )
 
 
-def parse_links(**kwargs: Any) -> None:
+def parse_links(**kwargs):
+    # type: (**Any) -> None
     from thickshake.augment.parser.links import extract_image_links
     apply_parser(
         input_table = "image",
@@ -190,7 +183,8 @@ def parse_links(**kwargs: Any) -> None:
     )
 
 
-def parse_sizes(**kwargs: Any) -> None:
+def parse_sizes(**kwargs):
+    # type: (**Any) -> None
     from thickshake.augment.parser.links import extract_image_dimensions
     apply_parser(
         input_table = "image",
@@ -206,7 +200,8 @@ def parse_sizes(**kwargs: Any) -> None:
     )
 
 
-def parse_dates(**kwargs: Any) -> None:
+def parse_dates(**kwargs):
+    # type: (**Any) -> None
     from thickshake.augment.parser.dates import extract_date_from_title, combine_dates, split_dates
     apply_parser(
         input_table = "image",

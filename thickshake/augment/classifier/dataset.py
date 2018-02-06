@@ -14,6 +14,7 @@ import random
 ##########################################################
 # Third Party Imports
 
+import h5py
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -28,6 +29,14 @@ from thickshake.storage import Store
 ##########################################################
 # Typing Configuration
 
+from typing import List, Tuple, Dict, Any
+Features = Any
+Label = Any
+Dataset = Any
+FilePath = Any
+DBConfig = Any
+DataFrame = Any
+
 
 ##########################################################
 # Constants & Initialization
@@ -38,16 +47,19 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def decompose(dataset: Dataset) -> Tuple[List[Features], List[Label]]:
+def decompose(dataset):
+    # type: (Dataset) -> Tuple[List[Features], List[Label]]
     return zip(*[(record["features"], record["label"]) for record in dataset])
 
 
-def compose(features: List[Features], labels: List[Label]) -> Dataset:
+def compose(features, labels):
+    # type: (List[Features], List[Label]) -> Dataset
     return [{'features': fx, "label": lx} for fx, lx in zip(features, labels)]
 
 
-def filter_dataset(dataset: Dataset, min_images_per_label: int = 10) -> Dataset:
-    counts = {}
+def filter_dataset(dataset, min_images_per_label=10):
+    # type: (Dataset, int) -> Dataset
+    counts = {} # type: Dict[str, int]
     for record in dataset:
         label = record["label"]
         if label in counts: counts[label] = 0
@@ -60,7 +72,8 @@ def filter_dataset(dataset: Dataset, min_images_per_label: int = 10) -> Dataset:
     return filter_dataset
 
 
-def split_dataset(dataset: Dataset, split_ratio: float = 0.8, **kwargs) -> Tuple[Dataset, Dataset]:
+def split_dataset(dataset, split_ratio=0.8, **kwargs):
+    # type: (Dataset, float, **Any) -> Tuple[Dataset, Dataset]
     X, y = decompose(dataset)
     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=split_ratio, stratify=y)
     dataset_train = compose(X_train, y_train)
@@ -68,7 +81,8 @@ def split_dataset(dataset: Dataset, split_ratio: float = 0.8, **kwargs) -> Tuple
     return dataset_train, dataset_test
 
 
-def get_image_ids(image_data_file: FilePath, sample_size: int = 0, **kwargs) -> List[str]:
+def get_image_ids(image_data_file, sample_size=0, **kwargs):
+    # type: (FilePath, int, **Any) -> List[str]
     with h5py.File(image_data_file, "r") as f:
         face_ids = list(f["embeddings"].keys())
         if sample_size != 0:
@@ -77,20 +91,24 @@ def get_image_ids(image_data_file: FilePath, sample_size: int = 0, **kwargs) -> 
         return image_ids
 
 
-def get_face_columns(image_data_file: FilePath) -> List[str]:
+#FIXME
+def get_face_columns(image_data_file):
+    # type: (FilePath) -> List[str]
     with h5py.File(image_data_file, "r") as f:
         embedding_size = 128 # f["embeddings"].attrs["size"]
         face_columns = ["facial_feature_%s" % val for val in range(embedding_size)]
         return face_columns
 
-
-def get_metadata_columns(metadata_file: FilePath) -> List[str]:
+#FIXME
+def get_metadata_columns(metadata_file):
+    # type: (FilePath) -> List[str]
     with h5py.File(metadata_file, "r") as f:
         metadata_columns = list(f.attrs["columns"])
         return metadata_columns
 
 
-def get_face_embedddings(image_id: str, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
+def get_face_embedddings(image_id, image_data_file, **kwargs):
+    # type: (str, FilePath, **Any) -> DataFrame
     with h5py.File(image_data_file, "r") as f:
         embedding_keys = f["embeddings"].keys()
         embedding_keys_subset = [key for key in embedding_keys if key.startswith(image_id)]
@@ -104,7 +122,8 @@ def get_face_embedddings(image_id: str, image_data_file: FilePath, **kwargs) -> 
         return df
 
 
-def get_metadata(image_id: str, metadata_file: FilePath, **kwargs) -> pd.DataFrame:
+def get_metadata(image_id, metadata_file, **kwargs):
+    # type: (str, FilePath, **Any) -> DataFrame
     with h5py.File(metadata_file, "r") as f:
         records = f.get(image_id, None)
         metadata_columns = get_metadata_columns(metadata_file)
@@ -114,29 +133,35 @@ def get_metadata(image_id: str, metadata_file: FilePath, **kwargs) -> pd.DataFra
     return df
 
 
-def merge_datasets(a: pd.DataFrame, b: pd.DataFrame) -> pd.DataFrame:
+def merge_datasets(a, b):
+    # type: (DataFrame, DataFrame) -> DataFrame
     dataset = pd.merge(a, b, left_index=True, right_index=True, how="outer")
     return dataset
 
 
-def get_records(image_id: str, metadata_file: DBConfig, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
+#FIXME:
+def get_records(image_id, metadata_file, image_data_file, **kwargs):
+    # type: (str, DBConfig, FilePath, **Any) -> DataFrame
     faces = get_face_embedddings(image_id, image_data_file, **kwargs)
     metadata = get_metadata(image_id, metadata_file, **kwargs)
     dataset = merge_datasets(faces, metadata)
     return dataset
 
 
-def load_dataset(metadata_file: DBConfig, image_data_file: FilePath, **kwargs) -> pd.DataFrame:
-    image_ids = get_image_ids(image_data_file, **kwargs) #DONE
+#FIXME
+def load_dataset(metadata_file, image_data_file, **kwargs):
+    # type: (DBConfig, FilePath, **Any) -> DataFrame
+    image_ids = get_image_ids(image_data_file, **kwargs)
     df = pd.DataFrame()
     for image_id in tqdm(image_ids, desc="Loading Records"):
-        records = get_records(image_id, metadata_file, image_data_file, **kwargs) #TODO
+        records = get_records(image_id, metadata_file, image_data_file, **kwargs)
         df = pd.concat([df, records])
     return df
 
 
 ##########################################################
 # Main
+
 
 def main():
     df = load_dataset(
@@ -147,7 +172,9 @@ def main():
         sample_size=FLAG_CLF_SAMPLE,
     )
 
+
 if __name__ == "__main__":
     main()
+
 
 ##########################################################

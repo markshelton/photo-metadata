@@ -36,20 +36,23 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Functions
 
-
-def combine_records(records_new: List[PymarcRecord], records_out: List[PymarcRecord], **kwargs) -> List[PymarcRecord]:
+#TODO
+def combine_records(records_new, records_old, **kwargs):
+    # type: (List[PymarcRecord], List[PymarcRecord], **Any) -> List[PymarcRecord]
     pass
 
 
 # Import metadata files from any format to RDBMS
-def import_metadata(input_metadata_file: FilePath, **kwargs) -> None:
+def import_metadata(input_metadata_file, **kwargs):
+    # type: (FilePath, **Any) -> None
     assert os.path.exists(input_metadata_file)
     records = read_file(input_metadata_file, **kwargs)
     load_database(records, **kwargs)
 
 
 # Export metadata records from RDBMS to any format
-def export_metadata(output_metadata_file: FilePath, input_metadata_file: FilePath=None, partial: bool=True, force: bool=True, **kwargs) -> None:
+def export_metadata(output_metadata_file, input_metadata_file=None, partial=True, force=True, **kwargs):
+    # type: (FilePath, FilePath, bool, bool, **Any) -> None
     if not force: assert not os.path.exists(output_metadata_file)
     if not partial: assert input_metadata_file is not None
     records = export_database(force=False, **kwargs)
@@ -61,12 +64,8 @@ def export_metadata(output_metadata_file: FilePath, input_metadata_file: FilePat
 
 # Convert metadata files from one format to another
 # e.g. MARCXML -> SQL Dump, MARC21 -> HDF5
-def convert_metadata(
-        input_metadata_file: FilePath,
-        output_metadata_file: FilePath=None,
-        output_metadata_type: str=None,
-        **kwargs
-    ) -> FilePath:
+def convert_metadata(input_metadata_file, output_metadata_file=None, output_metadata_type=None, **kwargs):
+    # type: (FilePath, FilePath, str, **Any) -> FilePath
     records = read_file(input_metadata_file, **kwargs)
     if output_metadata_file is None:
         output_metadata_file = generate_output_path(input_metadata_file)

@@ -48,11 +48,8 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def get_data(
-        data: Union[PymarcField, PymarcRecord],
-        loader: Dict[str, Any],
-        config: Dict[str, Any],
-    ) -> Union[List[PymarcField], List[PymarcRecord]]:
+def get_data(data, loader, config):
+    # type: (Union[PymarcField, PymarcRecord], Dict[str, Any], Dict[str, Any]) -> List[Union[PymarcField, PymarcRecord]]
     fields = [] # type: List[str]
     if not isinstance(data, pymarc.Field): 
         for k,v in loader.items():
@@ -65,12 +62,8 @@ def get_data(
     return [data]
 
 
-def parse_record(
-        record: Union[PymarcField, PymarcRecord],
-        loader: Dict[str, Any],
-        config: Dict[str, Any],
-        foreign_keys: Dict[str, str]
-    ) -> Dict[str, Any]:
+def parse_record(record, loader, config, foreign_keys):
+    # type: (Union[PymarcField, PymarcRecord], Dict[str, Any], Dict[str, Any], Dict[str, str]) -> Dict[str, Any]
     parsed_record = {} # type: Dict[str, Optional[str]]
     for k,v in loader.items():
         if not k.startswith(config["TABLE_PREFIX"]):
@@ -89,27 +82,16 @@ def parse_record(
     return parsed_record
 
 
-def store_record(
-        parsed_record: Dict[str, Any],
-        foreign_keys: Dict[str, str],
-        table_name: str,
-        database: Database,
-        **kwargs: Any
-    ) -> Dict[str, str]:
+def store_record(parsed_record, foreign_keys, table_name, database, **kwargs):
+    # type: (Dict[str, Any], Dict[str, str], str, Database, **Any) -> Dict[str, str]
     with database.manage_db_session(**kwargs) as session:
         db_object = database.merge_record(table_name, parsed_record, foreign_keys, **kwargs)
         if hasattr(db_object, "uuid"): return db_object.uuid
+    return None
 
 
-def load_record(
-        data: Union[PymarcField, PymarcRecord],
-        loader: Dict[str, Any],
-        config: Dict[str, Any],
-        database: Database,
-        table_name: str = "record",
-        foreign_keys: Dict[str, str] = None,
-        **kwargs: Any
-    ) -> None:
+def load_record(data, loader, config, database, table_name="record", foreign_keys=None, **kwargs):
+    # type: (Union[PymarcField, PymarcRecord], Dict[str, Any], Dict[str, Any], Database, str, Dict[str, Any], **Any) -> None
     if foreign_keys is None: foreign_keys = defaultdict(list)
     records = get_data(data, loader, config)
     sub_loaders = get_loaders(loader, config)
@@ -123,11 +105,8 @@ def load_record(
         foreign_keys[table_name].pop()
 
 
-def load_database(
-        records: List[PymarcRecord],
-        loader_config_file: FilePath=None,
-        **kwargs: Any
-    ) -> None:
+def load_database(records, loader_config_file, **kwargs):
+    # type: (List[PymarcRecord], FilePath, **Any) -> None
     database = Database(**kwargs)
     loader_map, loader_config = load_config_file(loader_config_file)
     for record in tqdm(records, desc="Loading Records"):

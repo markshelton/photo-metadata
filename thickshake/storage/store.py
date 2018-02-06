@@ -22,8 +22,10 @@ from thickshake.utils import Borg
 ##########################################################
 # Typing Configuration
 
-from typing import Any
+from typing import Any, Iterable, Dict, List
 FilePath = str
+Series = Any
+DataFrame = Any
 
 ##########################################################
 # Constants
@@ -44,7 +46,8 @@ class Store(Borg):
     read_mode = "r"
     
 
-    def __init__(self, store_path: FilePath = STORE_PATH, force: bool=False, **kwargs) -> None:
+    def __init__(self, store_path=STORE_PATH, force=False, **kwargs):
+        # type: (FilePath, bool, **Any) -> None
         Borg.__init__(self)
         if self.store_path is None:
             self.write_mode = "w" if force else "a"
@@ -52,22 +55,25 @@ class Store(Borg):
             with pd.HDFStore(self.store_path, self.write_mode) as f: pass
 
 
-    def save(self, dataset_path, df, index, **kwargs) -> None:
+    def save(self, dataset_path, df, index, **kwargs):
+        # type: (str, DataFrame, List[str], **Any) -> None
         with pd.HDFStore(self.store_path, "a") as store:
             store.append(dataset_path, df, index=index)
 
 
-    def contains(self, dataset_path) -> bool:
+    def contains(self, dataset_path):
+        # type: (str) -> bool
         with pd.HDFStore(self.store_path, 'r') as store:
             return dataset_path in store and not store[dataset_path].shape is None
 
 
-    def get_dataframe(self, dataset_path) -> pd.DataFrame:
+    def get_dataframe(self, dataset_path):
+        # type: (str) -> DataFrame
         with pd.HDFStore(self.store_path, 'r') as store:
             return store.get(dataset_path)
 
     #TODO
-    def export_to_database(self, series, output_map) -> None:
+    def export_to_database(self, series, output_map):
         from thickshake.storage import Database
         pass
 
@@ -80,7 +86,7 @@ def main():
 
 
 if __name__ == "__main__":
-    setup_logging()
-    setup_warnings()
     main()
 
+
+##########################################################

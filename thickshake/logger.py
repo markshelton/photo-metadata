@@ -32,14 +32,14 @@ CONFIG_LOGGING_FILE = env.str("CONFIG_LOGGING_FILE", default="%s/logging.yaml" %
 ##########################################################
 
 
-def setup_logging(config_path: FilePath=CONFIG_LOGGING_FILE) -> None:
+def setup_logging(config_path=CONFIG_LOGGING_FILE):
+    # type: (FilePath) -> None
     logging.captureWarnings(True)
     if os.path.exists(config_path):
         with open(config_path, 'rt') as f:
             config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
-    else:
-        logging.basicConfig(level=logging.INFO)
+    else: logging.basicConfig(level=logging.INFO)
 
 
 ##########################################################

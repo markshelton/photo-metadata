@@ -3,6 +3,7 @@
 
 import logging
 import os
+import pickle
 import sys
 
 ##########################################################
@@ -18,6 +19,17 @@ from sklearn.svm import SVC
 from thickshake.augment.classifier.dataset import load_dataset, split_dataset, decompose
 
 ##########################################################
+# Typing Configuration
+
+from typing import List, Tuple, Dict, Any
+Features = Any
+Label = Any
+Dataset = Any
+FilePath = Any
+DBConfig = Any
+DataFrame = Any
+
+##########################################################
 # Constants
 
 ##########################################################
@@ -29,7 +41,8 @@ logger = logging.getLogger(__name__)
 # Functions
 
 
-def train_classifier(dataset: Dataset, class_names: List[str], classifier_file: FilePath) -> None:
+def train_classifier(dataset, class_names, classifier_file):
+    # type: (Dataset, List[str], FilePath) -> None
     features, labels = decompose(dataset)
     logger.info('Training classifier on {} images'.format(len(labels)))
     model = SVC(kernel='linear', probability=True, verbose=False)
@@ -39,7 +52,8 @@ def train_classifier(dataset: Dataset, class_names: List[str], classifier_file: 
     logger.info('Saved classifier model to file "%s"' % classifier_file)
 
 
-def test_classifier(dataset: Dataset, classifier_file: FilePath) -> None:
+def test_classifier(dataset, classifier_file):
+    # type: (Dataset, FilePath) -> None
     features, labels = decompose(dataset)
     logger.info('Evaluating classifier on {} images'.format(len(labels)))
     if not os.path.exists(classifier_file):
@@ -55,33 +69,33 @@ def test_classifier(dataset: Dataset, classifier_file: FilePath) -> None:
         logger.info('Accuracy: %.3f' % accuracy)
 
 
-def apply_constraints(df: pd.DataFrame) -> pd.DataFrame:
+def apply_constraints(df, label_key):
+    # type: (DataFrame, str) -> DataFrame
     if label_key == "subject_name": 
         df = df[df["subject_type"] != "Company"] # remove companies
         df = df[~df['subject_relation'].str.contains("photo", na=False)] # remove photographers
         df = df[~df['subject_name'].str.contains("photo", na=False)] # remove photographers
     return df
 
+
 #TODO:
-def run_classifier(
-        metadata_file: DBConfig,
-        image_data_file: FilePath,
-        label_key: Optional[str],
-        classifier_file: FilePath,
-        is_train: bool = True,
-        is_test: bool = True,
-        **kwargs: Any
-    ) -> None:
-    df = load_dataset(metadata_file, image_data_file, **kwargs)
+def run_classifier(label_key, classifier_file, is_train=True, is_test=True, **kwargs):
+    # type: (str, FilePath, bool, bool, **Any) -> None
+    df = load_dataset(**kwargs)
     df = apply_constraints(df, label_key)
     X, y = df[df.columns.drop(label_key)], df[label_key]
-    class_names = set(y)
-    dataset_train, dataset_test = dataset, dataset
-    #dataset_train, dataset_test = split_dataset(dataset, **kwargs)
-    if is_train:
-        train_classifier(dataset_train, class_names, classifier_file)
-    if is_test:
-        test_classifier(dataset_test, classifier_file)
+    class_names = list(set(y))
+    dataset_train, dataset_test = split_dataset(df, **kwargs)
+    if is_train: train_classifier(dataset_train, class_names, classifier_file)
+    if is_test: test_classifier(dataset_test, classifier_file)
+
+
+#TODO
+def run_face_classifier(**kwargs):
+    pass
+
+
+##########################################################
 
 
 def main():
@@ -90,3 +104,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+##########################################################

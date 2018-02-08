@@ -31,7 +31,7 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake._config.schema import Base
+from thickshake.storage.schema import Base
 from thickshake.utils import maybe_make_directory, Borg
 
 ##########################################################

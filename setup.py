@@ -31,8 +31,8 @@ setup(
         thickshake=thickshake.cli:cli
     """,
     install_requires=[
-        "click", "click_help_colors", "click_log", "envparse",
-        "pyyaml", "tables", "tqdm", "pathlib", "future", "typing", "configparser"
+        "click", "click_help_colors", "click_log", "envparse","pandas", "numpy",
+        "pyyaml", "tables", "tqdm", "pathlib", "future", "typing", "configparser", "sqlalchemy"
     ],
     zip_safe=False
 )

@@ -6,24 +6,34 @@
 #SBATCH --export=NONE
 #SBATCH --output=log.out
 
-module load broadwell gcc/4.8.5 cuda
+#architecture
+module use /group/interns2017/mcytowski/software/sles12sp2/modulefiles/
+module load broadwell gcc/5.4.0 cuda/8.0.61
+module load python/2.7.1
 
-module load python/3.6.1
-
-module load opencv-gpu # compiled with gcc/4.8.5 ??
-module load dlib-gpu # compiled with gcc/5.4.0 ??
-module load tensorflow # resets PYTHON_VERSION to 2.7.1 ??
+#c libraries
+module load opencv-gpu
+module load dlib-gpu
+module load tensorflow
 module load hdf5
 module load cython
 
+#python libraries
 module load pandas
-#module load numpy
-#module load setuptools
+module load setuptools
 module load pip
 
-#commands
+#library install
 if cd thickshake; then git pull; else git clone https://github.com/markshelton/thickshake && cd thickshake; fi
-python3 setup.py install --user # install dependencies
-pip3 install --user -e . # install local package
-export LC_ALL=C.UTF-8 && export LANG=C.UTF-8 # python language encoding
-STORE="store.h5" && python3 thickshake augment detect_faces -q -s 100 -d -f #script
+python setup.py install --user
+
+#env variables
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+export STORE="store.h5"
+
+INPUT_IMAGES_DIR="../../images/JPEG_Convert_OriginalSize"
+OUTPUT_IMAGES_DIR="images"
+
+#script
+python thickshake augment detect_faces -q -s 100 -f -ii $INPUT_IMAGES_DIR -oi $OUTPUT_IMAGES_DIR

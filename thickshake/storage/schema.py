@@ -16,7 +16,7 @@ standard_library.install_aliases()
 # Third Party Imports
 
 from sqlalchemy import (
-    Column, ForeignKey, AnyStr, Boolean,
+    Column, ForeignKey, Text, Boolean,
     Date, Integer, Numeric, DateTime, 
     func
 )
@@ -33,7 +33,7 @@ from thickshake.utils import consolidate_list
 ##########################################################
 # Typing Configuration
 
-from typing import Text, Any
+from typing import Any
 
 ##########################################################
 # Environmental Variables
@@ -66,16 +66,16 @@ Base = declarative_base(cls=MyBase, constructor=MyBase.__init__) # type: Any
 class Record(Base):
     __tablename__ = "record"
     # Original Fields
-    record_label = Column(AnyStr, unique=True)
-    note_title = Column(AnyStr)
-    note_general = Column(AnyStr)
-    note_summary = Column(AnyStr)
-    series_title = Column(AnyStr)
-    series_volume = Column(AnyStr)
-    date_created = Column(AnyStr)
-    date_created_approx = Column(AnyStr)
-    physical_extent = Column(AnyStr)
-    physical_details = Column(AnyStr)
+    record_label = Column(Text, unique=True)
+    note_title = Column(Text)
+    note_general = Column(Text)
+    note_summary = Column(Text)
+    series_title = Column(Text)
+    series_volume = Column(Text)
+    date_created = Column(Text)
+    date_created_approx = Column(Text)
+    physical_extent = Column(Text)
+    physical_details = Column(Text)
     # Generated Fields
     date_created_parsed = Column(Date) # FROM [record.date_created, record.date_created_approx]
     # Foreign Keys
@@ -100,9 +100,9 @@ class Record(Base):
 class Subject(Base):
     __tablename__ = "subject"
     # Original Fields
-    subject_name = Column(AnyStr, unique=True)
-    subject_type = Column(AnyStr)  # Building | Person
-    subject_dates = Column(AnyStr)
+    subject_name = Column(Text, unique=True)
+    subject_type = Column(Text)  # Building | Person
+    subject_dates = Column(Text)
     # Generated Fields
     subject_start_date = Column(Date) # FROM [subject.subject_dates]
     subject_end_date = Column(Date) # FROM [subject.subject_dates]
@@ -122,17 +122,17 @@ class Subject(Base):
 class Image(Base):
     __tablename__ = "image"
     # Original Fields
-    image_url = Column(AnyStr, unique=True, nullable=False)
-    image_note = Column(AnyStr, nullable=False)
+    image_url = Column(Text, unique=True, nullable=False)
+    image_note = Column(Text, nullable=False)
     # Generated Fields
-    image_label = Column(AnyStr) # FROM [image.image_url]
-    image_url_raw = Column(AnyStr) # FROM [image.image_url]
-    image_url_thumb = Column(AnyStr) # FROM [image.image_url]
+    image_label = Column(Text) # FROM [image.image_url]
+    image_url_raw = Column(Text) # FROM [image.image_url]
+    image_url_thumb = Column(Text) # FROM [image.image_url]
     image_height = Column(Integer) # FROM [image.image_url]
     image_width = Column(Integer) # FROM [image.image_url]
     image_date_created = Column(Date) # FROM [image.image_note, record.date_created, record.date_created_approx]
-    image_embedded_text = Column(AnyStr) # FROM OCR Parser
-    image_generated_caption = Column(AnyStr) # FROM Caption Parser
+    image_embedded_text = Column(Text) # FROM OCR Parser
+    image_generated_caption = Column(Text) # FROM Caption Parser
     # Foreign Keys
     record_uuid = Column(Integer, ForeignKey("record.uuid"))
     location_uuid = Column(Integer, ForeignKey("location.uuid"))
@@ -150,20 +150,20 @@ class Image(Base):
 class Location(Base):
     __tablename__ = "location"
     # Original Fields
-    location_name = Column(AnyStr)
-    location_division = Column(AnyStr)
+    location_name = Column(Text)
+    location_division = Column(Text)
     # Generated Fields
-    building_name = Column(AnyStr) # FROM [image.image_note]
-    street_number = Column(AnyStr) # FROM [image.image_note]
-    street_name = Column(AnyStr) # FROM [image.image_note]
-    street_type = Column(AnyStr) # FROM [image.image_note]
-    suburb = Column(AnyStr) # FROM [image.image_note]
-    state = Column(AnyStr) # FROM [image.image_note]
-    post_code = Column(AnyStr) # FROM [image.image_note]
+    building_name = Column(Text) # FROM [image.image_note]
+    street_number = Column(Text) # FROM [image.image_note]
+    street_name = Column(Text) # FROM [image.image_note]
+    street_type = Column(Text) # FROM [image.image_note]
+    suburb = Column(Text) # FROM [image.image_note]
+    state = Column(Text) # FROM [image.image_note]
+    post_code = Column(Text) # FROM [image.image_note]
     latitude = Column(Numeric) # FROM [image.image_note]
     longitude = Column(Numeric) # FROM [image.image_note]
     confidence = Column(Numeric) # FROM [image.image_note]
-    location_type = Column(AnyStr) # FROM [image.image_note]
+    location_type = Column(Text) # FROM [image.image_note]
     # ORM Relationships
     images = relationship("Image")
     records = relationship("Record")
@@ -177,7 +177,7 @@ class Location(Base):
 class Topic(Base):
     __tablename__ = "topic"
     # Original Fields
-    topic_term = Column(AnyStr, unique=True, nullable=False)
+    topic_term = Column(Text, unique=True, nullable=False)
     # ORM Associations
     record_topics = relationship("RecordTopic", cascade="all, delete-orphan")
     # ORM Relationships
@@ -198,7 +198,7 @@ class RecordSubject(Base):
     subject_uuid = Column(Integer, ForeignKey("subject.uuid"), primary_key=True)
     subject_is_main = Column(Boolean, primary_key=True)
     # Original Fields
-    subject_relation = Column(AnyStr)
+    subject_relation = Column(Text)
     # ORM Relationships
     subject = relationship("Subject", lazy="joined")
     record = relationship("Record", lazy="joined")
@@ -234,7 +234,7 @@ class RecordTopic(Base):
 class AugmentHistory(Base):
     __tablename__ = "augment_history"
     # Primary Keys
-    function_name = Column(AnyStr)
+    function_name = Column(Text)
 
 
 ##########################################################

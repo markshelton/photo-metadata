@@ -12,8 +12,8 @@ standard_library.install_aliases()
 ##########################################################
 # Local Imports
 
-from logger import setup_logging
-from cli import cli
+from thickshake.logger import setup_logging
+from thickshake.cli import cli
 
 ##########################################################
 # Functions

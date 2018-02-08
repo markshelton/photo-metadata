@@ -32,7 +32,7 @@ setup(
     """,
     install_requires=[
         "click", "click_help_colors", "click_log", "envparse",
-        "pyyaml", "pandas", "numpy", "tables", "tqdm"
+        "pyyaml", "tables", "tqdm", "pathlib", "future", "typing", "configparser"
     ],
     zip_safe=False
 )

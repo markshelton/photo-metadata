@@ -50,10 +50,9 @@ logger = logging.getLogger(__name__)
 
 def fix_unicode_columns(df):
     # type: (DataFrame) -> DataFrame
-    types = df.apply(lambda x: pd.lib.infer_dtype(x.values))
+    types = df.apply(lambda x: pd.api.types.infer_dtype(x.values))
     for col in types[types=='unicode'].index:
         df[col] = df[col].astype(str)
-
     df.columns = [str(c) for c in df.columns]
     return df
 
@@ -77,7 +76,7 @@ class Store(Borg):
         # type: (AnyStr, DataFrame, List[AnyStr], **Any) -> None
         df = fix_unicode_columns(df)
         with pd.HDFStore(self.store_path, "a") as store:
-            store.append(dataset_path, df, index=index)
+            store.append(dataset_path, df, index=index, min_itemsize=50)
 
 
     def contains(self, dataset_path):

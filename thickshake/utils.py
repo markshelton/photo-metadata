@@ -14,10 +14,10 @@ standard_library.install_aliases()
 # Standard Library Imports
 
 import datetime
+import errno
 from functools import reduce, wraps
 import logging
 import os
-import pathlib
 import random
 import shutil
 import time
@@ -67,8 +67,10 @@ class Borg(object):
 
 def maybe_make_directory(path):
     # type: (FilePath) -> None
-    path_dir = os.path.dirname(path)
-    pathlib.Path(path_dir).mkdir(parents=True, exist_ok=True)
+    try: os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(path): pass
+        else: raise
 
 
 def open_file(path, *args, **kwargs):

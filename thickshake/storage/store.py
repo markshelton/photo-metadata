@@ -47,6 +47,17 @@ logger = logging.getLogger(__name__)
 ##########################################################
 # Functions
 
+
+def fix_unicode_columns(df):
+    # type: (DataFrame) -> DataFrame
+    types = df.apply(lambda x: pd.lib.infer_dtype(x.values))
+    for col in types[types=='unicode'].index:
+        df[col] = df[col].astype(str)
+
+    df.columns = [str(c) for c in df.columns]
+    return df
+
+
 class Store(Borg):
     store_path = None
     write_mode = "a"
@@ -64,6 +75,7 @@ class Store(Borg):
 
     def save(self, dataset_path, df, index, **kwargs):
         # type: (AnyStr, DataFrame, List[AnyStr], **Any) -> None
+        df = fix_unicode_columns(df)
         with pd.HDFStore(self.store_path, "a") as store:
             store.append(dataset_path, df, index=index)
 

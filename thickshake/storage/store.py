@@ -24,7 +24,7 @@ import tables
 ##########################################################
 # Local Imports
 
-from thickshake.utils import Borg
+from thickshake.utils import Borg, maybe_make_directory
 
 ##########################################################
 # Typing Configuration
@@ -69,6 +69,7 @@ class Store(Borg):
         if self.store_path is None:
             self.write_mode = "w" if force else "a"
             self.store_path = store_path
+            maybe_make_directory(store_path)
             with pd.HDFStore(self.store_path, self.write_mode) as f: pass
 
 

@@ -67,9 +67,10 @@ class Borg(object):
 
 def maybe_make_directory(path):
     # type: (FilePath) -> None
-    try: os.makedirs(path)
+    path_dir = os.path.dirname(path)
+    try: os.makedirs(path_dir)
     except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path): pass
+        if exc.errno == errno.EEXIST and os.path.isdir(path_dir): pass
         else: raise
 
 

@@ -43,6 +43,7 @@ CONFIG_LOGGING_FILE = env.str("CONFIG_LOGGING_FILE", default="%s/logging.yaml" %
 
 def setup_logging(config_path=CONFIG_LOGGING_FILE):
     # type: (FilePath) -> None
+    """Load logging config from file, fall back to basic config if file doesn't exist."""
     logging.captureWarnings(True)
     if os.path.exists(config_path):
         with open(config_path, 'rt') as f:

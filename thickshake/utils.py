@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python
-"""
-"""
+"""Utility functions."""
 ##########################################################
 # Python Compatibility
 
@@ -67,6 +66,7 @@ class Borg(object):
 
 def maybe_make_directory(path):
     # type: (FilePath) -> None
+    """Make directory if it does not already exist."""
     path_dir = os.path.dirname(path)
     try: os.makedirs(path_dir)
     except OSError as exc:
@@ -76,12 +76,14 @@ def maybe_make_directory(path):
 
 def open_file(path, *args, **kwargs):
     # type: (FilePath, *Any, **Any) -> File
+    """Make directory if it does not already exist and open file."""
     maybe_make_directory(path)
     return open(path, *args, **kwargs)
 
 
 def deep_get(dictionary, *keys):
     # type: (Dict[AnyStr, Any], *AnyStr) -> Optional[Any]
+    """Safely get value from nested dictionary. Returns None if key chain is not valid."""
     return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
 
 
@@ -94,12 +96,14 @@ def consolidate_list(full_list):
 
 def json_serial(obj):
     # type: (Any) -> AnyStr
+    """Serialises datetime objects into strings for use in JSON processing."""
     if isinstance(obj, (datetime.datetime, datetime.date)): return obj.isoformat()
     else: raise TypeError("Type %s not serializable" % type(obj))
 
 
 def clear_directory(dir_path):
     # type: (DirPath) -> None
+    """Clears and removes directory and any empty parent directories."""
     if dir_path is None: return None
     try: shutil.rmtree(dir_path)
     except EnvironmentError: logger.info("Output directory already empty.")
@@ -109,6 +113,7 @@ def clear_directory(dir_path):
 
 def get_files_in_directory(dir_path, ext="jpg", **kwargs):
     # type: (DirPath, Optional[AnyStr], **Any) -> List[FilePath]
+    """Gets any files in directory (and sub-directories) with given extension."""
     files = [os.path.join(dir_path,fn) for fn in next(os.walk(dir_path))[2]]
     if ext: files = [f for f in files if f.endswith(ext)]
     files = sample_items(files, **kwargs)
@@ -117,6 +122,7 @@ def get_files_in_directory(dir_path, ext="jpg", **kwargs):
 
 def maybe_increment_path(file_path, sep="_", overwrite=False, **kwargs):
     # type: (FilePath, AnyStr, bool, **Any) -> Optional[FilePath]
+    """Return an incremented file path that does not conflict with existing files."""
     file_path_base, file_ext = os.path.splitext(file_path)
     directory_path = os.path.dirname(file_path)
     i = 1
@@ -129,16 +135,19 @@ def maybe_increment_path(file_path, sep="_", overwrite=False, **kwargs):
 
 def get_file_type(path):
     # type: (FilePath) -> AnyStr
+    """Parse file extension from file path."""
     return os.path.splitext(path)[1]
 
 
 def convert_file_type(path, file_type):
     # type: (FilePath, AnyStr) -> FilePath
+    """Replace file extension of file path."""
     return path.replace(get_file_type(path), file_type)
 
 
 def generate_output_path(input_path, output_dir=None, sub_folder=None):
     # type: (FilePath, DirPath, AnyStr) -> FilePath
+    """Generate an output path based on input path, intended output dir and sub folder."""
     if output_dir is not None:
         base = os.path.basename(input_path)
         if sub_folder is not None:
@@ -149,12 +158,14 @@ def generate_output_path(input_path, output_dir=None, sub_folder=None):
 
 def sample_items(items, sample=0, **kwargs):
     # type: (List[Any], int, **Any) -> List[Any]
+    """Randomly samples a list of items."""
     if sample == 0: return items
     else: return random.sample(items, sample)
 
 
 def check_output_directory(output_dir=None, force=True, **kwargs):
     # type: (DirPath, bool, **Any) -> None
+    """Check directory for existing files."""
     if not force and output_dir is not None:
         if len(get_files_in_directory(output_dir)) > 0:
             raise IOError

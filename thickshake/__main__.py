@@ -18,7 +18,7 @@ from thickshake.cli import cli
 ##########################################################
 # Functions
 
-setup_logging()
-cli()
+setup_logging() # load logger configuration
+cli() # invoke command line interface
 
 ##########################################################

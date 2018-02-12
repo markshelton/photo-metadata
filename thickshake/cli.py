@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python
-"""
-"""
+"""Command Line Interface (CLI)"""
 ##########################################################
 # Python Compatibility
 
@@ -52,6 +51,7 @@ CONFIG_SETTINGS_FILE = env.str("CONFIG_SETTINGS_FILE", default="%s/settings.ini"
 class MyParser(configparser.ConfigParser):
     def as_dict(self):
         # type: () -> Dict[AnyStr, Any]
+        """Load config file to dictionary, ignoring sections."""
         d = dict(self._sections)
         x = {} # type: Dict[AnyStr, Any]
         for k in d:
@@ -64,10 +64,10 @@ class MyParser(configparser.ConfigParser):
 ##########################################################
 # Initializations
 
-parser = MyParser()
-parser.read(CONFIG_SETTINGS_FILE)
-default_map = parser.as_dict()
-context_settings = dict(default_map=default_map, ignore_unknown_options=True, allow_extra_args=True)
+parser = MyParser() # create parser
+parser.read(CONFIG_SETTINGS_FILE) # read config file
+default_map = parser.as_dict() # convert config file to dictionary
+context_settings = dict(default_map=default_map, ignore_unknown_options=True, allow_extra_args=True) 
 logger = logging.getLogger()
 
 ##########################################################
@@ -75,6 +75,7 @@ logger = logging.getLogger()
 
 def common_params(func):
     # type: (Callable) -> Any
+    """Provides shared parameters for different functions."""
     @click.option("-f", "--force", is_flag=True, help="overwrite existing files")
     @click.option("-d", "--dry-run", is_flag=True, help="run without writing files")
     @click.option("-nm", "--no-import-metadata", is_flag=True, help="run without importing metadata")

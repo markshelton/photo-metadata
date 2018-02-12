@@ -26,7 +26,7 @@ import yaml
 ##########################################################
 # Local Imports
 
-from thickshake.marc.utils import load_config_file, split_tag_key, get_loaders
+from thickshake.interface.utils import load_config_file, split_tag_key, get_loaders
 from thickshake.storage import Database
 
 ##########################################################

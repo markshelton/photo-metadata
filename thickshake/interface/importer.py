@@ -27,8 +27,8 @@ from tqdm import tqdm
 ##########################################################
 # Local Imports
 
-from thickshake.marc.reader import read_file
-from thickshake.marc.utils import load_config_file, get_subfield_from_tag, get_loaders
+from thickshake.interface.reader import read_file
+from thickshake.interface.utils import load_config_file, get_subfield_from_tag, get_loaders
 from thickshake.storage import Database
 
 ##########################################################

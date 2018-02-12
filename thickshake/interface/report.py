@@ -99,12 +99,6 @@ def write_log(records, **kwargs):
         logger.info(str(record))
 
 
-#TODO
-def write_to_store(records, store, **kwargs):
-    # type: (List[Any], Store, **Any) -> None
-    pass
-
-
 def write_flat_file(records, output_file, force=False, **kwargs):
     # type: (List[Any], FilePath, bool, **Any) -> None
     if not force and os.path.exists(output_file): raise IOError
@@ -124,14 +118,6 @@ def export_flat_file(output_file, force=False, **kwargs):
     database = Database(**kwargs)
     records = database.dump(force=force, **kwargs)
     write_flat_file(records, output_file, force=force, **kwargs)
-
-
-def export_database_to_store(**kwargs):
-    # type: (**Any) -> None
-    database = Database(**kwargs)
-    records = database.dump()
-    store = Store(**kwargs)
-    write_to_store(records, store, **kwargs)
 
 
 ##########################################################

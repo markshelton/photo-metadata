@@ -92,7 +92,7 @@ def apply_parser(input_table, input_columns, output_table, output_map, parser, s
 
 def dump_database(**kwargs):
     # type: (**Any) -> None
-    from thickshake.storage.writer import export_database_to_store
+    from thickshake.storage.interface import export_database_to_store
     process_wrapper(
         main_function = export_database_to_store,
         main_path = "/dump",

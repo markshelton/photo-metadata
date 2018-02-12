@@ -129,10 +129,10 @@ def inspect(**kwargs):
 def convert(input_metadata_file, output_metadata_file=None, output_metadata_type=None, **kwargs):
     # type: (FilePath, FilePath, AnyStr, **Any) -> None
     """Converts metadata between file formats."""
-    from thickshake.marc import marc
+    from thickshake.interface import convert_metadata
     if output_metadata_type is not None:
-        marc.convert_metadata(input_metadata_file, output_metadata_type=output_metadata_type, **kwargs)
-    else: marc.convert_metadata(input_metadata_file, output_metadata_file=output_metadata_file, **kwargs)
+        convert_metadata(input_metadata_file, output_metadata_type=output_metadata_type, **kwargs)
+    else: convert_metadata(input_metadata_file, output_metadata_file=output_metadata_file, **kwargs)
 
 
 @cli.command(context_settings=context_settings)
@@ -141,8 +141,8 @@ def convert(input_metadata_file, output_metadata_file=None, output_metadata_type
 def load(input_metadata_file, **kwargs):
     # type: (FilePath, **Any) -> None
     """Imports metadata into database."""
-    from thickshake.marc import marc
-    marc.import_metadata(input_metadata_file, **kwargs)
+    from thickshake.interface import import_metadata
+    import_metadata(input_metadata_file, **kwargs)
 
 
 ##########################################################
@@ -165,10 +165,10 @@ def export_marc(output_metadata_file, output_metadata_type, input_metadata_file,
     # type: (FilePath, AnyStr, FilePath, bool, **Any) -> None
     """[WIP] Exports a marc file (for catalogues)."""
     assert output_metadata_file is not None or output_metadata_type is not None
-    from thickshake.marc import marc
+    from thickshake.interface import export_metadata
     if output_metadata_type is not None:
         output_metadata_file = convert_file_type(output_metadata_file, output_metadata_type)
-    marc.export_metadata(output_metadata_file, input_metadata_file, partial=partial, **kwargs)
+    export_metadata(output_metadata_file, input_metadata_file, partial=partial, **kwargs)
 
 
 @export.command(name="dump", context_settings=context_settings)
@@ -179,10 +179,10 @@ def export_dump(output_dump_file, output_dump_type, **kwargs):
     # type: (FilePath, AnyStr, **Any) -> None
     """Exports a flat file (for other systems)."""
     assert output_dump_type is not None or output_dump_file is not None
-    from thickshake.storage import writer
+    from thickshake.interface.report import export_flat_file
     if output_dump_type is not None:
         output_dump_file = convert_file_type(output_dump_file, output_dump_type)
-    writer.export_flat_file(output_dump_file, **kwargs)
+    export_flat_file(output_dump_file, **kwargs)
 
 
 ##########################################################
@@ -200,11 +200,11 @@ def augment(**kwargs):
 def augment_parsers(**kwargs):
     # type: (**Any) -> None
     """Runs all metadata parsing functions."""
-    from thickshake.augment import augment
-    augment.parse_locations(**kwargs)
-    augment.parse_dates(**kwargs)
-    augment.parse_links(**kwargs)
-    augment.parse_sizes(**kwargs)
+    from thickshake.augment import parse_locations, parse_dates, parse_links, parse_sizes,
+    parse_locations(**kwargs)
+    parse_dates(**kwargs)
+    parse_links(**kwargs)
+    parse_sizes(**kwargs)
 
 
 @augment.command(name="run_processors", context_settings=context_settings)
@@ -214,11 +214,11 @@ def augment_parsers(**kwargs):
 def augment_processors(input_image_dir, output_image_dir, **kwargs):
     # type: (DirPath, DirPath, **Any) -> None
     """Runs all image processing functions."""
-    from thickshake.augment import augment
-    augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
-    augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
-    augment.read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
-    augment.caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    from thickshake.augment import detect_faces, identify_faces, read_text, caption_images
+    detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(name="run_all", context_settings=context_settings)
@@ -228,15 +228,18 @@ def augment_processors(input_image_dir, output_image_dir, **kwargs):
 def augment_all(input_image_dir, output_image_dir, **kwargs):
     # type: (DirPath, DirPath, **Any) -> None
     """Runs all augment functions."""
-    from thickshake.augment import augment
-    augment.parse_locations(**kwargs)
-    augment.parse_dates(**kwargs)
-    augment.parse_links(**kwargs)
-    augment.parse_sizes(**kwargs)
-    augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
-    augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
-    augment.read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
-    augment.caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    from thickshake.augment import (
+        parse_locations, parse_dates, parse_links, parse_sizes,
+        detect_faces, identify_faces, read_text, caption_images
+    )
+    parse_locations(**kwargs)
+    parse_dates(**kwargs)
+    parse_links(**kwargs)
+    parse_sizes(**kwargs)
+    detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -246,8 +249,8 @@ def augment_all(input_image_dir, output_image_dir, **kwargs):
 def detect_faces(input_image_dir, output_image_dir, **kwargs):
     # type: (DirPath, DirPath, **Any) -> None
     """[WIP] Detects faces in images."""
-    from thickshake.augment import augment
-    augment.detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    from thickshake.augment import detect_faces
+    detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -257,8 +260,8 @@ def detect_faces(input_image_dir, output_image_dir, **kwargs):
 def identify_faces(input_image_dir, output_image_dir, **kwargs):
     # type: (DirPath, DirPath, **Any) -> None
     """[WIP] Identifies faces in images."""
-    from thickshake.augment import augment
-    augment.identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    from thickshake.augment import identify_faces
+    identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -279,8 +282,8 @@ def read_text(input_image_dir, output_image_dir, **kwargs):
 def caption_images(input_image_dir, output_image_dir, **kwargs):
     # type: (DirPath, DirPath, **Any) -> None
     """[TODO] Automatically captions images."""
-    from thickshake.augment import augment
-    augment.caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
+    from thickshake.augment import caption_images
+    caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -288,8 +291,8 @@ def caption_images(input_image_dir, output_image_dir, **kwargs):
 def parse_locations(**kwargs):
     # type: (**Any) -> None
     """Parses locations from text fields."""
-    from thickshake.augment import augment
-    augment.parse_locations(**kwargs)
+    from thickshake.augment import parse_locations
+    parse_locations(**kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -306,8 +309,8 @@ def parse_dates(**kwargs):
 def parse_links(**kwargs):
     # type: (**Any) -> None
     """Parses links from text fields."""
-    from thickshake.augment import augment
-    augment.parse_links(**kwargs)
+    from thickshake.augment import parse_links
+    parse_links(**kwargs)
 
 
 @augment.command(context_settings=context_settings)
@@ -315,8 +318,8 @@ def parse_links(**kwargs):
 def parse_sizes(**kwargs):
     # type: (**Any) -> None
     """Parses image sizes from urls."""
-    from thickshake.augment import augment
-    augment.parse_sizes(**kwargs)
+    from thickshake.augment import parse_sizes
+    parse_sizes(**kwargs)
 
 
 ##########################################################

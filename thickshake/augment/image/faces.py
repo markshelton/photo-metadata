@@ -134,7 +134,7 @@ def normalize_face(image, landmarks, face_id, image_file, template=None, key_ind
     key_indices_np = np.array(key_indices)
     H = cv2.getAffineTransform(landmarks[key_indices_np], face_size * template[key_indices_np])
     image_face = cv2.warpAffine(image, H, (face_size, face_size))
-    handle_image(image_face, input_file=image_file, output_folder="faces", **kwargs)
+    handle_image(image_face, input_file=image_file, sub_folder="faces", **kwargs)
     return image_face
 
 

@@ -86,6 +86,11 @@ class Store(Borg):
             return dataset_path in store and not store[dataset_path].shape is None
 
 
+    def get_file(self):
+        # type: () -> DataFrame
+        return pd.HDFStore(self.store_path, 'r')
+
+
     def get_dataframe(self, dataset_path):
         # type: (AnyStr) -> DataFrame
         with pd.HDFStore(self.store_path, 'r') as store:
@@ -95,6 +100,13 @@ class Store(Borg):
     def export_to_database(self, series, output_map):
         from thickshake.storage import Database
         pass
+
+
+    def display(self):
+        # type: () -> None
+        with pd.HDFStore(self.store_path, 'r') as store:
+            logger.info(store.info())
+
 
 ##########################################################
 # Main

@@ -15,7 +15,7 @@ Install Docker on your machine as described in the [Docker documentation](http:/
 ```bash
 git clone https://github.com/markshelton/thickshake
 cd thickshake
-make start ENV=dev && rm -ri src docs # development
+make start ENV=dev # development
 make start ENV=prod # production
 ```
 
@@ -23,27 +23,40 @@ make start ENV=prod # production
 
 ![System design flowchart](/docs/assets/system_overview.png)
 
-## Usage (Note: WIP)
+## Usage
 
-```python
-import thickshake
+Commands:
 
-# Convert metadata files from one format to another
-# e.g. MARCXML -> SQL Dump, MARC21 -> HDF5
-thickshake.convert_metadata_format(input_file, output_file)
+```bash
+thickshake load # Imports a catalogue file into the database (MARC, XML, JSON).
 
-# Apply an image processing technique
-# (usually involving a pre-trained neural net)
-thickshake.process_image(image_file, method=thickshake.DETECT_FACES)
+thickshake augment caption_images # Automatically captions images. [TODO]
+thickshake augment detect_faces # Detects faces in images.
+thickshake augment identify_faces # Identifies faces in images. [TODO]
+thickshake augment read_text # Reads text embedded in images. [TODO]
+thickshake augment parse_dates # Parses dates from text fields.
+thickshake augment parse_links # Parses links from text fields.
+thickshake augment parse_locations # Parses locations from text fields.
+thickshake augment parse_sizes # Parses image sizes from urls.
+thickshake augment run_all # Runs all augment functions.
+thickshake augment run_parsers # Runs all metadata parsing functions.
+thickshake augment run_processors # Runs all image processing functions.
 
-# Train and apply a machine learning classifier
-clf = thickshake.fit_model(image_dir, metadata_file, label="subject_name")
-clf.predict(image_file, metadata_file)
+thickshake export dump # Exports a report / flat file from the database (CSV, JSON).
+thickshake export marc # Exports a catalogue file from the database(MARC, XML, JSON). [WIP]
 
-# Apply metadata parsing and image processing techniques
-# to add to or improve metadata e.g. subject name, gps coordinates
-thickshake.augment_metadata(image_dir, metadata_file, output_file)
+# Helper functions
+thickshake inspect # Inspects the state of the database (lists tables and number of records).
+thickshake convert # Converts a catalogue file between formats (MARC, XML, JSON).
 ```
+
+Shared Options:
+
+* "-f", "--force", help="overwrite existing files"
+* "-d", "--dry-run", help="run without writing files"
+* "-g", "--graphics", help="display images in GUI"
+* "-s", "--sample", help="perform on random sample (default: 0 / None)"
+* "-v", "--verbosity", help="either CRITICAL, ERROR, WARNING, INFO or DEBUG"
 
 ## Docker
 

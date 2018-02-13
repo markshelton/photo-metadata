@@ -14,7 +14,7 @@ standard_library.install_aliases()
 
 from .augment import (
     parse_locations, parse_dates, parse_links, parse_sizes,
-    detect_faces, identify_faces, read_text, caption_images
+    detect_faces, identify_faces, #read_text, caption_images
 )
 
 ##########################################################

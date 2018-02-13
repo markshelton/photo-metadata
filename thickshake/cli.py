@@ -200,7 +200,7 @@ def augment(**kwargs):
 def augment_parsers(**kwargs):
     # type: (**Any) -> None
     """Runs all metadata parsing functions."""
-    from thickshake.augment import parse_locations, parse_dates, parse_links, parse_sizes,
+    from thickshake.augment import parse_locations, parse_dates, parse_links, parse_sizes
     parse_locations(**kwargs)
     parse_dates(**kwargs)
     parse_links(**kwargs)

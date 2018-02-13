@@ -92,7 +92,8 @@ class Database(Borg):
         # type: (DBConfig, AnyStr, **Any) -> DBEngine
         db_url = url.URL(**db_config)
         if db_config["database"] is None: return None
-        maybe_make_directory(db_config["database"])
+        try: maybe_make_directory(db_config["database"])
+        except: pass
         echo = True if logging.getLogger().getEffectiveLevel() == logging.DEBUG else False
         db_engine = create_engine(db_url, encoding='utf8', convert_unicode=True, echo=echo)
         return db_engine

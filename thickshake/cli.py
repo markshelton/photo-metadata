@@ -28,7 +28,7 @@ from envparse import env
 ##########################################################
 # Local Imports
 
-from thickshake.utils import convert_file_type
+from thickshake.utils import convert_file_type, open_file
 
 ##########################################################
 # Typing Configuration
@@ -78,9 +78,6 @@ def common_params(func):
     """Provides shared parameters for different functions."""
     @click.option("-f", "--force", is_flag=True, help="overwrite existing files")
     @click.option("-d", "--dry-run", is_flag=True, help="run without writing files")
-    @click.option("-nm", "--no-import-metadata", is_flag=True, help="run without importing metadata")
-    @click.option("-ni", "--no-import-images", is_flag=True, help="run without importing images")
-    @click.option("-ne", "--no-export", is_flag=True, help="run without exporting")
     @click.option("-g", "--graphics", is_flag=True, help="display images in GUI")
     @click.option("-s", "--sample", type=int, default=0, help="perform on random sample (default: 0 / None)")
     @click_log.simple_verbosity_option(logger)
@@ -100,7 +97,14 @@ def common_params(func):
 def cli(**kwargs):
     # type: (**Any) -> None
     """Functions for improving library catalogues."""
-    pass
+    click.echo_via_pager(
+        """
+        {program}  Copyright (C) {year}  {author}
+        This program comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.
+        This is free software, and you are welcome to redistribute it
+        under certain conditions; type `show copyright' for details.
+        """.format(program="Thickshake", year="2018", author="Mark Shelton")
+    )
 
 
 ##########################################################
@@ -112,13 +116,77 @@ def cli(**kwargs):
 
 
 @cli.command(context_settings=context_settings)
-@common_params
 def inspect(**kwargs):
     # type: (**Any) -> None
     """Inspects state of database."""
     from thickshake.storage import Database
     database = Database()
     database.inspect_database()
+
+
+@cli.group(context_settings=context_settings)
+def show(**kwargs):
+    # type: (**Any) -> None
+    """Show program details and licenses."""
+    pass
+
+
+@show.command(name="warranty", context_settings=context_settings)
+def show_warranty(**kwargs):
+    # type: (**Any) -> None
+    """Show GNU LGPL3 warranty statement."""
+    click.echo_via_pager(
+        """
+        THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+        APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+        HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM 'AS IS' WITHOUT WARRANTY
+        OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+        THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+        PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+        IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+        ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+        """
+    )
+
+
+@show.command(name="copyright", context_settings=context_settings)
+def show_copyright(**kwargs):
+    # type: (**Any) -> None
+    """Show GNU LGPL3 copying permission statement."""
+    click.echo_via_pager(
+        """
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU Lesser General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU Lesser General Public License for more details.
+
+        You should have received a copy of the GNU Lesser General Public License
+        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+        """
+    )
+
+
+@show.command(name="license", context_settings=context_settings)
+def show_license(**kwargs):
+    # type: (**Any) -> None
+    """Show full GNU LGPL3 license."""
+    license_path = "%s/../LICENSE" % CURRENT_FILE_DIR
+    license_text = open_file(license_path).read()
+    click.echo_via_pager(license_text)
+
+
+@show.command(name="readme", context_settings=context_settings)
+def show_readme(**kwargs):
+    # type: (**Any) -> None
+    """Show Thickshake Readme document."""
+    readme_path = "%s/../README.md" % CURRENT_FILE_DIR
+    readme_text = open_file(readme_path).read()
+    click.echo_via_pager(readme_text)
 
 
 @cli.command(context_settings=context_settings)

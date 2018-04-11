@@ -253,6 +253,21 @@ def export_dump(output_dump_file, output_dump_type, **kwargs):
     export_flat_file(output_dump_file, **kwargs)
 
 
+@export.command(name="query", context_settings=context_settings)
+@click.option("-o", "--output-dump-file", required=True, type=click.Path(exists=False, dir_okay=False))
+@click.option("-q","--sql-text", required=True, prompt='SQL Query')
+@click.option("-t","--output-dump-type", required=False, type=click.Choice([".csv", ".json", ".hdf5"]), default=".csv", prompt='Output Types | Options: [.csv, .json, .hdf5] | Default:')
+@common_params
+def export_query(output_dump_file, sql_text, output_dump_type, **kwargs):
+    # type: (FilePath, AnyStr, **Any) -> None
+    """Exports a SQL query result."""
+    assert output_dump_type is not None or output_dump_file is not None
+    from thickshake.interface.report import export_query
+    if output_dump_type is not None:
+        output_dump_file = convert_file_type(output_dump_file, output_dump_type)
+    export_query(output_dump_file, sql_text, **kwargs)
+
+
 ##########################################################
 # Augment
 

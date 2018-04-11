@@ -120,6 +120,14 @@ def export_flat_file(output_file, force=False, **kwargs):
     write_flat_file(records, output_file, force=force, **kwargs)
 
 
+def export_query(output_file, sql_text, force=False, **kwargs):
+    # type: (FilePath, bool, **Any) -> None
+    if not force and os.path.exists(output_file): raise IOError
+    database = Database(**kwargs)
+    records = database.execute_text_query(sql_text, force=force, **kwargs)
+    write_flat_file(records, output_file, force=force, **kwargs)
+
+
 ##########################################################
 # Main
 

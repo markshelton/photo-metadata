@@ -194,16 +194,16 @@ class Database(Borg):
         insp = inspect(model)
         return insp.relationships
 
-    def execute_text_query(self, sql_text):
+    def execute_text_query(self, sql_text, sample=0, **kwargs):
         # type: (AnyStr) -> List[Dict[AnyStr, Any]]
+        if sample != 0: sql_text += "LIMIT %i\n" % sample
         with self.manage_db_session() as session:
             result = session.execute(text(sql_text)).fetchall()
             result = [dict(record) for record in result]
             return result
 
-
     #Convert to sqlalchemy ORM
-    def dump(self, sample=0, **kwargs):
+    def dump(self, **kwargs):
         # type: (int, **Any) -> List[Dict[AnyStr, Any]]
         sql_text =  "SELECT *\n"
         sql_text += "FROM image\n"
@@ -214,11 +214,8 @@ class Database(Borg):
         sql_text += "NATURAL LEFT JOIN subject\n"
         sql_text += "NATURAL LEFT JOIN record_topic\n"
         sql_text += "NATURAL LEFT JOIN topic\n"
-        if sample != 0: sql_text += "LIMIT %i\n" % sample
-        sql_text += ";"
-        result = self.execute_text_query(sql_text)
+        result = self.execute_text_query(sql_text, **kwargs)
         return result
-
 
     def load_columns(self, table, columns, **kwargs):
         # type: (AnyStr, List[AnyStr], **Any) -> DataFrame

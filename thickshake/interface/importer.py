@@ -113,7 +113,7 @@ def load_record(data, loader, config, database, table_name="record", foreign_key
         foreign_keys[table_name].pop()
 
 
-def load_database(records, loader_config_file, **kwargs):
+def load_database(records, loader_config_file=None, **kwargs):
     # type: (List[PymarcRecord], FilePath, **Any) -> None
     database = Database(**kwargs)
     loader_map, loader_config = load_config_file(loader_config_file)

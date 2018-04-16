@@ -25,7 +25,8 @@ docs/build
 
 # Logs & Databases
 ####################
-data
+data/input/images
+data/output
 *.log
 
 

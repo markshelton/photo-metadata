@@ -46,10 +46,15 @@ logger = logging.getLogger(__name__)
 
 def get_possible_dates(date_string):
     # type: (AnyStr) -> List[Date]
-    years = re.findall(".*([1-2][0-9]{3})", date_string)
-    dates = [datetime.date(year=int(year), month=1, day=1) for year in years]
-    if not dates:
-        dates = list(datefinder.find_dates(date_string))
+    try:
+        dates = [dt.date() for dt in datefinder.find_dates(date_string)]
+        dates[0]
+    except:
+        years = re.findall(".*([1-2][0-9]{3})", date_string)
+        dates = [datetime.date(year=int(year), month=1, day=1) for year in years]
+    max_date = datetime.datetime.now().date()
+    min_date = datetime.date(year=1800,month=1,day=1)
+    dates = [date for date in dates if date < max_date and date > min_date]
     return dates
 
 

@@ -46,16 +46,14 @@ def get_image_dimensions(image_url, **kwargs):
     # type: (AnyStr, **Any) -> Optional[Size]
     if image_url is None: return {"width": None, "height": None} 
     try:
-        with requests.get(image_url) as image_file:
+        with requests.get(image_url, stream=True) as r:
             parser = ImageFile.Parser()
-            while True:
-                data = image_file.read(1024)
-                if not data:
-                    break
-                parser.feed(data)
-                if parser.image:
-                    width, height = parser.image.size
-                    return {"width": width, "height": height}
+            for chunk in r.iter_content(chunk_size=1024): 
+                if chunk:
+                    parser.feed(chunk)
+                    if parser.image:
+                        width, height = parser.image.size
+                        return {"width": width, "height": height}
     except: logger.warning("Image not found. Size could not be determined.")
     return {"width": None, "height": None}
 

@@ -32,7 +32,7 @@ docs-help:
 DOCKER_COMPOSE_MAKE_DIR = docker/compose/
 DOCKER_COMPOSE_MAKE = $(MAKE) -C $(DOCKER_COMPOSE_MAKE_DIR) 
 
-.PHONY: start stop restart up jupyter shell
+.PHONY: start stop restart up notebook dashboard shell
 
 start:
 	$(DOCKER_COMPOSE_MAKE) start
@@ -46,8 +46,11 @@ restart:
 up:
 	$(DOCKER_COMPOSE_MAKE) up
 
-jupyter:
-	$(DOCKER_COMPOSE_MAKE) jupyter
+notebook:
+	$(DOCKER_COMPOSE_MAKE) notebook
+
+dashboard:
+	$(DOCKER_COMPOSE_MAKE) dashboard
 
 shell:
 	$(DOCKER_COMPOSE_MAKE) shell

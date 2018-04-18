@@ -14,6 +14,18 @@ services:
       - ../docker.env
       - compose.env
   
+    db_manager:
+    container_name: ${CONTAINER_DBMGR_NAME}
+    image: ${DBMGR_IMAGE}:${DBMGR_VERSION}
+    restart: always
+    ports:
+      - "5050:5050"
+    env_file:
+      - ../docker.env
+      - compose.env
+    depends_on:
+      - db
+
   app:
     container_name: ${CONTAINER_APP_NAME}
     image: ${APP_IMAGE}:${APP_VERSION}

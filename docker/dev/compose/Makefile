@@ -11,7 +11,7 @@ SHELL := bash
 CURRENT_DIR = $(shell echo $(CURDIR) | sed 's|^/[^/]*||')
 .PHONY:
 	start stop restart up _up \
-	notebook dashboard shell volume \
+	freeze notebook dashboard shell volume \
 
 #######################################################################
 # LIBRARY CONFIGURATION
@@ -36,8 +36,7 @@ export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
 start: up shell
 
 stop:
-	#-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
-	-docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml down
+	-docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.yml down
 
 restart: stop start
 
@@ -55,10 +54,12 @@ _up:
 	DB_VERSION=$(DB_VERSION) \
 	DBMGR_IMAGE=$(DBMGR_IMAGE) \
 	DBMGR_VERSION=$(DBMGR_VERSION) \
-	docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml up --build -d
-	-docker exec -it $(CONTAINER_APP_NAME) bash -c "python3 setup.py install"
+	docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.yml up --build -d
 
 #######################################################################
+
+freeze:
+	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
 
 notebook:
 	-explorer.exe "http://localhost:8888/tree"

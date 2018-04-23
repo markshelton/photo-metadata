@@ -11,18 +11,16 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     env_file:
-      - ../docker.env
-      - compose.env
+      - .env
   
-    db_manager:
+  db_manager:
     container_name: ${CONTAINER_DBMGR_NAME}
     image: ${DBMGR_IMAGE}:${DBMGR_VERSION}
     restart: always
     ports:
       - "5050:5050"
     env_file:
-      - ../docker.env
-      - compose.env
+      - .env
     depends_on:
       - db
 
@@ -30,13 +28,12 @@ services:
     container_name: ${CONTAINER_APP_NAME}
     image: ${APP_IMAGE}:${APP_VERSION}
     env_file:
-      - ../docker.env
-      - ../.secrets
-      - compose.env
+      - .env
     environment: 
       DB_HOST: db
     volumes:
-      - ${PROJECT_DIR}/:/home/app/
+      - ${PROJECT_DIR}/:/home/
+    working_dir: /home
     ports:
       - "8888:8888"
       - "6006:6006"

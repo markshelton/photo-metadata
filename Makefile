@@ -29,10 +29,10 @@ docs-help:
 # DOCKER COMPOSE COMMANDS
 #######################################################################
 
-DOCKER_COMPOSE_MAKE_DIR = docker/compose/
+DOCKER_COMPOSE_MAKE_DIR = docker/dev/compose/
 DOCKER_COMPOSE_MAKE = $(MAKE) -C $(DOCKER_COMPOSE_MAKE_DIR) 
 
-.PHONY: start stop restart up notebook dashboard shell
+.PHONY: start stop restart up freeze notebook dashboard shell
 
 start:
 	$(DOCKER_COMPOSE_MAKE) start
@@ -45,6 +45,9 @@ restart:
 
 up:
 	$(DOCKER_COMPOSE_MAKE) up
+
+freeze:
+	$(DOCKER_COMPOSE_MAKE) freeze
 
 notebook:
 	$(DOCKER_COMPOSE_MAKE) notebook
@@ -59,7 +62,7 @@ shell:
 # DOCKER BUILD COMMANDS
 #######################################################################
 
-DOCKER_BUILD_MAKE_DIR = docker/build/
+DOCKER_BUILD_MAKE_DIR = docker/dev/build/
 DOCKER_BUILD_MAKE = $(MAKE) -C $(DOCKER_BUILD_MAKE_DIR) 
 
 .PHONY: build push

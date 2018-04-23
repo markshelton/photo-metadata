@@ -29,8 +29,8 @@ services:
   app:
     container_name: ${CONTAINER_APP_NAME}
     build:
-      context: ../../
-      dockerfile: ./docker/build/Dockerfile
+      context: ../../../
+      dockerfile: ./docker/dev/build/Dockerfile
     image: ${APP_IMAGE}:${APP_VERSION}
     env_file:
       - ../docker.env
@@ -39,8 +39,8 @@ services:
     environment: 
       DB_HOST: db
     volumes:
-      - ${PROJECT_DIR}/:/home/app/
-      - ${PROJECT_DIR}/thickshake/:/libs/thickshake/
+      - ${PROJECT_DIR}/:/src/
+    working_dir: /src
     ports:
       - "8888:8888"
       - "6006:6006"

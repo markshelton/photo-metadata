@@ -262,12 +262,14 @@ class Database(Borg):
 
 
     def inspect_database(self):
-        # type: () -> None
+        # type: () -> List[AnyStr]
         with self.manage_db_session() as session:
+            results = []
             for table_name in self.base.metadata.tables.keys():
                 model = self.get_class_by_table_name(table_name)
                 num_records = session.query(func.count('*')).select_from(model).scalar()
-                logger.info("Table: %s, Records: %s", table_name, num_records)
+                results.append("Table: %s, Records: %s" % (table_name, num_records))
+            return results
 
 
     def check_history(self, function_name, **kwargs):

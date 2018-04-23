@@ -121,7 +121,9 @@ def inspect(**kwargs):
     """Inspects state of database."""
     from thickshake.storage import Database
     database = Database()
-    database.inspect_database()
+    inspect_results = database.inspect_database()
+    for result in inspect_results:
+        click.echo(result)
 
 
 @cli.group(context_settings=context_settings)

@@ -36,7 +36,7 @@ export $(shell sed 's/=.*//' $(APP_CONFIG_PATH))
 start: up shell
 
 stop:
-	-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
+	#-docker exec -it $(CONTAINER_APP_NAME) bash -c "pip3 freeze > $(REQUIREMENTS_PATH)"
 	-docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml down
 
 restart: stop start
@@ -56,6 +56,7 @@ _up:
 	DBMGR_IMAGE=$(DBMGR_IMAGE) \
 	DBMGR_VERSION=$(DBMGR_VERSION) \
 	docker-compose --file $(DOCKER_COMPOSE_DIR)/docker-compose.$(ENV).yml up --build -d
+	-docker exec -it $(CONTAINER_APP_NAME) bash -c "python3 setup.py install"
 
 #######################################################################
 

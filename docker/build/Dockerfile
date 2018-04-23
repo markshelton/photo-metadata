@@ -93,10 +93,6 @@ ENV PYTHONIOENCODING=utf-8
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-#Copy over Thickshake Library
-COPY thickshake/ /libs/thickshake/
-ENV PYTHONPATH $PYTHONPATH:/libs
-
 # Expose Jupyter
 EXPOSE 8888 
 

@@ -23,8 +23,7 @@ setup(
     'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: Implementation :: CPython',
     ],
-    packages=find_packages("thickshake"),
-    package_dir={"": "thickshake"},
+    packages=find_packages(),
     include_package_data=True,
     entry_points="""
         [console_scripts]

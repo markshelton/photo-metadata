@@ -29,7 +29,7 @@ docs-help:
 # DOCKER COMPOSE COMMANDS
 #######################################################################
 
-DOCKER_COMPOSE_MAKE_DIR = docker/dev/compose/
+DOCKER_COMPOSE_MAKE_DIR = docker/compose/
 DOCKER_COMPOSE_MAKE = $(MAKE) -C $(DOCKER_COMPOSE_MAKE_DIR) 
 
 .PHONY: start stop restart up freeze notebook dashboard shell
@@ -62,15 +62,18 @@ shell:
 # DOCKER BUILD COMMANDS
 #######################################################################
 
-DOCKER_BUILD_MAKE_DIR = docker/dev/build/
+DOCKER_BUILD_MAKE_DIR = docker/build/
 DOCKER_BUILD_MAKE = $(MAKE) -C $(DOCKER_BUILD_MAKE_DIR) 
 
-.PHONY: build push
+.PHONY: build push tag
 
 build:
 	$(DOCKER_BUILD_MAKE) build
 
 push:
 	$(DOCKER_BUILD_MAKE) push
+
+tag:
+	$(DOCKER_BUILD_MAKE) tag
 
 #######################################################################

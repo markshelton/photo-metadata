@@ -1,4 +1,0 @@
-include LICENSE
-include README.md
-recursive-include thickshake/_config *
-recursive-include thickshake/_data *

@@ -1,7 +1,9 @@
 data
 dist
 docs
+config
 project
+deploy
 
 .git
 **/.ipynb_checkpoints

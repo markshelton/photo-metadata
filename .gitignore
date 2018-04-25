@@ -12,6 +12,7 @@
 
 # Packaging
 ####################
+config
 build
 dist
 *.egg-info

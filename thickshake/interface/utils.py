@@ -44,14 +44,20 @@ logger = logging.getLogger(__name__)
 # Constants
 
 CURRENT_FILE_DIR, _ = os.path.split(__file__)
-CONFIG_DIR_PATH = "%s/../_config" % CURRENT_FILE_DIR
-METADATA_CONFIG_FILE = "%s/marc.yaml" % (CONFIG_DIR_PATH)
+INTERNAL_MARC_LOADER_PATH = "%s/../_config/marc.yaml" % CURRENT_FILE_DIR
 
 ##########################################################
 # Functions
 
 
-def _load_config_file(loader_config_file=METADATA_CONFIG_FILE):
+def load_config_file(loader_config_file):
+    if os.path.exists(loader_config_file):
+        return _load_config_file(loader_config_file)
+    else: 
+        return _load_config_file(INTERNAL_MARC_LOADER_PATH)
+
+
+def _load_config_file(loader_config_file):
     # type: (FilePath) -> Tuple[Dict[AnyStr, Any], Dict[AnyStr, Any]]
     with open(loader_config_file) as yaml_file:
         documents = yaml.safe_load_all(yaml_file)
@@ -60,13 +66,6 @@ def _load_config_file(loader_config_file=METADATA_CONFIG_FILE):
         head = next(iter(loader_map))
         loader_map = loader_map[head]
         return loader_map, loader_config
-
-
-def load_config_file(loader_config_file):
-    # type: (FilePath) -> Tuple[Dict[AnyStr, Any], Dict[AnyStr, Any]]
-    if loader_config_file is not None:
-        return _load_config_file(loader_config_file)
-    else: return _load_config_file()
 
 
 def get_loaders(loader, config):

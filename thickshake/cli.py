@@ -29,6 +29,7 @@ from envparse import env
 # Local Imports
 
 from thickshake.utils import convert_file_type, open_file
+from thickshake.config import Config
 
 ##########################################################
 # Typing Configuration
@@ -40,34 +41,10 @@ DirPath = Text
 ##########################################################
 # Constants
 
-CURRENT_FILE_DIR, _ = os.path.split(__file__)
-CONFIG_DIR_PATH = "%s/_config" % CURRENT_FILE_DIR
-CONFIG_SETTINGS_FILE = env.str("CONFIG_SETTINGS_FILE", default="%s/settings.ini" % (CONFIG_DIR_PATH))
-
-##########################################################
-# Classes
-
-
-class MyParser(configparser.ConfigParser):
-    def as_dict(self):
-        # type: () -> Dict[AnyStr, Any]
-        """Load config file to dictionary, ignoring sections."""
-        d = dict(self._sections)
-        x = {} # type: Dict[AnyStr, Any]
-        for k in d:
-            d[k] = dict(self._defaults, **d[k])
-            d[k].pop('__name__', None)
-            x.update(d[k])
-        return x
-
-
 ##########################################################
 # Initializations
 
-parser = MyParser() # create parser
-parser.read(CONFIG_SETTINGS_FILE) # read config file
-default_map = parser.as_dict() # convert config file to dictionary
-context_settings = dict(default_map=default_map, ignore_unknown_options=True, allow_extra_args=True) 
+context_settings = dict(ignore_unknown_options=True, allow_extra_args=True) 
 logger = logging.getLogger()
 
 ##########################################################
@@ -76,10 +53,11 @@ logger = logging.getLogger()
 def common_params(func):
     # type: (Callable) -> Any
     """Provides shared parameters for different functions."""
-    @click.option("-f", "--force", is_flag=True, help="overwrite existing files")
-    @click.option("-d", "--dry-run", is_flag=True, help="run without writing files")
-    @click.option("-g", "--graphics", is_flag=True, help="display images in GUI")
-    @click.option("-s", "--sample", type=int, default=0, help="perform on random sample (default: 0 / None)")
+    @click.option("-f", "--force", is_flag=True, default=None, help="overwrite existing files")
+    @click.option("-d", "--dry-run", is_flag=True, default=None, help="run without writing files")
+    @click.option("-g", "--graphics", is_flag=True, default=None, help="display images in GUI")
+    @click.option("-s", "--sample", type=int, default=None, help="perform on random sample (default: 0 / None)")
+    @click.option("-c", "--external-config-path", required=False, type=click.Path(exists=True, dir_okay=False), help="path to config file")
     @click_log.simple_verbosity_option(logger)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -88,12 +66,26 @@ def common_params(func):
     return wrapper
 
 
+def CommandWithConfigFile():
+
+    class CustomCommandClass(HelpColorsCommand, click.Command):
+
+        def invoke(self, ctx):
+            config = Config(ctx.params["external_config_path"])
+            user_cli_values = {k:v for (k,v) in ctx.params.items() if v is not None}
+            config.__dict__.update(**user_cli_values)
+            ctx.params.update(**config.__dict__)
+            return super(CustomCommandClass, self).invoke(ctx)
+
+    return CustomCommandClass
+
 @click.group(
     cls=HelpColorsGroup,
     help_headers_color='yellow',
     help_options_color='green',
     context_settings=context_settings,
 )
+@common_params
 def cli(**kwargs):
     # type: (**Any) -> None
     """Functions for improving library catalogues."""
@@ -191,7 +183,7 @@ def show_readme(**kwargs):
     click.echo_via_pager(readme_text)
 
 
-@cli.command(context_settings=context_settings)
+@cli.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-i","--input-metadata-file", required=True, type=click.Path(exists=True, dir_okay=False))
 @click.option("-o","--output-metadata-file", required=False, type=click.Path(dir_okay=False))
 @click.option("-t","--output-metadata-type", required=False, type=click.Choice([".json", ".xml", ".marc"]), default=".marc", prompt='Output Types | Options: [.json, .xml, .marc] | Default:')
@@ -205,8 +197,8 @@ def convert(input_metadata_file, output_metadata_file=None, output_metadata_type
     else: convert_metadata(input_metadata_file, output_metadata_file=output_metadata_file, **kwargs)
 
 
-@cli.command(context_settings=context_settings)
-@click.option("-i", "--input-metadata-file", required=True, type=click.Path(exists=True, dir_okay=False))
+@cli.command(cls=CommandWithConfigFile(), context_settings=context_settings)
+@click.option("-i", "--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
 @common_params
 def load(input_metadata_file, **kwargs):
     # type: (FilePath, **Any) -> None
@@ -219,13 +211,13 @@ def load(input_metadata_file, **kwargs):
 # Export
 
 
-@cli.group(context_settings=context_settings)
+@cli.group()#context_settings=context_settings)
 def export(**kwargs):
     # type: (**Any) -> None
     """Exports metadata from database."""
 
 
-@export.command(name="marc", context_settings=context_settings)
+@export.command(name="marc", cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-o", "--output-metadata-file", required=False, type=click.Path(exists=False, dir_okay=False))
 @click.option("-t","--output-metadata-type", required=False, type=click.Choice([".json", ".xml", ".marc"]), default=".marc", prompt='Output Types | Options: [.json, .xml, .marc] | Default:')
 @click.option("-i", "--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
@@ -241,8 +233,8 @@ def export_marc(output_metadata_file, output_metadata_type, input_metadata_file,
     export_metadata(output_metadata_file, input_metadata_file, partial=partial, **kwargs)
 
 
-@export.command(name="dump", context_settings=context_settings)
-@click.option("-o", "--output-dump-file", required=True, type=click.Path(exists=False, dir_okay=False))
+@export.command(name="dump", cls=CommandWithConfigFile(), context_settings=context_settings)
+@click.option("-o", "--output-dump-file", required=False, type=click.Path(exists=False, dir_okay=False))
 @click.option("-t","--output-dump-type", required=False, type=click.Choice([".csv", ".json", ".hdf5"]), default=".csv", prompt='Output Types | Options: [.csv, .json, .hdf5] | Default:')
 @common_params
 def export_dump(output_dump_file, output_dump_type, **kwargs):
@@ -255,9 +247,9 @@ def export_dump(output_dump_file, output_dump_type, **kwargs):
     export_flat_file(output_dump_file, **kwargs)
 
 
-@export.command(name="query", context_settings=context_settings)
-@click.option("-o", "--output-dump-file", required=True, type=click.Path(exists=False, dir_okay=False))
-@click.option("-q","--sql-text", required=True, prompt='SQL Query')
+@export.command(name="query", cls=CommandWithConfigFile(), context_settings=context_settings)
+@click.option("-o", "--output-dump-file", required=False, type=click.Path(exists=False, dir_okay=False))
+@click.option("-q","--sql-text", required=False, prompt='SQL Query')
 @click.option("-t","--output-dump-type", required=False, type=click.Choice([".csv", ".json", ".hdf5"]), default=".csv", prompt='Output Types | Options: [.csv, .json, .hdf5] | Default:')
 @common_params
 def export_query(output_dump_file, sql_text, output_dump_type, **kwargs):
@@ -280,7 +272,7 @@ def augment(**kwargs):
     """Applies functions to augment metadata."""
 
 
-@augment.command(name="run_parsers", context_settings=context_settings)
+@augment.command(name="run_parsers", cls=CommandWithConfigFile(), context_settings=context_settings)
 @common_params
 def augment_parsers(**kwargs):
     # type: (**Any) -> None
@@ -292,7 +284,7 @@ def augment_parsers(**kwargs):
     parse_sizes(**kwargs)
 
 
-@augment.command(name="run_processors", context_settings=context_settings)
+@augment.command(name="run_processors", cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
@@ -306,7 +298,7 @@ def augment_processors(input_image_dir, output_image_dir, **kwargs):
     caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@augment.command(name="run_all", context_settings=context_settings)
+@augment.command(name="run_all", cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
@@ -327,7 +319,7 @@ def augment_all(input_image_dir, output_image_dir, **kwargs):
     caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
@@ -338,7 +330,7 @@ def detect_faces(input_image_dir, output_image_dir, **kwargs):
     detect_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
@@ -349,7 +341,7 @@ def identify_faces(input_image_dir, output_image_dir, **kwargs):
     identify_faces(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
@@ -360,7 +352,7 @@ def read_text(input_image_dir, output_image_dir, **kwargs):
     augment.read_text(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @click.option("-ii", "--input-image-dir", required=False, type=click.Path(exists=True, file_okay=False))
 @click.option("-oi", "--output-image-dir", required=False, type=click.Path(exists=False, file_okay=False))
 @common_params
@@ -371,7 +363,7 @@ def caption_images(input_image_dir, output_image_dir, **kwargs):
     caption_images(input_image_dir, output_image_dir=output_image_dir, **kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @common_params
 def parse_locations(**kwargs):
     # type: (**Any) -> None
@@ -380,7 +372,7 @@ def parse_locations(**kwargs):
     parse_locations(**kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @common_params
 def parse_dates(**kwargs):
     # type: (**Any) -> None
@@ -389,7 +381,7 @@ def parse_dates(**kwargs):
     augment.parse_dates(**kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @common_params
 def parse_links(**kwargs):
     # type: (**Any) -> None
@@ -398,7 +390,7 @@ def parse_links(**kwargs):
     parse_links(**kwargs)
 
 
-@augment.command(context_settings=context_settings)
+@augment.command(cls=CommandWithConfigFile(), context_settings=context_settings)
 @common_params
 def parse_sizes(**kwargs):
     # type: (**Any) -> None

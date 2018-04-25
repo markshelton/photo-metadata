@@ -29,8 +29,8 @@ services:
   app:
     container_name: ${CONTAINER_APP_NAME}
     build:
-      context: ../../../
-      dockerfile: ./docker/dev/build/Dockerfile
+      context: ../../
+      dockerfile: ./docker/build/Dockerfile
     image: ${APP_IMAGE}:${APP_VERSION}
     env_file:
       - ../docker.env

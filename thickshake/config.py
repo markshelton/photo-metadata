@@ -23,6 +23,7 @@ import errno
 ##########################################################
 # Third-Party Imports
 
+import click
 import yaml
 
 ##########################################################
@@ -52,8 +53,7 @@ class Config(Borg):
         # type: (FilePath) -> None
         Borg.__init__(self)
         if self.external_config_path is None:
-            if external_config_path is None: self._eject_config()
-            else: self.external_config_path = external_config_path
+            self.external_config_path = self.check_external_config(external_config_path)
             self.setup_logging()
             self._load_config(self.external_config_path)
             self.setup_logging(self.logging_config_path)
@@ -70,19 +70,30 @@ class Config(Borg):
     def get_dict(self):
         return self.__dict__
 
-    def _eject_config(self):
+    def check_external_config(self, external_config_path):
+        if external_config_path is not None and os.path.exists(external_config_path):
+            return external_config_path
+        if os.path.exists(EXTERNAL_CONFIG_DEFAULT_DIR):
+            return EXTERNAL_CONFIG_DEFAULT_PATH
+        try:
+            if click.confirm("Couldn't find external config. Would you like to eject the internal config files?"):
+                destination = click.prompt("Which directory would you like to eject the internal config files into?", type=click.Path(exists=False, dir_okay=True))
+                return self._eject_config(destination=destination)
+        except: return None
+
+    def _eject_config(self, destination=EXTERNAL_CONFIG_DEFAULT_DIR):
         logger = logging.getLogger()
         try:
-            shutil.copytree(INTERNAL_CONFIG_DIR, EXTERNAL_CONFIG_DEFAULT_DIR)
-            self.external_config_path = EXTERNAL_CONFIG_DEFAULT_PATH
-            logger.info("Ejected internal config to %s.", EXTERNAL_CONFIG_DEFAULT_DIR)
+            shutil.copytree(INTERNAL_CONFIG_DIR, destination)
+            logger.info("Ejected internal config to %s.", destination)
         except FileExistsError as exc:
             logger.warning("External config default directory already exists.")
-            self.external_config_path = EXTERNAL_CONFIG_DEFAULT_PATH
         except OSError as exc: # python >2.5
             if exc.errno == errno.ENOTDIR:
-                shutil.copy(INTERNAL_CONFIG_DIR, EXTERNAL_CONFIG_DEFAULT_DIR)
+                shutil.copy(INTERNAL_CONFIG_DIR, destination)
             else: raise
+        return "%s/settings.ini" % destination
+
 
     def _load_config(self, external_config_path=None):
         # type: () -> None
@@ -105,7 +116,6 @@ class Config(Borg):
 
     def _load_env_config(self):
         envs = {k.lower():v for (k,v) in os.environ.items()}
-        del envs["ls_colors"]
         self.__dict__.update(**envs)
 
 

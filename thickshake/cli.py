@@ -184,7 +184,7 @@ def show_readme(**kwargs):
 
 
 @cli.command(cls=CommandWithConfigFile(), context_settings=context_settings)
-@click.option("-i","--input-metadata-file", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("-i","--input-metadata-file", required=False, type=click.Path(exists=True, dir_okay=False))
 @click.option("-o","--output-metadata-file", required=False, type=click.Path(dir_okay=False))
 @click.option("-t","--output-metadata-type", required=False, type=click.Choice([".json", ".xml", ".marc"]), default=".marc", prompt='Output Types | Options: [.json, .xml, .marc] | Default:')
 @common_params

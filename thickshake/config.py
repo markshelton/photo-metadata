@@ -124,14 +124,16 @@ class Config(Borg):
         """Load logging config from file, fall back to basic config if file doesn't exist."""
         logging.captureWarnings(True)
         if config_path is not None and os.path.exists(config_path):
+            self._setup_logging(config_path)
+        else:
+            self._setup_logging(INTERNAL_LOGGING_LOADER_PATH)
+
+    def _setup_logging(self, config_path):
+        try:
             with open(config_path, 'rt') as f:
                 config = yaml.safe_load(f.read())
             logging.config.dictConfig(config)
-        else:
-            with open(INTERNAL_LOGGING_LOADER_PATH, 'rt') as f:
-                config = yaml.safe_load(f.read())
-            logging.config.dictConfig(config)
-
+        except: logging.basicConfig()
 
 class MyParser(configparser.ConfigParser):
 

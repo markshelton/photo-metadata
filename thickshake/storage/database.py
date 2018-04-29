@@ -207,13 +207,13 @@ class Database(Borg):
         # type: (int, **Any) -> List[Dict[AnyStr, Any]]
         sql_text =  "SELECT *\n"
         sql_text += "FROM image\n"
-        sql_text += "NATURAL LEFT JOIN location\n"
-        sql_text += "NATURAL LEFT JOIN record\n"
-        sql_text += "NATURAL LEFT JOIN image_subject\n"
-        sql_text += "NATURAL LEFT JOIN record_subject\n"
-        sql_text += "NATURAL LEFT JOIN subject\n"
-        sql_text += "NATURAL LEFT JOIN record_topic\n"
-        sql_text += "NATURAL LEFT JOIN topic\n"
+        sql_text += "LEFT JOIN location ON image.location_uuid = location.uuid\n"
+        sql_text += "LEFT JOIN record ON image.record_uuid = record.uuid\n"
+        sql_text += "LEFT JOIN image_subject ON image.uuid = image_subject.image_uuid\n"
+        sql_text += "LEFT JOIN record_subject ON record.uuid = record_subject.record_uuid\n"
+        sql_text += "LEFT JOIN subject ON record_subject.subject_uuid = subject.uuid\n"
+        sql_text += "LEFT JOIN record_topic ON record.uuid = record_topic.record_uuid\n"
+        sql_text += "LEFT JOIN topic ON record_topic.topic_uuid = topic.uuid\n"
         result = self.execute_text_query(sql_text, **kwargs)
         return result
 

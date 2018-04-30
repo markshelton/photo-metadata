@@ -196,7 +196,8 @@ class Database(Borg):
 
     def execute_text_query(self, sql_text, sample=0, **kwargs):
         # type: (AnyStr) -> List[Dict[AnyStr, Any]]
-        if sample != 0: sql_text += "LIMIT %i\n" % sample
+        if sql_text is None: return None
+        if sample != 0: sql_text += " LIMIT %i\n" % sample
         with self.manage_db_session() as session:
             result = session.execute(text(sql_text)).fetchall()
             result = [dict(record) for record in result]

@@ -13,7 +13,8 @@
 # Packaging
 ####################
 config
-build
+/build
+!docker/build
 dist
 *.egg-info
 

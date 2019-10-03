@@ -1,0 +1,72 @@
+---
+Record:
+  record_label: "Text" # unique
+  note_title: "Text"
+  note_general: "Text"
+  note_summary: "Text"
+  series_title: "Text"
+  series_volume: "Text"
+  date_created: "Text"
+  date_created_approx: "Text"
+  physical_extent: "Text"
+  physical_details: "Text"
+  date_created_parsed: "Date"
+  image_count: "Integer"
+  subject_count: "Integer"
+  topic_count: "Integer"
+Image:
+  image_url: "Text" # unique, non-null
+  image_note: "Text" # non-null
+  image_label: "Text"
+  image_url_raw: "Text"
+  image_url_thumb: "Text"
+  image_height: "Text"
+  image_width: "Text"
+  image_date_created: "Date"
+  image_embedded_text: "Text"
+  subject_count: "Integer"
+Topic:
+  topic_term: "Text" # unique, non-null
+  record_count: "Integer"
+Subject:
+  subject_name: "Text" # unique
+  subject_type: "Text"
+  subject_dates: "Text"
+  subject_start_date: "Date"
+  subject_end_date: "Date"
+  record_count: "Integer"
+  image_count: "Integer"
+Location:
+  location_name: "Text"
+  location_division: "Text"
+  building_name: "Text"
+  street_number: "Text"
+  street_name: "Text"
+  street_type: "Text"
+  suburb: "Text"
+  state: "Text"
+  post_code: "Text"
+  latitude: "Numeric"
+  longitude: "Numeric"
+  confidence: "Text"
+  location_type: "Text"
+  image_count: "Integer"
+  record_count: "Integer"
+RecordSubject:
+  record_uuid: "UUID" # FK, PK
+  subject_uuid: "UUID" # FK, PK
+  subject_is_main: "Boolean" # PK
+  subject_relation: "Text"
+ImageSubject:
+  image_uuid: "UUID" # FK, PK
+  subject_uuid: "UUID" # FK, PK
+  face_bb_left: "Integer"
+  face_bb_right: "Integer"
+  face_bb_top: "Integer"
+  face_bb_bottom: "Integer"
+RecordTopic:
+  record_uuid: "UUID" # FK, PK
+  topic_uuid: "UUID" # FK, PK
+AugmentHistory:
+  function_name: "Text"
+---

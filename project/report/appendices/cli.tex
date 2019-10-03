@@ -1,0 +1,34 @@
+\subsection{Commands}
+
+\begin{minted}{bash}
+  thickshake load # Imports a catalogue file into the database (MARC, XML, JSON).
+
+  thickshake augment caption_images # Automatically captions images. [TODO]
+  thickshake augment detect_faces # Detects faces in images.
+  thickshake augment identify_faces # Identifies faces in images. [TODO]
+  thickshake augment read_text # Reads text embedded in images. [TODO]
+  thickshake augment parse_dates # Parses dates from text fields.
+  thickshake augment parse_links # Parses links from text fields.
+  thickshake augment parse_locations # Parses locations from text fields.
+  thickshake augment parse_sizes # Parses image sizes from urls.
+  thickshake augment run_all # Runs all augment functions.
+  thickshake augment run_parsers # Runs all metadata parsing functions.
+  thickshake augment run_processors # Runs all image processing functions.
+
+  thickshake export query # Exports a report from the database (CSV, JSON).
+  thickshake export dump # Exports a flat file from the database (CSV, JSON).
+  thickshake export marc # Exports a catalogue file from the database(MARC, XML, JSON). [WIP]
+
+  thickshake inspect # Inspects the state of the database (lists tables and number of records).
+  thickshake convert # Converts a catalogue file between formats (MARC, XML, JSON).
+\end{minted}
+
+\subsection{Shared Options}
+
+\begin{itemize}
+  \item "-f", "--force", help="overwrite existing files"
+  \item "-d", "--dry-run", help="run without writing files"
+  \item "-g", "--graphics", help="display images in GUI"
+  \item "-s", "--sample", help="perform on random sample (default: 0 / None)"
+  \item "-v", "--verbosity", help="either CRITICAL, ERROR, WARNING, INFO or DEBUG"
+\end{itemize}

@@ -1,0 +1,42 @@
+\subsection{Installation}
+
+Install Docker on your machine as described in the \href{http://docs.docker.com/engine/installation/}{Docker documentation}.
+
+\begin{minted}{bash}
+  git clone https://github.com/markshelton/thickshake
+  cd thickshake
+  make start ENV=dev # development
+  make start ENV=prod # production
+\end{minted}
+
+\subsection{Containers}
+
+\begin{description}
+    \item[App Container (Image: \href{https://hub.docker.com/r/markshelton/thickshake/}{markshelton/thickshake})]
+\end{description}
+
+\begin{itemize}
+  \item Python 3.5
+  \item Tensorflow 1.4.0
+  \item OpenCV 3.3.1
+  \item dlib 19.7
+\end{itemize}
+
+\begin{description}
+    \item[Database Container (Image: \href{https://hub.docker.com/_/postgres/}{postgres})]
+\end{description}
+
+\begin{itemize}
+  \item PostgreSQL 10.1
+\end{itemize}
+
+\subsection{Make Commands}
+
+\begin{minted}{bash}
+  make start # loads and builds images, creates data volume, creates virtual network, opens shell
+  make stop # saves python environment, stops containers, removes virtual network
+  make restart # stops and restarts containers and virtual network
+  make jupyter # opens jupyter service in default internet browser
+  make shell # opens interactive session with app container
+  make push # tags app image and pushes image to DockerHub
+\end{minted}

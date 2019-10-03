@@ -1,0 +1,16 @@
+---
+TABLE_PREFIX: "^"
+TABLE_DELIMITER: "."
+TAG_DELIMITER: "$"
+---
+^RECORD:
+  record.record_label: "035$a"
+  ^IMAGE:
+    image.image_label: "264$3"
+    image.image_date_created: "264$c"
+    ^LOCATION:
+      location.latitude: "034$s"
+      location.longitude: "034$t"
+      ^IMAGE:
+        image.image_label: "034$3"
+---
